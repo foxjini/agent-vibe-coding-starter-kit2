@@ -1,0 +1,16 @@
+--extra-index-url https://download.pytorch.org/whl/cpu
+
+# Python 3.10 ~ 3.12 (권장 버전)
+torch==2.2.2+cpu; python_version < "3.13"
+torchvision==0.17.2+cpu; python_version < "3.13"
+numpy<2; python_version < "3.13"
+opencv-python==4.9.0.80; python_version < "3.13"
+
+# Python 3.13 이상 (신형 파이썬 설치자용 — 2.2.2는 3.13 휠이 없어 설치 실패함)
+torch==2.9.1+cpu; python_version >= "3.13"
+torchvision==0.24.1+cpu; python_version >= "3.13"
+opencv-python>=4.10; python_version >= "3.13"
+
+ultralytics
+requests
+python-dotenv
