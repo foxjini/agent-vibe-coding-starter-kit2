@@ -19,7 +19,7 @@ python -m venv venv
 # 1. 경로 에러가 없는 경량 CPU PyTorch 설치
 pip install torch==2.2.2+cpu torchvision==0.17.2+cpu --extra-index-url https://download.pytorch.org/whl/cpu
 # 2. 호환 패키지 설치
-pip install "numpy<2" opencv-python==4.9.0.80 ultralytics requests python-dotenv
+pip install "numpy<2" opencv-python==4.9.0.80 ultralytics mediapipe requests python-dotenv
 ```
 그래도 경로 에러가 나면 관리자 권한 PowerShell에서 Windows 긴 경로 제한을 아예
 해제한다(FAQ 참고):
@@ -79,3 +79,52 @@ requests.post(
 백엔드(backend-agent)가 `vision_events`를 받아 팀이 정한 트리거 규칙(AGENTS.md의
 "팀 정보" 표 참고)에 따라 desired-state를 갱신한다. vision 클라이언트는 감지 사실만
 보고할 뿐, 제어를 직접 판단하지 않는다.
+
+## 손동작 인식 (mediapipe Hands, 학습 없음)
+가위바위보처럼 손가락 개수/모양을 구분해야 하는 미션에는 mediapipe의 Hands 솔루션을
+쓴다. 위의 얼굴 감지 예시와 같은 라이브러리이며, 사전학습된 모델이라 별도 데이터 수집·
+학습이 필요 없다.
+```python
+import mediapipe as mp
+
+hands = mp.solutions.hands.Hands(max_num_hands=1)
+result = hands.process(frame_rgb)
+if result.multi_hand_landmarks:
+    landmarks = result.multi_hand_landmarks[0].landmark
+    # 각 손가락 끝(tip) 관절이 그 아래 관절보다 위에 있으면 "펴짐"으로 판정해
+    # 펴진 손가락 개수를 센다: 0개=바위, 2개(검지+중지)=가위, 5개=보
+```
+`vision/requirements.txt`에 `mediapipe`가 필요하다.
+
+## 미션별 감지 대상 전환 (현재 미션 폴링)
+감지 대상이 하나로 고정되지 않고 단계에 따라 바뀌는 프로젝트(예: 기상 미션)에서는,
+desired-state 폴링과 동일한 패턴으로 "지금 무엇을 인식해야 하는지"를 몇 초마다
+백엔드에 물어본다. 엔드포인트 정의와 백엔드 구현은
+`alarm-scheduling-integration` 스킬을 참고한다.
+```python
+r = requests.get(
+    f"{BACKEND_URL}/api/v1/vision/current-mission",
+    headers={"X-Device-Api-Key": DEVICE_API_KEY},
+)
+mission = r.json()["data"]  # {"mission_type": "rps"|"object"|None, "active": bool, "target_object": str|None}
+```
+`active`가 `False`면 인식을 멈추고 대기한다(불필요한 카메라 연산·오탐 방지).
+
+## 이벤트 형식 확장 (다중 미션용)
+감지 대상이 여러 개일 때는 기본 이벤트 형식(`event_type`/`detected`/`count`/
+`confidence`)에 `mission_type`, `label`을 추가해 어떤 미션에서 무엇이 인식됐는지
+구분한다.
+```python
+requests.post(
+    f"{BACKEND_URL}/api/v1/vision/events",
+    json={
+        "event_type": "mission_result",
+        "mission_type": "rps",       # "rps" | "object"
+        "label": "scissors",         # 인식된 결과
+        "detected": True,
+        "count": 1,
+        "confidence": 0.92,
+    },
+    headers={"X-Device-Api-Key": DEVICE_API_KEY},
+)
+```
