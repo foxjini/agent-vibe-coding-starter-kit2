@@ -34,17 +34,17 @@
 [프로젝트폴더명]/
 ├── AGENTS.md
 ├── .agents/            (하네스: rules/skills/workflows/hooks/agents — 이미 완성됨)
-├── docs/               (설치 매뉴얼·로드맵·인터페이스 가이드 — 이미 완성됨)
+├── docs/               (매뉴얼·로드맵·부록 — 이미 완성됨. 목차는 docs/README.md)
 ├── backend/            (FastAPI, .env.example 포함)
 ├── frontend/           (Next.js, .env.example 포함)
 ├── vision/             (영상인식 클라이언트, Windows PC에서 실행, .env.example 포함)
 └── pi/                 (라즈베리파이에서 실행되는 하드웨어 데몬, 3주차부터, .env.example 포함)
 ```
 각 폴더의 `.env.example`을 `.env`로 복사해 실제 값을 채운다 (`.env`는 커밋되지
-않는다 — docs/학생용-설치-및-사용-매뉴얼-수정본.md 1단계 참고).
+않는다 — docs/01-학생용-설치-및-사용-매뉴얼.md 1단계 참고).
 
 라즈베리파이 담당자가 임시 테스트 시스템(`iot-test-system`의 `antigravity-plugin`)으로
-먼저 연습한 팀은 `docs/iot-test-system-연동-가이드.md`를 함께 본다 — 두 시스템은 인증
+먼저 연습한 팀은 `docs/부록D-iot-test-system-연동-가이드.md`를 함께 본다 — 두 시스템은 인증
 헤더·경로·디바이스 식별 단위가 달라 연습 코드가 그대로 붙지 않는다.
 
 ## 팀 정보 (아래 표를 채운다 — AI에게 시키지 않고 직접 채운다)

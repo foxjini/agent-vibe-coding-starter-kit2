@@ -11,11 +11,11 @@
     - `current_state`: 라즈베리파이(또는 Mock)가 "실제로 이렇게 됐다"고 보고한 상태
     - **이 두 컬럼은 메모리 변수가 아니라 반드시 DB에 저장한다** — 백엔드를
       `--reload`로 재시작할 때마다 desired-state가 초기화되면 폴링 계약이 깨진다
-      (`docs/백엔드-라즈베리파이5-연동-인터페이스-가이드.md` 3장·11장)
+      (`docs/부록C-백엔드-라즈베리파이5-연동-인터페이스-가이드.md` 3장·11장)
     - `desired_value` / `current_value`(JSON, NULL 허용): on/off로 표현되지 않는
       값을 담는다. **서보 각도, LED 밝기, 네오픽셀 색, 부저 주파수를 쓰는 팀은
       필수다** — `VARCHAR`인 state 컬럼만으로는 각도 90도를 표현할 수 없다
-      (`docs/iot-test-system-연동-가이드.md` 3장)
+      (`docs/부록D-iot-test-system-연동-가이드.md` 3장)
   - `sensor_readings(id, device_id, value, unit, value_json, created_at)` —
     값이 1개인 센서는 `value`+`unit`을, 온습도센서(DHT11)처럼 한 번에 2개 이상을
     보고하는 센서는 `value_json`에 `{"temperature_c": 24.5, "humidity_pct": 55.0}`
