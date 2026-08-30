@@ -28,7 +28,7 @@ class DeviceProvider(ABC):
 - `backend/iot/hardware_provider.py`: **GPIO를 직접 만지지 않는다.** 백엔드는 라즈베리파이와
   같은 기기에 있지 않으므로, desired-state를 저장해 두고 파이가 폴링해 가져가도록 중계만
   한다 (실제 GPIO 제어는 `pi/main.py` 담당 —
-  `docs/백엔드-라즈베리파이5-연동-인터페이스-가이드.md` 2장)
+  `docs/부록C-백엔드-라즈베리파이5-연동-인터페이스-가이드.md` 2장)
 - `backend/iot/provider_factory.py`: `.env`의 `DEVICE_MODE`(mock/hardware)로 적절한
   Provider를 반환 (이 파일은 학생/AI가 만든다 — 킷에 미리 들어있지 않다)
 
