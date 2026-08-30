@@ -19,15 +19,20 @@ description: >-
   않는다 — db-rules.md 참고)
 
 ## 상태 색상 유틸
-```ts
-// components/dashboard/statusColor.ts
-export const statusColor = {
-  on: "text-green-600 bg-green-50",
-  off: "text-gray-500 bg-gray-50",
-  alert: "text-red-600 bg-red-50 animate-pulse",  // 경보성 디바이스 전용
-  info: "text-blue-600 bg-blue-50",
-};
+`frontend/components/dashboard/statusColor.ts`가 **이미 킷에 들어있다.** 새로 만들지 말고
+`getStatusBadgeClass(status)`를 import해서 쓴다 (직접 Tailwind 색상을 적어 넣으면
+ui-ux-rules.md의 색상 의미표와 어긋난다).
+
+```tsx
+import { getStatusBadgeClass, statusColor } from "@/components/dashboard/statusColor";
+
+<span className={`rounded-full border px-2.5 py-1 text-xs ${getStatusBadgeClass(device.state)}`}>
+  {device.state}
+</span>
 ```
+`statusColor`의 키는 `on` / `off` / `alert` / `warning` / `info` / `connecting` /
+`disconnected` 7개다. `alert`(빨강 + `animate-pulse`)는 경보성 디바이스와 "감지됨"
+상태 전용이다.
 
 ## 연결 상태 표시
 WebSocket `connected` 값을 화면 상단에 항상 눈에 띄게 배지로 표시한다

@@ -111,7 +111,7 @@ flowchart LR
 
 ## 📋 최종 완성 예시 (`AGENTS.md`)
 
-```markdown
+````markdown
 # AGENTS.md — smart-lab-control
 
 ## 프로젝트 개요
@@ -148,6 +148,7 @@ flowchart LR
 [프로젝트폴더명]/
 ├── AGENTS.md
 ├── .agents/            (하네스: rules/skills/workflows/hooks/agents — 이미 완성됨)
+├── docs/               (설치 매뉴얼·로드맵·인터페이스 가이드 — 이미 완성됨)
 ├── backend/            (FastAPI, .env.example 포함)
 ├── frontend/           (Next.js, .env.example 포함)
 ├── vision/             (영상인식 클라이언트, Windows PC에서 실행, .env.example 포함)
@@ -164,6 +165,6 @@ flowchart LR
 | 영상인식 감지 대상 | 사람 감지(재실 여부 — YOLOv8n) |
 | 트리거 규칙 | 사람 감지 시 조명 ON, 5분간 미감지 시 조명 및 환기팬 OFF |
 | 팀원 역할 분담 | 홍길동 → frontend / 김철수 → backend·db / 이영희 → hardware / 박민수 → vision |
-```
+````
 
 🎉 **1단계 기획 및 `AGENTS.md` 완성이 끝났습니다! 이제 `2단계(1주차 - Mock 백엔드+DB+대시보드)`로 진행하세요.**

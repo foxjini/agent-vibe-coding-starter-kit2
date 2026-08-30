@@ -3,9 +3,15 @@
 ## 네이밍
 - 테이블/컬럼: snake_case
 - 최소 테이블 4개
-  - `devices(id, name, kind, created_at)` — `id`는 `led_1`처럼 짧고 읽기 쉬운 슬러그를
-    기본키로 써도 되고 자동증가 정수를 써도 된다(팀이 정한다). 다른 테이블은 전부
+  - `devices(id, name, kind, desired_state, current_state, updated_at, created_at)` —
+    `id`는 `led_1`처럼 짧고 읽기 쉬운 슬러그를 기본키로 쓴다(라즈베리파이가 URL에
+    그대로 넣어 폴링하므로 사람이 읽을 수 있는 슬러그를 권장한다). 다른 테이블은 전부
     이 `id`를 `device_id`로 참조한다
+    - `desired_state`: 대시보드/트리거가 "이렇게 되어야 한다"고 지정한 목표 상태
+    - `current_state`: 라즈베리파이(또는 Mock)가 "실제로 이렇게 됐다"고 보고한 상태
+    - **이 두 컬럼은 메모리 변수가 아니라 반드시 DB에 저장한다** — 백엔드를
+      `--reload`로 재시작할 때마다 desired-state가 초기화되면 폴링 계약이 깨진다
+      (`docs/백엔드-라즈베리파이5-연동-인터페이스-가이드.md` 3장·11장)
   - `sensor_readings(id, device_id, value, unit, created_at)`
   - `control_log(id, device_id, action, value, actor, created_at)` — actor는 `'user'` 또는 `'device'`
   - `vision_events(id, event_type, detected, count, confidence, created_at)`

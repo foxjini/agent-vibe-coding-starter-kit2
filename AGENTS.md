@@ -34,6 +34,7 @@
 [프로젝트폴더명]/
 ├── AGENTS.md
 ├── .agents/            (하네스: rules/skills/workflows/hooks/agents — 이미 완성됨)
+├── docs/               (설치 매뉴얼·로드맵·인터페이스 가이드 — 이미 완성됨)
 ├── backend/            (FastAPI, .env.example 포함)
 ├── frontend/           (Next.js, .env.example 포함)
 ├── vision/             (영상인식 클라이언트, Windows PC에서 실행, .env.example 포함)
