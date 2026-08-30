@@ -153,17 +153,16 @@ DHT11 하나가 온도와 습도를 **동시에** 올리는데, `sensor_readings
 
 ---
 
-## 6. 알아두면 좋은 차이 (지금 당장 고칠 필요는 없음)
+## 6. 알아두면 좋은 차이
 
-- `antigravity-plugin/rules/03-api-contract.md`는 "라즈베리파이가 호출하는 엔드포인트는
-  **모두** `X-Device-Key`가 필요하다"고 적고 있지만, 실제 코드에서
-  `GET /api/devices/{id}/components`는 인증 없이도 200을 반환합니다(대시보드용
-  엔드포인트라 의도적으로 열려 있음). 헤더를 같이 보내도 문제는 없습니다.
-- `REAL_INTEGRATION_GUIDE.md` 4단계 프롬프트는 "`HardwareDeviceProvider`를
-  `pi/main.py`에 만들어줘"라고 안내하지만, 이 킷에서는 `pi/main.py`가
-  `backend/iot/base.py`를 import할 수 없습니다(다른 기기). 같은 4개 메서드 **이름만**
-  맞춘 독립 클래스로 만듭니다 —
+- `GET /api/devices/{id}/components`는 대시보드도 쓰는 조회용이라 `X-Device-Key` 없이도
+  200을 반환합니다. 파이 클라이언트가 다른 호출과 똑같이 헤더를 붙여도 문제없습니다.
+- `pi/main.py`는 `backend/iot/base.py`를 **import할 수 없습니다**(백엔드와 다른 기기).
+  같은 4개 메서드 **이름만** 맞춘 독립 클래스로 만듭니다 —
   `docs/백엔드-라즈베리파이5-연동-인터페이스-가이드.md` 2장이 기준입니다.
+  `REAL_INTEGRATION_GUIDE.md` 4단계 프롬프트도 이 내용으로 정정되어 있습니다.
+- 폴링 주기는 두 시스템이 다릅니다 — 임시 테스트 시스템 1~2초, 우리 팀 백엔드 2~5초.
+  파이 담당자가 연습할 때 쓰던 값을 그대로 가져오지 않도록 4장 체크리스트에서 합의합니다.
 
 ## 참고
 - `iot-test-system/docs/REAL_INTEGRATION_GUIDE.md` — 전환 절차 원본(6단계)
