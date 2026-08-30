@@ -20,7 +20,7 @@
 클래스 선택·배선·lgpio 핀팩토리 같은 하드웨어 지식이고, **다시 만들어야 하는 것**은
 REST 클라이언트(`client.py`) 전체입니다.
 
-전환 절차 자체는 `iot-test-system/docs/REAL_INTEGRATION_GUIDE.md`에 6단계로 정리돼
+전환 절차 자체는 `iot-test-system/docs/03-진짜-백엔드-연동-확인-매뉴얼.md`에 6단계로 정리돼
 있습니다. 그 문서의 **1·2단계가 백엔드 담당자의 몫**입니다 — 이 문서는 그 준비를
 빠짐없이 하기 위한 체크리스트입니다.
 
@@ -80,7 +80,7 @@ device 1 (팀의 파이)         devices 테이블
 > 굳이 `iot-test-system`과 같은 2단계 모델(device → components)로 바꿀 필요는 없습니다.
 > 팀당 파이가 1대라면 2단계 모델은 불필요한 복잡도입니다 (`karpathy-principles.md`
 > 단순함 우선). 다만 **어느 쪽을 쓸지 파이 담당자와 먼저 합의**하고, 그 결정을
-> `REAL_INTEGRATION_GUIDE.md` 2단계 표의 "디바이스 식별 방식" 칸에 적어 둡니다.
+> `03-진짜-백엔드-연동-확인-매뉴얼.md` 2단계 표의 "디바이스 식별 방식" 칸에 적어 둡니다.
 
 ---
 
@@ -121,7 +121,7 @@ DHT11 하나가 온도와 습도를 **동시에** 올리는데, `sensor_readings
 
 ## 4. 백엔드 담당자가 파이 담당자에게 넘겨야 하는 것
 
-`REAL_INTEGRATION_GUIDE.md` 2단계 표를 채우려면 아래가 전부 필요합니다.
+`03-진짜-백엔드-연동-확인-매뉴얼.md` 2단계 표를 채우려면 아래가 전부 필요합니다.
 **Swagger(`http://localhost:8000/docs`)에서 실제로 호출해 본 값**을 적습니다 —
 문서 기본값을 그대로 옮겨 적지 않습니다.
 
@@ -144,7 +144,7 @@ DHT11 하나가 온도와 습도를 **동시에** 올리는데, `sensor_readings
 ## 5. 연동 확인 순서
 
 1. 백엔드 학생: 위 4장 항목을 전부 채운다
-2. 파이 학생: `REAL_INTEGRATION_GUIDE.md` 3단계의 `test_backend_contract.py`를
+2. 파이 학생: `03-진짜-백엔드-연동-확인-매뉴얼.md` 3단계의 `test_backend_contract.py`를
    그 값으로 고쳐 실행 → **200번대가 나올 때까지 여기서 멈춘다**
    (401 = 헤더 이름/키, 404 = 경로/device_id, 422 = 본문 모양)
 3. 통과하면 4단계에서 `pi/main.py`를 생성한다.
@@ -162,13 +162,13 @@ DHT11 하나가 온도와 습도를 **동시에** 올리는데, `sensor_readings
 - `pi/main.py`는 `backend/iot/base.py`를 **import할 수 없습니다**(백엔드와 다른 기기).
   같은 4개 메서드 **이름만** 맞춘 독립 클래스로 만듭니다 —
   `docs/부록C-백엔드-라즈베리파이5-연동-인터페이스-가이드.md` 2장이 기준입니다.
-  `REAL_INTEGRATION_GUIDE.md` 4단계 프롬프트도 이 내용으로 정정되어 있습니다.
+  `03-진짜-백엔드-연동-확인-매뉴얼.md` 4단계 프롬프트도 이 내용으로 정정되어 있습니다.
 - 폴링 주기는 두 시스템이 다릅니다 — 임시 테스트 시스템 1~2초, 우리 팀 백엔드 2~5초.
   파이 담당자가 연습할 때 쓰던 값을 그대로 가져오지 않도록 4장 체크리스트에서 합의합니다.
 
 ## 참고
-- `iot-test-system/docs/REAL_INTEGRATION_GUIDE.md` — 전환 절차 원본(6단계)
-- `iot-test-system/docs/API.md` — 테스트 시스템 REST 스펙 원본
+- `iot-test-system/docs/03-진짜-백엔드-연동-확인-매뉴얼.md` — 전환 절차 원본(6단계)
+- `iot-test-system/docs/부록B-REST-API-스펙.md` — 테스트 시스템 REST 스펙 원본
 - `iot-test-system/antigravity-plugin/rules/02-catalog-contract.md` — 부품 17종 필드명
 - `docs/부록C-백엔드-라즈베리파이5-연동-인터페이스-가이드.md` — 우리 팀 계약(원본)
 - `.agents/rules/api-rules.md`, `.agents/rules/db-rules.md`
