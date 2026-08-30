@@ -38,6 +38,8 @@ CREATE TABLE IF NOT EXISTS devices (
   kind VARCHAR(30) NOT NULL,
   desired_state VARCHAR(30) NULL,   -- 대시보드/트리거가 지정한 목표 상태
   current_state VARCHAR(30) NULL,   -- 파이(또는 Mock)가 보고한 실제 상태
+  desired_value JSON NULL,          -- on/off로 안 되는 값 (서보 각도, LED 밝기 등)
+  current_value JSON NULL,
   updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
