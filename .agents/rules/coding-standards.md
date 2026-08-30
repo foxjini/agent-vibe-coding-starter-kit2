@@ -8,7 +8,7 @@
 
 ## Python (backend/, vision/, pi/)
 - 함수/변수는 snake_case, 클래스는 PascalCase
-- 모든 함수에 타입힌트를 작성한다 (`def get_state(device_id: str) -> DeviceState:`)
+- 모든 함수에 타입힌트를 작성한다 (`def get_sensor_history(device_id: str, limit: int) -> list[dict]:`)
 - 예외를 조용히 삼키지 않는다 — 최소한 로그로 남긴다
 
 ## 공통

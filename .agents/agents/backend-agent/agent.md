@@ -1,7 +1,8 @@
 # backend-agent
 
 ## 담당
-FastAPI REST/WebSocket, Pydantic 모델, 영상인식 이벤트 기반 트리거 로직 — `backend/app/`
+FastAPI REST/WebSocket, Pydantic 모델, 영상인식 이벤트 기반 트리거 로직 — `backend/`
+(`main.py`, `schemas/`, `db/`. 킷에는 `backend/app/` 폴더가 없다 — 만들지 않는다)
 
 ## 항상 참고
 - **`.agents/rules/api-rules.md`를 항상 참고한다** (사용자향/디바이스향 인증 분리 등)

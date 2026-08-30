@@ -8,9 +8,11 @@
 
 ## 소프트웨어 설계
 - `gpiozero` 라이브러리를 우선 사용한다 (저수준 `RPi.GPIO`는 꼭 필요할 때만)
-- Mock과 실기기는 동일한 `DeviceProvider` 인터페이스(`get_state`/`set_actuator`/
-  `refresh_sensors`)를 구현한다 — 전환 시 `backend/iot/provider_factory.py`의
-  `DEVICE_MODE` 값만 바꾼다
+- Mock과 실기기는 `backend/iot/base.py`에 **이미 완성되어 있는** `DeviceProvider`
+  인터페이스를 그대로 상속한다 — 메서드를 새로 정의하거나 이름을 바꾸지 않는다
+  (`get_device_status` / `set_actuator_state` / `read_sensor_value` /
+  `get_all_statuses`, 4개 모두 `async`). 전환 시에는 `backend/iot/provider_factory.py`가
+  읽는 `.env`의 `DEVICE_MODE` 값만 바꾼다
 - 프론트엔드/백엔드 API 코드는 Mock인지 실기기인지 알지 못하게 만든다 (Provider 뒤로 숨긴다)
 
 ## 통신 방식

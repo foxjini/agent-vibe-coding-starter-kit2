@@ -75,6 +75,7 @@
 [프로젝트폴더명]/
 ├── AGENTS.md
 ├── .agents/            (하네스: rules/skills/workflows/hooks/agents — 이미 완성됨)
+├── docs/               (설치 매뉴얼·로드맵·인터페이스 가이드 — 이미 완성됨)
 ├── backend/            (FastAPI, .env.example 포함)
 ├── frontend/           (Next.js, .env.example 포함)
 ├── vision/             (영상인식 클라이언트, Windows PC에서 실행, .env.example 포함)
@@ -118,6 +119,10 @@ PRD상 가위바위보·사물인식 모두 "학습 필요"로 되어 있지만,
 ```
 mediapipe
 ```
+> ⚠️ mediapipe는 최신 파이썬(3.13+)용 휠 제공이 늦는 편입니다. 설치가 실패하면
+> `python --version`을 확인하고, 이 팀은 **파이썬 3.11 또는 3.12**로 `vision/venv`를
+> 다시 만드는 것이 가장 확실합니다 (`vision/requirements.txt`의 3.13 미만 분기와도
+> 맞습니다).
 
 > 임의의 사물(COCO에 없는 것)을 꼭 쓰고 싶다면 별도 데이터 수집·학습이 필요하다는 점을
 > 팀·지도교사가 먼저 확인하고 일정에 반영해야 합니다.
@@ -236,11 +241,13 @@ CREATE TABLE IF NOT EXISTS wakeup_sessions (
 ```python
 # backend/main.py (또는 별도 모듈)에 추가하는 형태의 예시
 import asyncio
-from datetime import datetime, timedelta
+from contextlib import asynccontextmanager
+from datetime import datetime
 
-POPUP_CONFIRM_TIMEOUT_SEC = 60  # [미정] — 팝업 확인 대기 시간, 팀이 정해서 상수로 관리
+POPUP_CONFIRM_TIMEOUT_SEC = 60   # [미정] — 팝업 확인 대기 시간, 팀이 정해서 상수로 관리
+SCHEDULER_TICK_SEC = 5           # 알람은 분 단위이므로 1초마다 DB를 두드릴 필요가 없다
 
-async def alarm_scheduler_loop():
+async def alarm_scheduler_loop() -> None:
     while True:
         now = datetime.now()
 
@@ -251,11 +258,17 @@ async def alarm_scheduler_loop():
         #    popup_shown_at + POPUP_CONFIRM_TIMEOUT_SEC 가 지났는데
         #    popup_confirmed_at이 NULL이면 → 알람 desired-state 다시 ON, status='resnoozed'
 
-        await asyncio.sleep(1)
+        await asyncio.sleep(SCHEDULER_TICK_SEC)
 
-@app.on_event("startup")
-async def start_scheduler():
-    asyncio.create_task(alarm_scheduler_loop())
+
+# FastAPI의 @app.on_event("startup")은 deprecated다 — lifespan을 쓴다.
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    task = asyncio.create_task(alarm_scheduler_loop())
+    yield
+    task.cancel()
+
+app = FastAPI(lifespan=lifespan)   # 기존 FastAPI(...) 호출에 lifespan 인자만 추가한다
 ```
 
 - 미션 완료 → 팝업 표시까지의 대기 시간(PRD상 약 1~2분, `[미정]`)도 같은 방식으로 상수화해
@@ -284,8 +297,8 @@ wakeup_sessions 테이블을 추가하고, vision_events에 mission_type/label �
 너는 이 프로젝트의 backend-agent다. .agents/rules/api-rules.md와
 .agents/rules/db-rules.md를 따른다.
 
-docs/기상유도알람시스템-AGENTS-초안-및-보충가이드.md의 2-4절을 참고해서 FastAPI 시작 시
-1초 주기로 도는 알람 스케줄링 백그라운드 태스크를 추가해줘. 경보성 디바이스 원칙에 따라
+docs/기상유도알람시스템-AGENTS-초안-및-보충가이드.md의 2-4절을 참고해서 FastAPI lifespan에서
+시작되는 알람 스케줄링 백그라운드 태스크(5초 주기)를 추가해줘. 경보성 디바이스 원칙에 따라
 사람이 직접 확인하기 전까지는 알람이 자동으로 꺼지면 안 돼.
 
 같은 문서 2-2절대로 GET /api/v1/vision/current-mission 엔드포인트(디바이스 인증)도
