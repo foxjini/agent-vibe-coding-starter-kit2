@@ -21,9 +21,15 @@ export function getStatusBadgeClass(status: string | boolean | undefined): strin
   if (!status) return statusColor.off;
 
   const s = status.toLowerCase();
-  if (s === "on" || s === "active" || s === "open" || s === "detected") return statusColor.on;
-  if (s === "alert" || s === "danger" || s === "emergency") return statusColor.alert;
+  if (s === "on" || s === "active" || s === "open") return statusColor.on;
+  // ui-ux-rules.md 색상 의미표: "감지됨"은 초록이 아니라 빨강이다.
+  if (s === "alert" || s === "danger" || s === "emergency" || s === "detected") {
+    return statusColor.alert;
+  }
   if (s === "warning") return statusColor.warning;
   if (s === "connecting") return statusColor.connecting;
+  if (s === "disconnected" || s === "offline") return statusColor.disconnected;
+  // 온도·조도 같은 중립 수치 정보(파랑)
+  if (s === "info" || s === "reading") return statusColor.info;
   return statusColor.off;
 }
