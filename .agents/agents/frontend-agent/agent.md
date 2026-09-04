@@ -1,7 +1,7 @@
 # frontend-agent
 
 ## 담당
-Next.js(TypeScript) 대시보드 UI — `app/`, `components/dashboard/`
+Next.js(TypeScript) 대시보드 UI — `frontend/app/`, `frontend/components/dashboard/`
 
 ## 항상 참고
 - **`.agents/rules/ui-ux-rules.md`를 항상 참고한다** (디자인 시스템, anti-slop 체크,

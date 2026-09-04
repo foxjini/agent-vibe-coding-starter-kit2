@@ -1,17 +1,19 @@
 # 팀 주제 브레인스토밍 워크시트 (AI 기획 인터뷰 가이드)
 
+> 📂 **부록A / 팀 전원 / 1단계 팀 미팅** · 전체 목록 [docs/README.md](README.md)
+
 > **💡 외부 AI(ChatGPT / Claude)로 5분 만에 팀 기획 자동화하기**
 > Antigravity의 Gemini 토큰을 전혀 소모하지 않고, 웹 브라우저의 무료 ChatGPT 또는 Claude를 **"IoT 기획 퍼실리테이터(PM)"**로 활용하여 팀 정보와 `AGENTS.md`를 인터뷰 방식으로 자동 완성할 수 있습니다.
-> 📖 **별도 상세 매뉴얼**: [ChatGPT-Claude-활용-1단계-자동화-매뉴얼.md](./ChatGPT-Claude-%ED%99%9C%EC%9A%A9-1%EB%8B%A8%EA%B3%84-%EC%9E%90%EB%8F%99%ED%99%94-%EB%A7%A4%EB%89%B4%EC%96%BC.md)
+> 📖 **별도 상세 매뉴얼**: [부록B-ChatGPT-Claude로-AGENTS-작성하기.md](./부록B-ChatGPT-Claude로-AGENTS-작성하기.md)
 
 ---
 
 ## 🤖 ChatGPT / Claude 파일 업로드 인터뷰 방법
 
-ChatGPT(https://chatgpt.com) 또는 Claude(https://claude.ai)에 접속한 뒤, **이 워크시트(`팀-주제-브레인스토밍-워크시트.md`)와 `AGENTS.md` 2개 파일을 채팅창에 드래그 앤 드롭(파일 첨부)**하고 아래 프롬프트를 입력하세요.
+ChatGPT(https://chatgpt.com) 또는 Claude(https://claude.ai)에 접속한 뒤, **이 워크시트(`부록A-팀-주제-브레인스토밍-워크시트.md`)와 `AGENTS.md` 2개 파일을 채팅창에 드래그 앤 드롭(파일 첨부)**하고 아래 프롬프트를 입력하세요.
 
 ```text
-첨부한 2개 파일(팀-주제-브레인스토밍-워크시트.md, AGENTS.md)을 확인해줘.
+첨부한 2개 파일(부록A-팀-주제-브레인스토밍-워크시트.md, AGENTS.md)을 확인해줘.
 너는 우리 팀의 "IoT·영상인식 기획 전문 멘토(PM)" 역할을 맡아서, 
 워크시트의 질문 순서에 따라 우리에게 질문을 1~2개씩 던지며 인터뷰를 진행해줘.
 
@@ -71,4 +73,4 @@ ChatGPT(https://chatgpt.com) 또는 Claude(https://claude.ai)에 접속한 뒤, 
 
 ## 다음 단계
 1. ChatGPT/Claude가 생성해 준 완성된 `AGENTS.md` 내용을 복사하여 프로젝트 루트의 `AGENTS.md` 파일에 덮어씁니다.
-2. `docs/학생용-설치-및-사용-매뉴얼.md`의 **2단계(1주차 실습)**를 진행합니다.
+2. `docs/01-학생용-설치-및-사용-매뉴얼.md`의 **2단계(1주차 실습)**를 진행합니다.
