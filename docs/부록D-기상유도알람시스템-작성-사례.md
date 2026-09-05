@@ -1,11 +1,10 @@
 # 기상 유도 알람 시스템 — AGENTS.md 작성 사례
 
-> 📂 **부록F / 참고용 작성 사례 — 우리 팀 문서가 아닙니다** · 전체 목록 [docs/README.md](README.md)
+> 📂 **부록D / 참고용 작성 사례 — 우리 팀 문서가 아닙니다** · 전체 목록 [docs/README.md](README.md)
 
 > ⚠️ **먼저 확인**: 이 문서는 **「기상 유도 알람 시스템」이라는 특정 한 팀의 결과물**입니다.
 > 우리 팀 주제가 기상 알람이 아니라면 **1부의 `AGENTS.md` 초안을 그대로 복사하지 마세요.**
-> 우리 팀 `AGENTS.md`는 [부록B](부록B-ChatGPT-Claude로-AGENTS-작성하기.md)의 절차로
-> 직접 만듭니다. 이 문서는 **"완성된 AGENTS.md와 보충 설계가 어느 정도 수준이면 되는지"**
+> 우리 팀은 이미 1차 완성된 `AGENTS.md`를 바탕으로 2차 확장을 진행합니다. 이 문서는 **"완성된 AGENTS.md와 보충 설계가 어느 정도 수준이면 되는지"**
 > 를 눈으로 보는 견본, 그리고 **기본 스킬이 안 다루는 요구사항(다단계 상태, 시간 기반
 > 트리거, 다중 인식 모드)을 만났을 때 어떻게 문서로 풀어내는지** 참고하는 용도입니다.
 
@@ -169,7 +168,7 @@ mediapipe
 ### "현재 미션" 조회 엔드포인트 (신규, 디바이스 인증)
 
 라즈베리파이의 desired-state 폴링과 동일한 패턴입니다
-(`docs/부록C-백엔드-라즈베리파이5-연동-인터페이스-가이드.md` 3장 참고). vision 클라이언트가
+(`docs/부록A-백엔드-라즈베리파이5-연동-인터페이스-가이드.md` 3장 참고). vision 클라이언트가
 몇 초마다 아래 엔드포인트를 호출해 지금 무엇을 인식해야 하는지 확인하고, 해당하는
 인식기만 실행합니다.
 
@@ -297,7 +296,7 @@ app = FastAPI(lifespan=lifespan)   # 기존 FastAPI(...) 호출에 lifespan 인�
 .agents/skills/db-integration/SKILL.md를 따른다.
 
 기존 devices/sensor_readings/control_log/vision_events 4테이블은 그대로 두고,
-docs/부록F-기상유도알람시스템-작성-사례.md의 2-3절 스키마대로 alarms와
+docs/부록D-기상유도알람시스템-작성-사례.md의 2-3절 스키마대로 alarms와
 wakeup_sessions 테이블을 추가하고, vision_events에 mission_type/label 컬럼을 추가해줘.
 ```
 
@@ -306,7 +305,7 @@ wakeup_sessions 테이블을 추가하고, vision_events에 mission_type/label �
 너는 이 프로젝트의 backend-agent다. .agents/rules/api-rules.md와
 .agents/rules/db-rules.md를 따른다.
 
-docs/부록F-기상유도알람시스템-작성-사례.md의 2-4절을 참고해서 FastAPI lifespan에서
+docs/부록D-기상유도알람시스템-작성-사례.md의 2-4절을 참고해서 FastAPI lifespan에서
 시작되는 알람 스케줄링 백그라운드 태스크(5초 주기)를 추가해줘. 경보성 디바이스 원칙에 따라
 사람이 직접 확인하기 전까지는 알람이 자동으로 꺼지면 안 돼.
 
@@ -319,7 +318,7 @@ docs/부록F-기상유도알람시스템-작성-사례.md의 2-4절을 참고해
 너는 이 프로젝트의 vision-agent다. .agents/rules/vision-rules.md와
 .agents/skills/vision-recognition-integration/SKILL.md를 따른다.
 
-docs/부록F-기상유도알람시스템-작성-사례.md의 2-1, 2-2절을 참고해서
+docs/부록D-기상유도알람시스템-작성-사례.md의 2-1, 2-2절을 참고해서
 vision/main.py가 mediapipe Hands로 가위바위보를, yolov8n.pt로 지정 사물을 인식하도록
 만들어줘. 몇 초마다 백엔드의 현재 미션 엔드포인트를 폴링해서 활성화된 미션에 해당하는
 인식만 수행하고, 결과를 mission_type/label을 포함한 이벤트로 전송해줘.
@@ -332,7 +331,7 @@ vision/main.py가 mediapipe Hands로 가위바위보를, yolov8n.pt로 지정 �
 - 이 문서는 팀의 「프로젝트 개발 계획서」/PRD(기상 유도 알람 시스템) 검토를 바탕으로
   작성되었습니다. PRD에 없는 내용은 임의로 만들지 않고 `[미정]`으로 남겼습니다 —
   실제 값은 팀이 채웁니다.
-- `docs/부록C-백엔드-라즈베리파이5-연동-인터페이스-가이드.md` — desired-state 폴링 계약(2-2절의
+- `docs/부록A-백엔드-라즈베리파이5-연동-인터페이스-가이드.md` — desired-state 폴링 계약(2-2절의
   "현재 미션" 폴링이 동일한 패턴을 따릅니다)
 - `.agents/rules/vision-rules.md`, `.agents/skills/vision-recognition-integration/SKILL.md`
 - `.agents/rules/db-rules.md`, `.agents/skills/db-integration/SKILL.md`
