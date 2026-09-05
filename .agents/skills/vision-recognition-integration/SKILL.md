@@ -8,24 +8,21 @@ description: >-
 
 > 웹캠 영상인식(YOLO/mediapipe) 연동 작업 시 이 스킬을 참고한다.
 
-## 패키지 설치 (Windows 주의)
-Windows 기본 경로 길이 제한(260자)과 최신 NumPy 2.x·PyTorch 바이너리 충돌로
-`pip install ultralytics`가 `[WinError 206] 파일 이름이나 확장명이 너무 깁니다`로
-실패할 수 있다. 아래처럼 버전을 고정해서 설치한다.
+## 패키지 설치 (Windows 환경 최적화)
+Windows에서 Python 3.14/3.13 혼재로 인한 C++ DLL 로드 에러(`[WinError 1114]`)와 260자 경로 길이 제한 에러를 방지하기 위해 **반드시 Python 3.12로 `venv`를 생성**하고 사전 구성된 `requirements.txt`로 설치한다.
+
 ```powershell
 cd vision
-python -m venv venv
+py -3.12 -m venv venv
 .\venv\Scripts\Activate.ps1
-# 1. 경로 에러가 없는 경량 CPU PyTorch 설치
-pip install torch==2.2.2+cpu torchvision==0.17.2+cpu --extra-index-url https://download.pytorch.org/whl/cpu
-# 2. 호환 패키지 설치
-pip install "numpy<2" opencv-python==4.9.0.80 ultralytics requests python-dotenv
+pip install -r requirements.txt
 ```
-그래도 경로 에러가 나면 관리자 권한 PowerShell에서 Windows 긴 경로 제한을 아예
-해제한다(FAQ 참고):
-```powershell
-New-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\FileSystem" -Name "LongPathsEnabled" -Value 1 -PropertyType DWORD -Force
-```
+
+> ⚠️ **가상환경 폴더명 주의**: `.gitignore`에 `venv/`가 등록되어 있으므로 반드시 폴더명을 `venv`로 통일한다 (`venv312` 등 임의 명칭 금지).
+
+> ⚠️ **얼굴인식 라이브러리 주의**: Windows에서 Visual Studio C++ 빌드 도구 미설치로 컴파일 에러를 내는 `dlib` / `face_recognition` 라이브러리는 **절대 사용하지 않는다.**  
+> 대신 C++ 빌드 없이 100% 휠로 설치되는 **`onnxruntime` (경량 ArcFace ONNX, LFW 99.5%+)** 또는 **OpenCV DNN (`YuNet` + `SFace`)**을 사용한다.
+> OpenCV 웹캠 화면에 한글 텍스트 출력 시 글자 깨짐 방지를 위해 `Pillow(PIL)`를 활용한다.
 
 ## 최소 파이프라인 (YOLOv8n 예시 — 실제 검증된 조합)
 사람 감지처럼 "특정 인물 식별이 아닌 사람/사물 존재 여부"에는 mediapipe의

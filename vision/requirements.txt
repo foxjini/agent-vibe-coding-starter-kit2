@@ -1,3 +1,15 @@
+# ==============================================================================
+# [Vision 가상환경 생성 권장]
+# Windows에서는 Python 3.14/3.13 혼재로 인한 DLL 로드 에러([WinError 1114]) 방지를 위해
+# 반드시 Python 3.12로 가상환경을 생성하세요:
+#   py -3.12 -m venv venv
+#   .\venv\Scripts\Activate.ps1
+#   pip install -r requirements.txt
+#
+# * 얼굴인식/특징추출: Windows C++ 컴파일 에러를 유발하는 dlib/face_recognition 대신
+#   LFW 99.5%+ 인식률의 onnxruntime(경량 ArcFace ONNX) 또는 OpenCV DNN(YuNet+SFace)을 권장합니다.
+# ==============================================================================
+
 --extra-index-url https://download.pytorch.org/whl/cpu
 
 # Python 3.10 ~ 3.12 (권장 버전)
@@ -6,11 +18,23 @@ torchvision==0.17.2+cpu; python_version < "3.13"
 numpy<2; python_version < "3.13"
 opencv-python==4.9.0.80; python_version < "3.13"
 
-# Python 3.13 이상 (신형 파이썬 설치자용 — 2.2.2는 3.13 휠이 없어 설치 실패함)
+# Python 3.13 이상 (신형 파이썬 설치자용 분기)
 torch==2.9.1+cpu; python_version >= "3.13"
 torchvision==0.24.1+cpu; python_version >= "3.13"
 opencv-python>=4.10; python_version >= "3.13"
 
-ultralytics
-requests
-python-dotenv
+# 객체 감지 및 비전 파이프라인
+ultralytics>=8.0.0
+mediapipe; python_version < "3.13"
+
+# 고성능 얼굴인식 및 수치연산 (dlib 대체, C++ 빌드 에러 없음, LFW 99.5%+)
+onnxruntime
+scipy
+
+# 웹캠 텍스트 한글 깨짐 방지
+pillow>=10.0.0
+
+# 백엔드 통신 및 환경변수
+requests>=2.28.0
+python-dotenv>=1.0.0
+
