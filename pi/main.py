@@ -6,7 +6,7 @@
 
 - 액추에이터: buzzer_1 (알람 출력 피에조 부저)
 - 센서: touch_pad_1 (패드 화면/터치 입력)
-- 통신 계약: 부록 C (GET desired-state 폴링 & POST state 보고)
+- 통신 계약: 부록 A (GET desired-state 폴링 & POST state 보고)
 """
 
 import logging
@@ -99,7 +99,7 @@ hw = HardwareMockController()
 
 
 # ==============================================================================
-# 백엔드 REST API 통신 함수 (부록 C 통신 계약)
+# 백엔드 REST API 통신 함수 (부록 A 통신 계약)
 # ==============================================================================
 
 def get_auth_headers() -> Dict[str, str]:
