@@ -3,10 +3,23 @@
 ## 네이밍
 - 테이블/컬럼: snake_case
 - 최소 테이블 4개
-  - `devices(id, name, kind, created_at)` — `id`는 `led_1`처럼 짧고 읽기 쉬운 슬러그를
-    기본키로 써도 되고 자동증가 정수를 써도 된다(팀이 정한다). 다른 테이블은 전부
+  - `devices(id, name, kind, desired_state, current_state, updated_at, created_at)` —
+    `id`는 `led_1`처럼 짧고 읽기 쉬운 슬러그를 기본키로 쓴다(라즈베리파이가 URL에
+    그대로 넣어 폴링하므로 사람이 읽을 수 있는 슬러그를 권장한다). 다른 테이블은 전부
     이 `id`를 `device_id`로 참조한다
-  - `sensor_readings(id, device_id, value, unit, created_at)`
+    - `desired_state`: 대시보드/트리거가 "이렇게 되어야 한다"고 지정한 목표 상태
+    - `current_state`: 라즈베리파이(또는 Mock)가 "실제로 이렇게 됐다"고 보고한 상태
+    - **이 두 컬럼은 메모리 변수가 아니라 반드시 DB에 저장한다** — 백엔드를
+      `--reload`로 재시작할 때마다 desired-state가 초기화되면 폴링 계약이 깨진다
+      (`docs/부록C-백엔드-라즈베리파이5-연동-인터페이스-가이드.md` 3장·11장)
+    - `desired_value` / `current_value`(JSON, NULL 허용): on/off로 표현되지 않는
+      값을 담는다. **서보 각도, LED 밝기, 네오픽셀 색, 부저 주파수를 쓰는 팀은
+      필수다** — `VARCHAR`인 state 컬럼만으로는 각도 90도를 표현할 수 없다
+      (`docs/부록D-iot-test-system-연동-가이드.md` 3장)
+  - `sensor_readings(id, device_id, value, unit, value_json, created_at)` —
+    값이 1개인 센서는 `value`+`unit`을, 온습도센서(DHT11)처럼 한 번에 2개 이상을
+    보고하는 센서는 `value_json`에 `{"temperature_c": 24.5, "humidity_pct": 55.0}`
+    형태로 담는다 (둘 중 쓰는 쪽만 채우고 나머지는 NULL)
   - `control_log(id, device_id, action, value, actor, created_at)` — actor는 `'user'` 또는 `'device'`
   - `vision_events(id, event_type, detected, count, confidence, created_at)`
 

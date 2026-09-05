@@ -1,10 +1,19 @@
-# 기상 유도 알람 시스템 — AGENTS.md 초안 및 보충 가이드
+# 기상 유도 알람 시스템 — AGENTS.md 작성 사례
+
+> 📂 **부록F / 참고용 작성 사례 — 우리 팀 문서가 아닙니다** · 전체 목록 [docs/README.md](README.md)
+
+> ⚠️ **먼저 확인**: 이 문서는 **「기상 유도 알람 시스템」이라는 특정 한 팀의 결과물**입니다.
+> 우리 팀 주제가 기상 알람이 아니라면 **1부의 `AGENTS.md` 초안을 그대로 복사하지 마세요.**
+> 우리 팀 `AGENTS.md`는 [부록B](부록B-ChatGPT-Claude로-AGENTS-작성하기.md)의 절차로
+> 직접 만듭니다. 이 문서는 **"완성된 AGENTS.md와 보충 설계가 어느 정도 수준이면 되는지"**
+> 를 눈으로 보는 견본, 그리고 **기본 스킬이 안 다루는 요구사항(다단계 상태, 시간 기반
+> 트리거, 다중 인식 모드)을 만났을 때 어떻게 문서로 풀어내는지** 참고하는 용도입니다.
 
 > **이 문서는 무엇인가요?**
 > 「기상 유도 알람 시스템」팀의 PRD를 스타터 킷 구조와 대조 검토한 결과를 바탕으로 만든
 > 문서입니다. 두 부분으로 구성됩니다.
-> - **1부**: 이 팀 전용 `AGENTS.md` 초안 — 그대로 복사해 프로젝트 루트 `AGENTS.md`에
->   붙여넣고 `[미정]` 항목을 팀이 직접 채우면 됩니다.
+> - **1부**: 이 팀 전용 `AGENTS.md` 초안 — **기상 알람 팀이라면** 그대로 복사해 프로젝트
+>   루트 `AGENTS.md`에 붙여넣고 `[미정]` 항목을 직접 채웁니다. 다른 팀은 형식만 참고합니다.
 > - **2부**: 스타터 킷의 기본 스킬(`vision-recognition-integration`, `db-rules.md`의 최소
 >   스키마 등)이 커버하지 않는, 이 팀만 추가로 설계해야 하는 부분 — vision_events 스키마
 >   확장, DB 테이블 추가, 알람 스케줄링 로직.
@@ -75,6 +84,7 @@
 [프로젝트폴더명]/
 ├── AGENTS.md
 ├── .agents/            (하네스: rules/skills/workflows/hooks/agents — 이미 완성됨)
+├── docs/               (설치 매뉴얼·로드맵·인터페이스 가이드 — 이미 완성됨)
 ├── backend/            (FastAPI, .env.example 포함)
 ├── frontend/           (Next.js, .env.example 포함)
 ├── vision/             (영상인식 클라이언트, Windows PC에서 실행, .env.example 포함)
@@ -118,6 +128,10 @@ PRD상 가위바위보·사물인식 모두 "학습 필요"로 되어 있지만,
 ```
 mediapipe
 ```
+> ⚠️ mediapipe는 최신 파이썬(3.13+)용 휠 제공이 늦는 편입니다. 설치가 실패하면
+> `python --version`을 확인하고, 이 팀은 **파이썬 3.11 또는 3.12**로 `vision/venv`를
+> 다시 만드는 것이 가장 확실합니다 (`vision/requirements.txt`의 3.13 미만 분기와도
+> 맞습니다).
 
 > 임의의 사물(COCO에 없는 것)을 꼭 쓰고 싶다면 별도 데이터 수집·학습이 필요하다는 점을
 > 팀·지도교사가 먼저 확인하고 일정에 반영해야 합니다.
@@ -155,7 +169,7 @@ mediapipe
 ### "현재 미션" 조회 엔드포인트 (신규, 디바이스 인증)
 
 라즈베리파이의 desired-state 폴링과 동일한 패턴입니다
-(`docs/백엔드-라즈베리파이5-연동-인터페이스-가이드.md` 3장 참고). vision 클라이언트가
+(`docs/부록C-백엔드-라즈베리파이5-연동-인터페이스-가이드.md` 3장 참고). vision 클라이언트가
 몇 초마다 아래 엔드포인트를 호출해 지금 무엇을 인식해야 하는지 확인하고, 해당하는
 인식기만 실행합니다.
 
@@ -236,11 +250,13 @@ CREATE TABLE IF NOT EXISTS wakeup_sessions (
 ```python
 # backend/main.py (또는 별도 모듈)에 추가하는 형태의 예시
 import asyncio
-from datetime import datetime, timedelta
+from contextlib import asynccontextmanager
+from datetime import datetime
 
-POPUP_CONFIRM_TIMEOUT_SEC = 60  # [미정] — 팝업 확인 대기 시간, 팀이 정해서 상수로 관리
+POPUP_CONFIRM_TIMEOUT_SEC = 60   # [미정] — 팝업 확인 대기 시간, 팀이 정해서 상수로 관리
+SCHEDULER_TICK_SEC = 5           # 알람은 분 단위이므로 1초마다 DB를 두드릴 필요가 없다
 
-async def alarm_scheduler_loop():
+async def alarm_scheduler_loop() -> None:
     while True:
         now = datetime.now()
 
@@ -251,11 +267,17 @@ async def alarm_scheduler_loop():
         #    popup_shown_at + POPUP_CONFIRM_TIMEOUT_SEC 가 지났는데
         #    popup_confirmed_at이 NULL이면 → 알람 desired-state 다시 ON, status='resnoozed'
 
-        await asyncio.sleep(1)
+        await asyncio.sleep(SCHEDULER_TICK_SEC)
 
-@app.on_event("startup")
-async def start_scheduler():
-    asyncio.create_task(alarm_scheduler_loop())
+
+# FastAPI의 @app.on_event("startup")은 deprecated다 — lifespan을 쓴다.
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    task = asyncio.create_task(alarm_scheduler_loop())
+    yield
+    task.cancel()
+
+app = FastAPI(lifespan=lifespan)   # 기존 FastAPI(...) 호출에 lifespan 인자만 추가한다
 ```
 
 - 미션 완료 → 팝업 표시까지의 대기 시간(PRD상 약 1~2분, `[미정]`)도 같은 방식으로 상수화해
@@ -275,7 +297,7 @@ async def start_scheduler():
 .agents/skills/db-integration/SKILL.md를 따른다.
 
 기존 devices/sensor_readings/control_log/vision_events 4테이블은 그대로 두고,
-docs/기상유도알람시스템-AGENTS-초안-및-보충가이드.md의 2-3절 스키마대로 alarms와
+docs/부록F-기상유도알람시스템-작성-사례.md의 2-3절 스키마대로 alarms와
 wakeup_sessions 테이블을 추가하고, vision_events에 mission_type/label 컬럼을 추가해줘.
 ```
 
@@ -284,8 +306,8 @@ wakeup_sessions 테이블을 추가하고, vision_events에 mission_type/label �
 너는 이 프로젝트의 backend-agent다. .agents/rules/api-rules.md와
 .agents/rules/db-rules.md를 따른다.
 
-docs/기상유도알람시스템-AGENTS-초안-및-보충가이드.md의 2-4절을 참고해서 FastAPI 시작 시
-1초 주기로 도는 알람 스케줄링 백그라운드 태스크를 추가해줘. 경보성 디바이스 원칙에 따라
+docs/부록F-기상유도알람시스템-작성-사례.md의 2-4절을 참고해서 FastAPI lifespan에서
+시작되는 알람 스케줄링 백그라운드 태스크(5초 주기)를 추가해줘. 경보성 디바이스 원칙에 따라
 사람이 직접 확인하기 전까지는 알람이 자동으로 꺼지면 안 돼.
 
 같은 문서 2-2절대로 GET /api/v1/vision/current-mission 엔드포인트(디바이스 인증)도
@@ -297,7 +319,7 @@ docs/기상유도알람시스템-AGENTS-초안-및-보충가이드.md의 2-4절�
 너는 이 프로젝트의 vision-agent다. .agents/rules/vision-rules.md와
 .agents/skills/vision-recognition-integration/SKILL.md를 따른다.
 
-docs/기상유도알람시스템-AGENTS-초안-및-보충가이드.md의 2-1, 2-2절을 참고해서
+docs/부록F-기상유도알람시스템-작성-사례.md의 2-1, 2-2절을 참고해서
 vision/main.py가 mediapipe Hands로 가위바위보를, yolov8n.pt로 지정 사물을 인식하도록
 만들어줘. 몇 초마다 백엔드의 현재 미션 엔드포인트를 폴링해서 활성화된 미션에 해당하는
 인식만 수행하고, 결과를 mission_type/label을 포함한 이벤트로 전송해줘.
@@ -310,9 +332,9 @@ vision/main.py가 mediapipe Hands로 가위바위보를, yolov8n.pt로 지정 �
 - 이 문서는 팀의 「프로젝트 개발 계획서」/PRD(기상 유도 알람 시스템) 검토를 바탕으로
   작성되었습니다. PRD에 없는 내용은 임의로 만들지 않고 `[미정]`으로 남겼습니다 —
   실제 값은 팀이 채웁니다.
-- `docs/백엔드-라즈베리파이5-연동-인터페이스-가이드.md` — desired-state 폴링 계약(2-2절의
+- `docs/부록C-백엔드-라즈베리파이5-연동-인터페이스-가이드.md` — desired-state 폴링 계약(2-2절의
   "현재 미션" 폴링이 동일한 패턴을 따릅니다)
 - `.agents/rules/vision-rules.md`, `.agents/skills/vision-recognition-integration/SKILL.md`
 - `.agents/rules/db-rules.md`, `.agents/skills/db-integration/SKILL.md`
 - `.agents/rules/api-rules.md`
-- `docs/학생용-설치-및-사용-매뉴얼-수정본.md`
+- `docs/01-학생용-설치-및-사용-매뉴얼.md`
