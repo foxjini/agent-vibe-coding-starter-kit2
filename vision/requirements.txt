@@ -1,17 +1,25 @@
---extra-index-url https://download.pytorch.org/whl/cpu
+# [Windows 환경 초경량 ONNX 비전 클라이언트]
+# PyTorch(수 GB) 없이 가벼운 ONNX Runtime 및 OpenCV DNN으로 즉시 구동됩니다.
+# 설치 시간: 약 5~10초 (학내망 트래픽 부담 0%)
+#
+# 가상환경 생성 및 설치:
+#   py -3.12 -m venv venv
+#   .\venv\Scripts\Activate.ps1
+#   pip install -r requirements.txt
 
-# Python 3.10 ~ 3.12 (권장 버전)
-torch==2.2.2+cpu; python_version < "3.13"
-torchvision==0.17.2+cpu; python_version < "3.13"
+# 초경량 고속 추론 엔진 및 영상 처리
+onnxruntime>=1.18.0
+opencv-python>=4.9.0.80
 numpy<2; python_version < "3.13"
-opencv-python==4.9.0.80; python_version < "3.13"
+numpy>=2.0.0; python_version >= "3.13"
 
-# Python 3.13 이상 (신형 파이썬 설치자용 — 2.2.2는 3.13 휠이 없어 설치 실패함)
-torch>=2.14.0+cpu; python_version >= "3.13"
-torchvision>=0.29.0+cpu; python_version >= "3.13"
-opencv-python>=4.10; python_version >= "3.13"
+# GUI 한글 폰트 렌더링 및 연산
+pillow>=10.0.0
+scipy>=1.12.0
 
+# 제스처(가위바위보) 및 얼굴/눈 분석
+mediapipe; python_version < "3.13"
 
-ultralytics
-requests
-python-dotenv
+# 백엔드 REST API 통신 및 환경설정
+requests>=2.28.0
+python-dotenv>=1.0.0

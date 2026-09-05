@@ -6,6 +6,8 @@ __pycache__/
 *$py.class
 *.pt
 !vision/yolov8n.pt
+*.onnx
+!vision/yolov8n.onnx
 
 # Node / Next.js
 node_modules/
