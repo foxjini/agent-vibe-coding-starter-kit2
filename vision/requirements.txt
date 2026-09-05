@@ -1,40 +1,28 @@
 # ==============================================================================
-# [Vision 가상환경 생성 권장]
-# Windows에서는 Python 3.14/3.13 혼재로 인한 DLL 로드 에러([WinError 1114]) 방지를 위해
-# 반드시 Python 3.12로 가상환경을 생성하세요:
+# [Vision 초경량 환경 가이드 (Pure ONNX & OpenCV)]
+# PyTorch/Ultralytics를 완전히 제거하고 ONNX Runtime 및 OpenCV로 구동됩니다.
+# - 수백 MB의 PyTorch 다운로드 없이 5~10초 만에 초고속 설치 완료
+# - Windows Python 3.14/3.13 혼재 시 DLL 에러([WinError 1114]) 및 C++ 빌드 에러 원천 차단
+#
+# 가상환경 생성 및 설치:
 #   py -3.12 -m venv venv
 #   .\venv\Scripts\Activate.ps1
 #   pip install -r requirements.txt
-#
-# * 얼굴인식/특징추출: Windows C++ 컴파일 에러를 유발하는 dlib/face_recognition 대신
-#   LFW 99.5%+ 인식률의 onnxruntime(경량 ArcFace ONNX) 또는 OpenCV DNN(YuNet+SFace)을 권장합니다.
 # ==============================================================================
 
---extra-index-url https://download.pytorch.org/whl/cpu
+# 초경량 고성능 추론 엔진 (PyTorch 불필요, CPU 가속 탑재)
+onnxruntime>=1.18.0
+opencv-python>=4.9.0
+numpy<2
 
-# Python 3.10 ~ 3.12 (권장 버전)
-torch==2.2.2+cpu; python_version < "3.13"
-torchvision==0.17.2+cpu; python_version < "3.13"
-numpy<2; python_version < "3.13"
-opencv-python==4.9.0.80; python_version < "3.13"
-
-# Python 3.13 이상 (신형 파이썬 설치자용 분기)
-torch==2.9.1+cpu; python_version >= "3.13"
-torchvision==0.24.1+cpu; python_version >= "3.13"
-opencv-python>=4.10; python_version >= "3.13"
-
-# 객체 감지 및 비전 파이프라인
-ultralytics>=8.0.0
-mediapipe; python_version < "3.13"
-
-# 고성능 얼굴인식 및 수치연산 (dlib 대체, C++ 빌드 에러 없음, LFW 99.5%+)
-onnxruntime
-scipy
-
-# 웹캠 텍스트 한글 깨짐 방지
+# 웹캠 UI 한글 깨짐 방지 폰트 렌더링
 pillow>=10.0.0
 
-# 백엔드 통신 및 환경변수
+# 고성능 벡터 거리 계산 및 수치 연산 (얼굴인식 임베딩 비교용)
+scipy>=1.12.0
+
+# 백엔드 REST API 통신 및 환경변수
 requests>=2.28.0
 python-dotenv>=1.0.0
+
 

@@ -24,22 +24,29 @@ pip install -r requirements.txt
 > 대신 C++ 빌드 없이 100% 휠로 설치되는 **`onnxruntime` (경량 ArcFace ONNX, LFW 99.5%+)** 또는 **OpenCV DNN (`YuNet` + `SFace`)**을 사용한다.
 > OpenCV 웹캠 화면에 한글 텍스트 출력 시 글자 깨짐 방지를 위해 `Pillow(PIL)`를 활용한다.
 
-## 최소 파이프라인 (YOLOv8n 예시 — 실제 검증된 조합)
-사람 감지처럼 "특정 인물 식별이 아닌 사람/사물 존재 여부"에는 mediapipe의
-얼굴 감지보다 YOLOv8n(경량 객체 감지 모델)이 더 적합하고 실제로도 검증됐다.
+## 최소 파이프라인 (YOLOv8n ONNX 예시 — PyTorch 없는 순수 초경량 추론)
+PyTorch 설치 없이 사전 제공된 `yolov8n.onnx` 모델과 `onnxruntime` 또는 OpenCV DNN으로 초고속 추론을 수행한다.
 ```python
 import cv2
-from ultralytics import YOLO
+import numpy as np
+import onnxruntime as ort
 
-model = YOLO("yolov8n.pt")
-cap = cv2.VideoCapture(0, cv2.CAP_DSHOW)  # Windows에서는 CAP_DSHOW로 열어야 웹캠 인식이 안정적
+session = ort.InferenceSession("yolov8n.onnx")
+input_name = session.get_inputs()[0].name
+cap = cv2.VideoCapture(0, cv2.CAP_DSHOW)  # Windows에서는 CAP_DSHOW로 열어야 안정적
 
 while True:
     ok, frame = cap.read()
     if not ok:
         continue
-    results = model(frame, classes=[0], verbose=False)  # class 0 = person
-    detected = len(results[0].boxes) > 0
+    # 640x640 정규화 blob 생성 (BGR -> RGB)
+    blob = cv2.dnn.blobFromImage(frame, 1/255.0, (640, 640), swapRB=True, crop=False)
+    outputs = session.run(None, {input_name: blob})
+    preds = np.transpose(outputs[0][0])  # shape: (8400, 84)
+
+    # COCO Class 0 = Person 감지
+    person_scores = preds[:, 4]
+    detected = np.any(person_scores >= 0.45)
     # 상태가 바뀔 때만 이벤트 전송 (vision-rules.md 참고)
 ```
 
