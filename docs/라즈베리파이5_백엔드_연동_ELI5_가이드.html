@@ -1,0 +1,818 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>라즈베리파이 5 백엔드 연동 ELI5 가이드 | 스마트 기상 시스템</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Pretendard:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg-canvas: #FFFFFF;
+      --surface: #F8FAFC;
+      --surface-hover: #F1F5F9;
+      --border: #E2E8F0;
+      --border-focus: #0064E0;
+      
+      --text-primary: #0F172A;
+      --text-secondary: #475569;
+      --text-muted: #94A3B8;
+
+      --meta-blue: #0064E0;
+      --meta-blue-light: #EBF5FF;
+      --meta-blue-hover: #0052B8;
+
+      --emerald: #059669;
+      --emerald-bg: #ECFDF5;
+      --emerald-border: #A7F3D0;
+
+      --rose: #E11D48;
+      --rose-bg: #FFF1F2;
+      --rose-border: #FECDD3;
+
+      --amber: #D97706;
+      --amber-bg: #FFFBEB;
+      --amber-border: #FDE68A;
+
+      --radius-sm: 8px;
+      --radius-md: 12px;
+      --radius-lg: 20px;
+      --shadow-sm: 0 1px 3px rgba(0,0,0,0.05);
+      --shadow-md: 0 4px 20px rgba(0, 0, 0, 0.06);
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background-color: #F1F5F9;
+      color: var(--text-primary);
+      font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, Roboto, sans-serif;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+      overflow-x: hidden;
+    }
+
+    /* 슬라이드 뷰어 컨테이너 (16:9 메타 스타일) */
+    .deck-container {
+      width: 100%;
+      max-width: 1120px;
+      aspect-ratio: 16 / 9;
+      background: var(--bg-canvas);
+      border-radius: var(--radius-lg);
+      border: 1px solid var(--border);
+      box-shadow: var(--shadow-md);
+      position: relative;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* 슬라이드 헤더 바 */
+    .deck-header {
+      padding: 18px 36px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid var(--border);
+      background: var(--bg-canvas);
+      z-index: 10;
+    }
+
+    .brand-meta {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 13px;
+      font-weight: 700;
+      letter-spacing: -0.2px;
+      color: var(--meta-blue);
+      text-transform: uppercase;
+    }
+
+    .badge-eli5 {
+      background: var(--meta-blue-light);
+      color: var(--meta-blue);
+      font-size: 12px;
+      font-weight: 600;
+      padding: 4px 10px;
+      border-radius: 20px;
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+    }
+
+    .slide-indicator {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text-muted);
+      font-variant-numeric: tabular-nums;
+    }
+
+    /* 슬라이드 메인 영역 */
+    .slide-viewport {
+      flex: 1;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .slide {
+      position: absolute;
+      inset: 0;
+      padding: 40px 48px;
+      display: flex;
+      flex-direction: column;
+      opacity: 0;
+      pointer-events: none;
+      transform: translateY(12px);
+      transition: opacity 0.3s ease, transform 0.3s ease;
+      overflow-y: auto;
+    }
+
+    .slide.active {
+      opacity: 1;
+      pointer-events: auto;
+      transform: translateY(0);
+    }
+
+    /* 타이포그래피 */
+    .slide-tag {
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--meta-blue);
+      letter-spacing: 0.8px;
+      text-transform: uppercase;
+      margin-bottom: 8px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .slide-title {
+      font-size: 28px;
+      font-weight: 800;
+      letter-spacing: -0.6px;
+      color: var(--text-primary);
+      margin-bottom: 8px;
+      line-height: 1.25;
+    }
+
+    .slide-desc {
+      font-size: 15px;
+      color: var(--text-secondary);
+      margin-bottom: 24px;
+      line-height: 1.5;
+    }
+
+    /* 카드 그리드 */
+    .grid-2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+      flex: 1;
+    }
+
+    .grid-3 {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 16px;
+      flex: 1;
+    }
+
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      padding: 24px;
+      display: flex;
+      flex-direction: column;
+      position: relative;
+    }
+
+    .card.highlight {
+      background: var(--meta-blue-light);
+      border-color: #BFDBFE;
+    }
+
+    .card.success {
+      background: var(--emerald-bg);
+      border-color: var(--emerald-border);
+    }
+
+    .card.warning {
+      background: var(--rose-bg);
+      border-color: var(--rose-border);
+    }
+
+    .card-icon-box {
+      width: 44px;
+      height: 44px;
+      border-radius: 10px;
+      background: #FFFFFF;
+      border: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 16px;
+      color: var(--meta-blue);
+      box-shadow: var(--shadow-sm);
+    }
+
+    .card-title {
+      font-size: 17px;
+      font-weight: 700;
+      color: var(--text-primary);
+      margin-bottom: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .card-text {
+      font-size: 13.5px;
+      color: var(--text-secondary);
+      line-height: 1.6;
+    }
+
+    .eli5-box {
+      margin-top: 14px;
+      padding: 12px 14px;
+      background: #FFFFFF;
+      border-radius: var(--radius-sm);
+      border-left: 3px solid var(--meta-blue);
+      font-size: 13px;
+      color: var(--text-primary);
+      line-height: 1.5;
+    }
+
+    .eli5-box strong {
+      color: var(--meta-blue);
+    }
+
+    /* 코드 블록 */
+    .code-block {
+      background: #0F172A;
+      color: #E2E8F0;
+      border-radius: var(--radius-sm);
+      padding: 14px 18px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12.5px;
+      line-height: 1.6;
+      position: relative;
+      overflow-x: auto;
+    }
+
+    .code-copy-btn {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      background: #334155;
+      color: #F8FAFC;
+      border: none;
+      padding: 4px 10px;
+      border-radius: 6px;
+      font-size: 11px;
+      cursor: pointer;
+      font-weight: 500;
+      transition: background 0.2s;
+    }
+
+    .code-copy-btn:hover {
+      background: #475569;
+    }
+
+    /* 하단 네비게이션 바 */
+    .deck-footer {
+      padding: 14px 36px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-top: 1px solid var(--border);
+      background: var(--bg-canvas);
+    }
+
+    .progress-bar-wrap {
+      flex: 1;
+      max-width: 320px;
+      height: 6px;
+      background: var(--surface-hover);
+      border-radius: 99px;
+      overflow: hidden;
+    }
+
+    .progress-bar {
+      height: 100%;
+      background: var(--meta-blue);
+      width: 12.5%;
+      transition: width 0.3s ease;
+    }
+
+    .nav-buttons {
+      display: flex;
+      gap: 10px;
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 8px 18px;
+      font-size: 13px;
+      font-weight: 600;
+      border-radius: var(--radius-sm);
+      border: 1px solid var(--border);
+      background: #FFFFFF;
+      color: var(--text-primary);
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .btn:hover {
+      background: var(--surface-hover);
+    }
+
+    .btn.btn-primary {
+      background: var(--meta-blue);
+      color: #FFFFFF;
+      border-color: var(--meta-blue);
+    }
+
+    .btn.btn-primary:hover {
+      background: var(--meta-blue-hover);
+    }
+
+    /* 미니 테이블 */
+    .eli5-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+      margin-top: 10px;
+    }
+
+    .eli5-table th {
+      background: #F1F5F9;
+      color: var(--text-secondary);
+      font-weight: 600;
+      text-align: left;
+      padding: 10px 14px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .eli5-table td {
+      padding: 12px 14px;
+      border-bottom: 1px solid var(--border);
+      color: var(--text-primary);
+      line-height: 1.5;
+    }
+
+    .tag-badge {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-size: 11px;
+      font-family: 'JetBrains Mono', monospace;
+      font-weight: 600;
+    }
+    .tag-get { background: #E0F2FE; color: #0369A1; }
+    .tag-post { background: #DCFCE7; color: #15803D; }
+
+    /* SVG 아이콘 스타일 */
+    .icon {
+      width: 20px;
+      height: 20px;
+      stroke-width: 2;
+      stroke: currentColor;
+      fill: none;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="deck-container">
+    <!-- Header -->
+    <header class="deck-header">
+      <div class="brand-meta">
+        <svg class="icon" viewBox="0 0 24 24" style="color:#0064E0;"><polygon points="12 2 2 7 12 12 22 7 12 2"></polygon><polyline points="2 17 12 22 22 17"></polyline><polyline points="2 12 12 17 22 12"></polyline></svg>
+        Meta Presentation Style &middot; Smart Wakeup System
+      </div>
+      <div class="badge-eli5">
+        <svg class="icon" viewBox="0 0 24 24" style="width:16px;height:16px;"><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path></svg>
+        ELI5 Framework for Raspberry Pi 5
+      </div>
+      <div class="slide-indicator" id="slideIndicator">1 / 8</div>
+    </header>
+
+    <!-- Slides Viewport -->
+    <main class="slide-viewport">
+
+      <!-- SLIDE 1: Cover -->
+      <section class="slide active" data-slide="1">
+        <div class="slide-tag">
+          <svg class="icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 14 14"></polyline></svg>
+          Onboarding Guide
+        </div>
+        <h1 class="slide-title" style="font-size:36px; margin-top:10px;">라즈베리파이 5 담당자를 위한 첫걸음<br><span style="color:var(--meta-blue);">"부품 없이 통신부터 100% 끝내기!"</span></h1>
+        <p class="slide-desc" style="font-size:16px; max-width: 750px;">
+          코딩 경험이 적어도 괜찮습니다! 전선 배선이나 납땜은 잠시 잊으세요.<br>
+          식당의 '주방'과 '서빙 로봇'처럼, 라즈베리파이가 백엔드 컴퓨터와 <strong>쪽지(JSON)를 주고받는 원리</strong>부터 정복합니다.
+        </p>
+
+        <div class="grid-3" style="margin-top:auto; flex:none;">
+          <div class="card highlight">
+            <div class="card-icon-box">
+              <svg class="icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"></circle><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"></line></svg>
+            </div>
+            <div class="card-title">1. 하드웨어 배선 제로</div>
+            <div class="card-text">전선 쇼트나 핀 파손 걱정 NO! 오직 화면에 찍히는 글자(print)로 성공을 확인합니다.</div>
+          </div>
+          <div class="card highlight">
+            <div class="card-icon-box">
+              <svg class="icon" viewBox="0 0 24 24"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path><polyline points="22,6 12,13 2,6"></polyline></svg>
+            </div>
+            <div class="card-title">2. 우체통 비유 (GET/POST)</div>
+            <div class="card-text">5세 아이도 아는 '우체통 쪽지함' 비유로 REST API 통신 계약을 직관적으로 이해합니다.</div>
+          </div>
+          <div class="card highlight">
+            <div class="card-icon-box">
+              <svg class="icon" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"></polyline></svg>
+            </div>
+            <div class="card-title">3. 1분 즉석 실행</div>
+            <div class="card-text">준비된 <code>test_connection.py</code> 한 줄만 실행하면 오늘 목표를 즉시 달성합니다.</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- SLIDE 2: Big Picture Metaphor -->
+      <section class="slide" data-slide="2">
+        <div class="slide-tag">
+          <svg class="icon" viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
+          ELI5 Big Picture
+        </div>
+        <h2 class="slide-title">우리는 무엇을 만드나요? (식당과 서빙 로봇의 대화)</h2>
+        <p class="slide-desc">백엔드와 라즈베리파이는 마치 "식당 주방 게시판"과 "서빙 로봇"의 관계와 똑같습니다.</p>
+
+        <div class="grid-2">
+          <div class="card">
+            <div class="card-icon-box" style="color:#0284C7;">
+              <svg class="icon" viewBox="0 0 24 24"><rect x="2" y="2" width="20" height="8" rx="2" ry="2"></rect><rect x="2" y="14" width="20" height="8" rx="2" ry="2"></rect><line x1="6" y1="6" x2="6.01" y2="6"></line><line x1="6" y1="18" x2="6.01" y2="18"></line></svg>
+            </div>
+            <div class="card-title">백엔드 (중앙 우체국 & 주방)</div>
+            <div class="card-text">
+              • 알람 시간 계산, 미션 성공 판단, 2차 수면 확인 팝업을 총괄하는 두뇌입니다.<br>
+              • 주문판(DB)에 <strong>"지금 알람 울려라!"</strong> 또는 <strong>"알람 꺼라!"</strong>라고 쪽지를 적어둡니다.
+            </div>
+            <div class="eli5-box">
+              <strong>ELI5 역할:</strong> "엄마가 식탁 위에 써놓은 오늘의 심부름 메모장"
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-icon-box" style="color:#10B981;">
+              <svg class="icon" viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="2" ry="2"></rect><rect x="9" y="9" width="6" height="6"></rect><line x1="9" y1="1" x2="9" y2="4"></line><line x1="15" y1="1" x2="15" y2="4"></line><line x1="9" y1="20" x2="9" y2="23"></line><line x1="15" y1="20" x2="15" y2="23"></line><line x1="20" y1="9" x2="23" y2="9"></line><line x1="20" y1="14" x2="23" y2="14"></line><line x1="1" y1="9" x2="4" y2="9"></line><line x1="1" y1="14" x2="4" y2="14"></line></svg>
+            </div>
+            <div class="card-title">라즈베리파이 5 (발 빠른 심부름꾼)</div>
+            <div class="card-text">
+              • 1초마다 우체국(백엔드)으로 달려가서 새 쪽지가 있는지 확인합니다.<br>
+              • "알람 울려!"라는 쪽지를 발견하면 방 안에서 <strong>소리(부저)</strong>를 내고 결과를 보고합니다.
+            </div>
+            <div class="eli5-box">
+              <strong>ELI5 역할:</strong> "1초마다 식탁을 확인하고 심부름을 해내는 착한 아이"
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- SLIDE 3: Key 3 Rules -->
+      <section class="slide" data-slide="3">
+        <div class="slide-tag">
+          <svg class="icon" viewBox="0 0 24 24"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path></svg>
+          Core Contract
+        </div>
+        <h2 class="slide-title">둘만의 비밀 통신 규칙 3가지 (부록 A 계약)</h2>
+        <p class="slide-desc">백엔드 친구와 라즈베리파이 담당 학생은 딱 이 3가지만 맞추면 완벽하게 연결됩니다.</p>
+
+        <table class="eli5-table">
+          <thead>
+            <tr>
+              <th style="width:22%;">규칙 항목</th>
+              <th style="width:30%;">우리 시스템의 실제 값</th>
+              <th>ELI5 5세 아이 설명</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>1. 친구네 집 주소<br>(BACKEND_URL)</strong></td>
+              <td><code>http://192.168.0.xxx:8000</code><br><span style="font-size:11px; color:var(--text-muted);">*같은 와이파이 내 백엔드 PC IP</span></td>
+              <td>"친구네 집 문패 번호예요. <code>localhost</code>라고 적으면 나 자신을 가리키므로 꼭 친구 컴퓨터 IP를 적어야 해요!"</td>
+            </tr>
+            <tr>
+              <td><strong>2. 비밀 암호 도장<br>(DEVICE_API_KEY)</strong></td>
+              <td><code>wake_up_2026_09_05_v1_0_0</code></td>
+              <td>"외부 낯선 사람이 장난치지 못하도록, 쪽지 봉투에 찍는 우리 팀만의 특수 암호 스탬프예요."</td>
+            </tr>
+            <tr>
+              <td><strong>3. 쪽지함 이름표<br>(device_id)</strong></td>
+              <td>• 부저: <code>buzzer_1</code><br>• 터치패드: <code>touch_pad_1</code></td>
+              <td>"우체통 안에 있는 칸막이 이름이에요. 철자 하나라도 틀리면 우체부 아저씨가 편지를 못 찾아요!"</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <!-- SLIDE 4: GET Polling -->
+      <section class="slide" data-slide="4">
+        <div class="slide-tag">
+          <svg class="icon" viewBox="0 0 24 24"><polyline points="1 4 1 10 7 10"></polyline><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"></path></svg>
+          Step 1: Polling
+        </div>
+        <h2 class="slide-title">우체통 열어보기 (GET desired-state)</h2>
+        <p class="slide-desc">라즈베리파이는 1초마다 백엔드에게 "저 지금 뭐 해야 하나요?"라고 물어봅니다.</p>
+
+        <div class="grid-2">
+          <div class="card">
+            <div class="card-title">
+              <span>물어보는 방식 (요청)</span>
+              <span class="tag-badge tag-get">GET</span>
+            </div>
+            <div class="code-block" style="margin-top:10px;">
+<span style="color:#94A3B8;"># 1초마다 이 주소로 물어봅니다</span>
+GET /api/v1/devices/<span style="color:#38BDF8;">buzzer_1</span>/desired-state
+
+<span style="color:#94A3B8;"># 봉투에 붙이는 비밀 도장</span>
+Headers:
+  X-Device-Api-Key: wake_up_2026_09_05_v1_0_0
+            </div>
+            <div class="eli5-box">
+              <strong>ELI5:</strong> "우체국장님! <code>buzzer_1</code> 칸에 새 편지 들어온 것 있나요?"
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-title">
+              <span>돌아오는 답장 (JSON 응답)</span>
+              <span class="tag-badge" style="background:#FEF3C7; color:#B45309;">200 OK</span>
+            </div>
+            <div class="code-block" style="margin-top:10px;">
+{
+  "success": true,
+  "data": {
+    "device_id": "buzzer_1",
+    <span style="color:#4ADE80;">"desired_state": "ringing"</span>,  <span style="color:#94A3B8;"># 알람 켜라!</span>
+    "value": {"sound": "beep_beep"}
+  }
+}
+            </div>
+            <div class="eli5-box">
+              <strong>ELI5:</strong> "응! 여기 <code>desired_state</code>가 <strong>ringing</strong>이라고 적혀있지? 지금 당장 시끄럽게 울려!"
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- SLIDE 5: POST Report -->
+      <section class="slide" data-slide="5">
+        <div class="slide-tag">
+          <svg class="icon" viewBox="0 0 24 24"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
+          Step 2: Reporting
+        </div>
+        <h2 class="slide-title">심부름 끝났다고 보고하기 (POST state)</h2>
+        <p class="slide-desc">소리를 켰으면, 백엔드에게 "지시하신 대로 소리 울리기 시작했습니다!"라고 알려줍니다.</p>
+
+        <div class="grid-2">
+          <div class="card">
+            <div class="card-title">
+              <span>보고서 보내기 (POST 요청)</span>
+              <span class="tag-badge tag-post">POST</span>
+            </div>
+            <div class="code-block" style="margin-top:10px;">
+POST /api/v1/devices/<span style="color:#38BDF8;">buzzer_1</span>/state
+
+<span style="color:#94A3B8;"># 보낼 내용 (JSON)</span>
+{
+  <span style="color:#4ADE80;">"state": "ringing"</span>,
+  "reported_at": "2026-09-06T08:00:00Z"
+}
+            </div>
+            <div class="eli5-box">
+              <strong>ELI5:</strong> "국장님! 방금 부저 알람 실제로 켰습니다! 임무 완료 보고합니다!"
+            </div>
+          </div>
+
+          <div class="card success">
+            <div class="card-icon-box" style="color:var(--emerald);">
+              <svg class="icon" viewBox="0 0 24 24"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"></path><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"></path></svg>
+            </div>
+            <div class="card-title">웹 대시보드 화면에 즉시 반영!</div>
+            <div class="card-text">
+              • 백엔드가 이 보고를 받는 순간, 학생들의 프론트엔드 웹 화면에 <strong>"부저 작동 중 (RINGING)"</strong> 초록불이 반짝 켜집니다!<br>
+              • 이로써 백엔드 ↔ 파이 ↔ 프론트엔드 3자 연동이 완벽하게 이어집니다.
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- SLIDE 6: No Hardware Philosophy -->
+      <section class="slide" data-slide="6">
+        <div class="slide-tag">
+          <svg class="icon" viewBox="0 0 24 24"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon></svg>
+          Phase 1 Philosophy
+        </div>
+        <h2 class="slide-title">빵판은 잠시 안녕! Print문으로 먼저 성공하기</h2>
+        <p class="slide-desc">전선을 꽂기 전에 화면 글자로 먼저 성공을 맛보는 것이 프로 개발자의 방식입니다.</p>
+
+        <div class="grid-2">
+          <div class="card warning">
+            <div class="card-title" style="color:var(--rose);">❌ 초보자가 좌절하는 흔한 실수</div>
+            <div class="card-text" style="margin-top:8px;">
+              • 시작하자마자 40개짜리 GPIO 핀에 전선 꽂기<br>
+              • 5V와 GND를 반대로 꽂아 라즈베리파이 태워먹기<br>
+              • 통신이 안 되는데 부품이 고장 난 줄 알고 헤매기
+            </div>
+            <div class="eli5-box" style="border-left-color:var(--rose);">
+              <strong>주의:</strong> 통신이 되는지 모르는 상태에서 회로부터 연결하면 문제 원인을 찾을 수 없습니다!
+            </div>
+          </div>
+
+          <div class="card success">
+            <div class="card-title" style="color:var(--emerald);">✅ 이번 2차 첫 단계: 100% Mock Print</div>
+            <div class="card-text" style="margin-top:8px;">
+              • 실제 부저 소리 대신 <code>print("삐-삐- 알람!")</code> 출력<br>
+              • 터치패드 터치 대신 키보드 <code>y</code> 입력으로 센서 보고<br>
+              • 통신이 100% 성공하면, 그때 전선 2가닥만 부저에 꽂으면 끝!
+            </div>
+            <div class="eli5-box" style="border-left-color:var(--emerald);">
+              <strong>목표 달성:</strong> 콘솔에 성공 로그가 뜨면 오늘 라즈베리파이 임무는 100점 만점입니다!
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- SLIDE 7: Hands-on Quick Test -->
+      <section class="slide" data-slide="7">
+        <div class="slide-tag">
+          <svg class="icon" viewBox="0 0 24 24"><polyline points="4 17 10 11 4 5"></polyline><line x1="12" y1="19" x2="20" y2="19"></line></svg>
+          Hands-on Step
+        </div>
+        <h2 class="slide-title">1분 만에 끝내는 첫 연결 테스트 (실습)</h2>
+        <p class="slide-desc">라즈베리파이 터미널에서 다음 딱 2줄만 입력하면 끝납니다.</p>
+
+        <div class="card" style="margin-bottom:16px;">
+          <div class="card-title">
+            <span>터미널 실행 명령어</span>
+            <button class="code-copy-btn" onclick="copySnippet('cd pi && python test_connection.py')">복사하기</button>
+          </div>
+          <div class="code-block" style="margin-top:8px;">
+<span style="color:#94A3B8;"># 1. pi 폴더로 이동 후 테스트 스크립트 실행</span>
+cd pi
+python test_connection.py
+          </div>
+        </div>
+
+        <div class="card highlight">
+          <div class="card-title">화면에 이런 글자가 나오면 대성공! 🎉</div>
+          <div class="code-block" style="background:#1E293B; color:#F1F5F9; font-size:12px; margin-top:8px;">
+🔍 1단계: 백엔드 우체국이 문을 열었는지 확인 중...
+  ✅ [성공!] 백엔드 서버와 연결되었습니다! (상태 코드: 200 OK)
+
+📬 2단계: 1초마다 백엔드 우체통 열어보기 시작
+🔔 [상태 변화 감지!] 부저 명령이 바뀌었습니다: off ➡️ <span style="color:#38BDF8; font-weight:bold;">ringing</span>
+  🔊 [피에조 부저 흉내내기] 삐- 삐- 삐-! 알람이 시끄럽게 울리고 있습니다!
+  📤 [보고 완료] 백엔드에 '부저가 실제로 울리고 있어요'라고 보고했습니다.
+          </div>
+        </div>
+      </section>
+
+      <!-- SLIDE 8: SOS Troubleshooting -->
+      <section class="slide" data-slide="8">
+        <div class="slide-tag">
+          <svg class="icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>
+          Blameless SOS
+        </div>
+        <h2 class="slide-title">빨간 에러가 떠도 당황 금지! 3초 처방전</h2>
+        <p class="slide-desc">에러 메시지는 내 잘못이 아니라 컴퓨터가 힌트를 주는 친절한 안내문입니다.</p>
+
+        <div class="grid-3">
+          <div class="card">
+            <div class="card-title" style="font-size:15px; color:var(--rose);">Connection Refused</div>
+            <div class="eli5-box" style="margin-top:4px; font-size:12px;">
+              <strong>비유:</strong> 친구가 아직 문을 안 열어줬어요.
+            </div>
+            <div class="card-text" style="margin-top:10px; font-size:12.5px;">
+              <strong>처방:</strong><br>
+              1. 백엔드 PC에서 서버가 켜져 있나요?<br>
+              2. 라즈베리파이와 백엔드 PC가 <strong>같은 Wi-Fi</strong>인가요?
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-title" style="font-size:15px; color:var(--amber);">404 Not Found</div>
+            <div class="eli5-box" style="margin-top:4px; font-size:12px;">
+              <strong>비유:</strong> 우체통에 적힌 이름표가 달라요.
+            </div>
+            <div class="card-text" style="margin-top:10px; font-size:12.5px;">
+              <strong>처방:</strong><br>
+              백엔드 DB에 <code>buzzer_1</code> 디바이스가 들어있는지 백엔드 친구에게 확인 요청하세요!
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-title" style="font-size:15px; color:#6366F1;">401 / 403 Forbidden</div>
+            <div class="eli5-box" style="margin-top:4px; font-size:12px;">
+              <strong>비유:</strong> 비밀 암호 도장이 틀렸어요.
+            </div>
+            <div class="card-text" style="margin-top:10px; font-size:12.5px;">
+              <strong>처방:</strong><br>
+              <code>.env</code> 파일의 <code>DEVICE_API_KEY</code>가 백엔드와 정확히 일치하는지 비교하세요!
+            </div>
+          </div>
+        </div>
+
+        <div style="margin-top:16px; text-align:center; font-size:13px; color:var(--text-muted);">
+          ✨ 이 3가지만 확인하면 어떤 통신 문제도 5분 안에 해결할 수 있습니다!
+        </div>
+      </section>
+
+    </main>
+
+    <!-- Footer Nav -->
+    <footer class="deck-footer">
+      <div class="progress-bar-wrap">
+        <div class="progress-bar" id="progressBar"></div>
+      </div>
+      <div class="nav-buttons">
+        <button class="btn" id="prevBtn" onclick="prevSlide()">
+          <svg class="icon" viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"></polyline></svg>
+          이전 (Left)
+        </button>
+        <button class="btn btn-primary" id="nextBtn" onclick="nextSlide()">
+          다음 (Right)
+          <svg class="icon" viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"></polyline></svg>
+        </button>
+      </div>
+    </footer>
+  </div>
+
+  <script>
+    let currentSlide = 1;
+    const totalSlides = 8;
+
+    function updateSlide() {
+      document.querySelectorAll('.slide').forEach(slide => {
+        slide.classList.remove('active');
+      });
+      const activeEl = document.querySelector(`.slide[data-slide="${currentSlide}"]`);
+      if (activeEl) {
+        activeEl.classList.add('active');
+      }
+
+      document.getElementById('slideIndicator').innerText = `${currentSlide} / ${totalSlides}`;
+      const percent = (currentSlide / totalSlides) * 100;
+      document.getElementById('progressBar').style.width = `${percent}%`;
+
+      document.getElementById('prevBtn').disabled = currentSlide === 1;
+      document.getElementById('nextBtn').innerText = currentSlide === totalSlides ? '완료' : '다음 (Right)';
+    }
+
+    function nextSlide() {
+      if (currentSlide < totalSlides) {
+        currentSlide++;
+        updateSlide();
+      }
+    }
+
+    function prevSlide() {
+      if (currentSlide > 1) {
+        currentSlide--;
+        updateSlide();
+      }
+    }
+
+    // 키보드 좌우 화살표 네비게이션
+    window.addEventListener('keydown', (e) => {
+      if (e.key === 'ArrowRight' || e.key === ' ') {
+        nextSlide();
+      } else if (e.key === 'ArrowLeft') {
+        prevSlide();
+      }
+    });
+
+    function copySnippet(text) {
+      navigator.clipboard.writeText(text).then(() => {
+        alert('명령어가 클립보드에 복사되었습니다: ' + text);
+      });
+    }
+
+    updateSlide();
+  </script>
+</body>
+</html>
