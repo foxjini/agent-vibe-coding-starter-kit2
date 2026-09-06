@@ -14,6 +14,7 @@ import {
   ArrowRight,
 } from "lucide-react";
 import { Reservation } from "@/types";
+import { apiUrl } from "@/utils/apiConfig";
 
 interface ReservationSectionProps {
   reservations: Reservation[];
@@ -60,7 +61,7 @@ export function ReservationSection({
 
     setIsSubmitting(true);
     try {
-      const res = await fetch("http://localhost:8000/api/reservations", {
+      const res = await fetch(apiUrl("/api/reservations"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

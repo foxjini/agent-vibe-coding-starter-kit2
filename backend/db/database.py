@@ -77,7 +77,11 @@ def _format_row(row: Optional[Dict[str, Any]]) -> Optional[Dict[str, Any]]:
     formatted = dict(row)
     for key, val in formatted.items():
         if isinstance(val, datetime):
-            formatted[key] = val.isoformat() + "Z"
+            # MySQL DATETIME은 naive(오프셋 없음)라 "Z"만 붙이면 되지만,
+            # Supabase(PostgreSQL) 전환 시 tz-aware 값이 오면 "+00:00Z"가 되어
+            # ISO-8601이 깨진다. 두 경우를 모두 안전하게 처리한다.
+            iso = val.isoformat()
+            formatted[key] = iso.replace("+00:00", "Z") if val.tzinfo else iso + "Z"
         elif key in ("desired_value", "current_value", "value_json", "value"):
             formatted[key] = _deserialize_json(val)
     return formatted

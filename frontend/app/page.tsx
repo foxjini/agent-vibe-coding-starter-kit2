@@ -14,6 +14,7 @@ import { ConnectionBadge } from "@/components/dashboard/ConnectionBadge";
 import { VirtualBoothSimulator } from "@/components/booth/VirtualBoothSimulator";
 import { ReservationSection } from "@/components/booth/ReservationSection";
 import { KaraokeRoomSection } from "@/components/booth/KaraokeRoomSection";
+import { apiUrl } from "@/utils/apiConfig";
 import { SongHistorySection } from "@/components/booth/SongHistorySection";
 import { MiniGameSection } from "@/components/booth/MiniGameSection";
 import { useKaraokeSocket } from "@/hooks/useKaraokeSocket";
@@ -42,7 +43,7 @@ export default function HomePage() {
   // Fetch Initial Data from Backend
   const fetchDevices = useCallback(async () => {
     try {
-      const res = await fetch("http://localhost:8000/api/devices");
+      const res = await fetch(apiUrl("/api/devices"));
       if (res.ok) {
         const json = await res.json();
         setDevices(json.data || []);
@@ -54,7 +55,7 @@ export default function HomePage() {
 
   const fetchReservations = useCallback(async () => {
     try {
-      const res = await fetch("http://localhost:8000/api/reservations");
+      const res = await fetch(apiUrl("/api/reservations"));
       if (res.ok) {
         const json = await res.json();
         setReservations(json.data || []);
@@ -66,7 +67,7 @@ export default function HomePage() {
 
   const fetchSongs = useCallback(async () => {
     try {
-      const res = await fetch("http://localhost:8000/api/songs");
+      const res = await fetch(apiUrl("/api/songs"));
       if (res.ok) {
         const json = await res.json();
         setAllSongs(json.data?.all || []);
@@ -112,7 +113,7 @@ export default function HomePage() {
   const handleDeviceControl = async (deviceId: string, state: string, value?: unknown) => {
 
     try {
-      await fetch(`http://localhost:8000/api/devices/${deviceId}/control`, {
+      await fetch(apiUrl(`/api/devices/${deviceId}/control`), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ desired_state: state, value }),
@@ -126,7 +127,7 @@ export default function HomePage() {
   // Keypad PIN Verification Handler
   const handleVerifyPin = async (pin: string) => {
     try {
-      const res = await fetch("http://localhost:8000/api/booth/verify-keypad", {
+      const res = await fetch(apiUrl("/api/booth/verify-keypad"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ pin }),
@@ -146,7 +147,7 @@ export default function HomePage() {
   // Quick Trigger Handlers
   const handleSimulateEntry = async () => {
     try {
-      await fetch("http://localhost:8000/api/booth/simulate-entry", { method: "POST" });
+      await fetch(apiUrl("/api/booth/simulate-entry"), { method: "POST" });
       fetchDevices();
     } catch (e) {
       console.error(e);
@@ -155,7 +156,7 @@ export default function HomePage() {
 
   const handleSimulateWarning = async () => {
     try {
-      await fetch("http://localhost:8000/api/booth/simulate-10min-warning", { method: "POST" });
+      await fetch(apiUrl("/api/booth/simulate-10min-warning"), { method: "POST" });
       fetchDevices();
     } catch (e) {
       console.error(e);
@@ -164,7 +165,7 @@ export default function HomePage() {
 
   const handleSimulateEnd = async () => {
     try {
-      await fetch("http://localhost:8000/api/booth/simulate-end", { method: "POST" });
+      await fetch(apiUrl("/api/booth/simulate-end"), { method: "POST" });
       fetchDevices();
     } catch (e) {
       console.error(e);

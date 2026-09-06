@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { WebSocketMessage } from "@/types";
+import { getWebSocketUrl } from "@/utils/apiConfig";
 
 export function useKaraokeSocket(onMessageReceived?: (msg: WebSocketMessage) => void) {
   const [isConnected, setIsConnected] = useState<boolean>(false);
@@ -20,9 +21,7 @@ export function useKaraokeSocket(onMessageReceived?: (msg: WebSocketMessage) => 
     const connect = () => {
       if (isUnmounted) return;
 
-      const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
-      const host = process.env.NEXT_PUBLIC_WS_HOST || "localhost:8000";
-      const wsUrl = `${protocol}//${host}/ws`;
+      const wsUrl = getWebSocketUrl();
 
       try {
         ws = new WebSocket(wsUrl);

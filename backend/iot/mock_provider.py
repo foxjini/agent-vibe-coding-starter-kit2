@@ -35,7 +35,7 @@ class MockDeviceProvider(DeviceProvider):
                 "current_state": "locked",
                 "desired_value": None,
                 "current_value": None,
-                "updated_at": datetime.now(timezone.utc).isoformat() + "Z",
+                "updated_at": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
             },
             "relay_1": {
                 "id": "relay_1",
@@ -45,7 +45,7 @@ class MockDeviceProvider(DeviceProvider):
                 "current_state": "off",
                 "desired_value": None,
                 "current_value": None,
-                "updated_at": datetime.now(timezone.utc).isoformat() + "Z",
+                "updated_at": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
             },
             "led_1": {
                 "id": "led_1",
@@ -55,7 +55,7 @@ class MockDeviceProvider(DeviceProvider):
                 "current_state": "off",
                 "desired_value": {"brightness_pct": 100, "mode": "normal"},
                 "current_value": {"brightness_pct": 100, "mode": "normal"},
-                "updated_at": datetime.now(timezone.utc).isoformat() + "Z",
+                "updated_at": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
             },
             "speaker_1": {
                 "id": "speaker_1",
@@ -65,7 +65,7 @@ class MockDeviceProvider(DeviceProvider):
                 "current_state": "idle",
                 "desired_value": {"track": None, "volume": 70},
                 "current_value": {"track": None, "volume": 70},
-                "updated_at": datetime.now(timezone.utc).isoformat() + "Z",
+                "updated_at": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
             },
             # 센서 목록
             "keypad_1": {
@@ -76,7 +76,7 @@ class MockDeviceProvider(DeviceProvider):
                 "current_state": "ready",
                 "desired_value": None,
                 "current_value": {"last_key": None, "buffer": ""},
-                "updated_at": datetime.now(timezone.utc).isoformat() + "Z",
+                "updated_at": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
             },
             "pir_1": {
                 "id": "pir_1",
@@ -86,7 +86,7 @@ class MockDeviceProvider(DeviceProvider):
                 "current_state": "standby",
                 "desired_value": None,
                 "current_value": {"detected": False},
-                "updated_at": datetime.now(timezone.utc).isoformat() + "Z",
+                "updated_at": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
             },
         }
 
@@ -122,7 +122,7 @@ class MockDeviceProvider(DeviceProvider):
         if device_id not in self._devices:
             raise ValueError(f"Unknown device_id: {device_id}")
 
-        now_str = datetime.now(timezone.utc).isoformat() + "Z"
+        now_str = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
         dev = self._devices[device_id]
         dev["desired_state"] = desired_state
         dev["current_state"] = desired_state  # Mock 환경에서는 즉시 반영
@@ -149,7 +149,7 @@ class MockDeviceProvider(DeviceProvider):
         if device_id not in self._devices:
             raise ValueError(f"Unknown device_id: {device_id}")
 
-        now_str = datetime.now(timezone.utc).isoformat() + "Z"
+        now_str = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
         dev = self._devices[device_id]
         reading_result: Dict[str, Any] = {
             "device_id": device_id,

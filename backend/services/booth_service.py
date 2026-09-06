@@ -25,7 +25,7 @@ class BoothService:
         - 예약자 OTP 비번: 도어락 해제 + 릴레이 전원 공급 + LED 점등 + 환영 음성
         """
         provider = get_device_provider()
-        now_str = datetime.now(timezone.utc).isoformat() + "Z"
+        now_str = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
 
         # 1. 관리자 고정 비밀번호(9179) 처리
         if pin_code == MASTER_PIN:
@@ -119,7 +119,7 @@ class BoothService:
         환영 안내 문구 및 오디오 출력
         """
         provider = get_device_provider()
-        now_str = datetime.now(timezone.utc).isoformat() + "Z"
+        now_str = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
 
         # PIR 센서 상태 갱신
         try:
@@ -150,7 +150,7 @@ class BoothService:
         이용 종료 10분 전 트리거: LED 깜빡임 알림 및 사전 안내
         """
         provider = get_device_provider()
-        now_str = datetime.now(timezone.utc).isoformat() + "Z"
+        now_str = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
 
         # LED 깜빡임 모드로 변경
         await provider.set_actuator_state("led_1", "blink", {"mode": "warning_blink"}, operator="system")
@@ -177,7 +177,7 @@ class BoothService:
         2. 전원 릴레이 차단, 마이크 차단, 도어락 잠금, LED 소등
         """
         provider = get_device_provider()
-        now_str = datetime.now(timezone.utc).isoformat() + "Z"
+        now_str = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
 
         # 1. 종료곡 송출
         await provider.set_actuator_state(

@@ -8,6 +8,11 @@ CREATE DATABASE IF NOT EXISTS smart_control
   CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 USE smart_control;
 
+-- 이 스크립트를 파이프로 넣을 때(mysql < init.sql) 클라이언트 기본 문자셋이
+-- latin1/cp949면 아래 시드 데이터의 한글이 깨져서 저장된다.
+-- 접속 문자셋을 스크립트 안에서 직접 못박아 실행 환경과 무관하게 만든다.
+SET NAMES utf8mb4 COLLATE utf8mb4_unicode_ci;
+
 -- 1. 디바이스 테이블 (상태 동기화 및 메타데이터)
 CREATE TABLE IF NOT EXISTS devices (
   id VARCHAR(50) PRIMARY KEY,

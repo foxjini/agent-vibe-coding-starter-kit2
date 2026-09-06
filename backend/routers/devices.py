@@ -171,7 +171,7 @@ async def report_device_state(
             detail={"code": "DEVICE_NOT_FOUND", "message": "device_id를 찾을 수 없습니다"}
         )
 
-    now_str = request.reported_at or (datetime.now(timezone.utc).isoformat() + "Z")
+    now_str = request.reported_at or (datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"))
     kind = device.get("kind", "")
 
     # 1. 액추에이터 반영 결과 보고 처리
@@ -233,7 +233,7 @@ async def receive_vision_event(
     """
     영상인식 클라이언트(웹캠/YOLOv8)의 감지 이벤트 수신
     """
-    now_str = datetime.now(timezone.utc).isoformat() + "Z"
+    now_str = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
 
     # DB에 비전 이벤트 기록
     try:

@@ -42,8 +42,7 @@ import {
 } from "@/utils/karaokeMedia";
 import { KARAOKE_SONGS, KaraokeSong, youtubeSearchUrl } from "@/data/karaokeSongs";
 import { Device } from "@/types";
-
-const API_BASE = process.env.NEXT_PUBLIC_API_BASE ?? "http://localhost:8000";
+import { apiUrl } from "@/utils/apiConfig";
 
 interface KaraokeRoomSectionProps {
   devices: Device[];
@@ -151,7 +150,7 @@ export function KaraokeRoomSection({ devices, onSongCompleted }: KaraokeRoomSect
   const recordSongToDB = useCallback(
     async (song: KaraokeSong) => {
       try {
-        await fetch(`${API_BASE}/api/songs`, {
+        await fetch(apiUrl("/api/songs"), {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ title: song.title, singer: song.singer }),

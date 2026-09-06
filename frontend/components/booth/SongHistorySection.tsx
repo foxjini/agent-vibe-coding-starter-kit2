@@ -4,6 +4,7 @@ import React, { useState } from "react";
 import { Music, Award, Plus, Mic, Sparkles, Check } from "lucide-react";
 
 import { Song } from "@/types";
+import { apiUrl } from "@/utils/apiConfig";
 
 interface SongHistorySectionProps {
   allSongs: Song[];
@@ -29,7 +30,7 @@ export function SongHistorySection({
 
     setIsAdding(true);
     try {
-      const res = await fetch("http://localhost:8000/api/songs", {
+      const res = await fetch(apiUrl("/api/songs"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -54,7 +55,7 @@ export function SongHistorySection({
 
   const handleQuickSing = async (song: Song) => {
     try {
-      const res = await fetch("http://localhost:8000/api/songs", {
+      const res = await fetch(apiUrl("/api/songs"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

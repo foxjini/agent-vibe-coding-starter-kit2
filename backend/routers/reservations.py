@@ -118,7 +118,7 @@ async def create_new_reservation(req: ReservationCreateRequest) -> Dict[str, Any
         "student_name": req.student_name,
         "reservation_date": req.reservation_date,
         "time_slot": req.time_slot,
-        "timestamp": datetime.now(timezone.utc).isoformat() + "Z"
+        "timestamp": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
     })
 
     return {"data": reservation}
@@ -171,9 +171,17 @@ async def simulate_end() -> Dict[str, Any]:
 async def list_songs(min_count: int = Query(3, ge=1)) -> Dict[str, Any]:
     """
     노래 목록 조회 (전체 및 나의 18번 애창곡 리스트)
+
+    DB가 아직 안 떠 있어도 노래방 화면 자체는 동작해야 하므로,
+    다른 조회 엔드포인트와 같이 빈 목록으로 degrade한다.
     """
-    all_songs = db.get_all_songs()
-    favorites = db.get_favorite_songs(min_count=min_count)
+    try:
+        all_songs = db.get_all_songs()
+        favorites = db.get_favorite_songs(min_count=min_count)
+    except Exception as exc:
+        logger.error(f"Failed to fetch songs: {exc}")
+        all_songs, favorites = [], []
+
     return {
         "data": {
             "all": all_songs,
@@ -191,6 +199,6 @@ async def add_song(req: SongRecordRequest) -> Dict[str, Any]:
         "title": req.title,
         "singer": req.singer,
         "sing_count": recorded.get("sing_count"),
-        "timestamp": datetime.now(timezone.utc).isoformat() + "Z"
+        "timestamp": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
     })
     return {"data": recorded}
