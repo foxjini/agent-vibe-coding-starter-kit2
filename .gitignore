@@ -30,3 +30,7 @@ dist/
 Thumbs.db
 .vscode/
 .idea/
+
+# Next.js 16이 dev 실행 시 자동 생성하는 파일 (루트 AGENTS.md가 정본)
+frontend/AGENTS.md
+frontend/CLAUDE.md

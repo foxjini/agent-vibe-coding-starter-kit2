@@ -332,11 +332,7 @@ export default function HomePage() {
         )}
 
         {activeTab === "karaoke" && (
-          <KaraokeRoomSection
-            devices={devices}
-            allSongs={allSongs}
-            onSongCompleted={fetchSongs}
-          />
+          <KaraokeRoomSection devices={devices} onSongCompleted={fetchSongs} />
         )}
 
         {activeTab === "songs" && (

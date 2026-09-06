@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import {
   Music,
   Mic,
@@ -16,471 +16,527 @@ import {
   PowerOff,
   Volume2,
   ExternalLink,
-  ChevronRight,
-  ChevronLeft,
-  FolderPlus,
   SlidersHorizontal,
+  AlertTriangle,
+  Link2,
+  CheckCircle2,
+  HardDrive,
+  Radio,
+  ShieldCheck,
 } from "lucide-react";
-import { KaraokeAudioScorer, AudioAnalysisResult } from "@/utils/audioScorer";
+import { KaraokeAudioScorer, AudioAnalysisResult, FinalScore } from "@/utils/audioScorer";
 import { KaraokeAccompanimentEngine } from "@/utils/karaokeAccompaniment";
-import { Song, Device } from "@/types";
+import {
+  createYouTubePlayer,
+  parseYouTubeId,
+  youtubeWatchUrl,
+  YouTubePlayerHandle,
+  YT_STATE,
+} from "@/utils/youtubePlayer";
+import {
+  resolveMedia,
+  saveVideoId,
+  clearVideoId,
+  getVideoId,
+  ResolvedMedia,
+} from "@/utils/karaokeMedia";
+import { KARAOKE_SONGS, KaraokeSong, youtubeSearchUrl } from "@/data/karaokeSongs";
+import { Device } from "@/types";
 
-export interface PresetKaraokeSong {
-  title: string;
-  singer: string;
-  youtubeId: string;
-  genre: string;
-  tag?: string;
-  audioTrack?: string;
-  lyrics: string[];
-}
-
-// 학생 인기곡 및 노래방 자막 가사 매핑
-const POPULAR_KARAOKE_PRESETS: PresetKaraokeSong[] = [
-  {
-    title: "고민중독",
-    singer: "QWER",
-    youtubeId: "gT-8fB-D57Y",
-    genre: "K-POP 밴드",
-    tag: "인기 1위 🔥",
-    lyrics: [
-      "어쩌다 마주친 네 눈빛에 푹 빠져버린 나",
-      "하루 종일 네 생각에 가슴이 두근두근 떨려와",
-      "어떤 말을 전해야 내 솔직한 맘을 알까",
-      "자꾸만 고민이 많아져 밤새 뒤척이네",
-      "고민중독에 걸려버린 내 맘을 너는 아니?",
-      "이제는 용기 내어 네게 다가갈 거야!",
-    ],
-  },
-  {
-    title: "한 페이지가 될 수 있게",
-    singer: "DAY6",
-    youtubeId: "0hWf5X22k9U",
-    genre: "락/밴드",
-    tag: "떼창 명곡 ✨",
-    lyrics: [
-      "솔직히 말할게 많이 기다려 왔어",
-      "너도 그랬을 거라 믿고 싶어",
-      "오늘이 오기까지 많은 밤을 지새웠어",
-      "아름다운 청춘의 한 장 함께 써내려 가자",
-      "너와의 모든 순간이 한 페이지가 될 수 있게!",
-      "지금 이 순간을 영원히 기억하자!",
-    ],
-  },
-  {
-    title: "Hype Boy",
-    singer: "NewJeans",
-    youtubeId: "Rrf8uQFvICE",
-    genre: "댄스",
-    tag: "청량 보컬 💧",
-    lyrics: [
-      "1, 2, 3, 4! Baby, got me looking so crazy",
-      "빠져버리는 daydream, 마음은 이미 너에게로",
-      "Tell me what's the next move",
-      "'Cause I know what you like boy",
-      "You're my one and only hype boy!",
-      "너와 눈이 마주친 그 순간 멈출 수 없어!",
-    ],
-  },
-  {
-    title: "I AM",
-    singer: "IVE",
-    youtubeId: "6ZUIwj3FgUY",
-    genre: "댄스",
-    tag: "고음 챌린지 🚀",
-    lyrics: [
-      "내가 가는 길은 내가 스스로 만들어 가",
-      "어느 누구도 날 대신할 수는 없어",
-      "That's my life is 아름다운 갤럭시",
-      "Be a writer, 내 인생의 유일한 주인공",
-      "어제보다 찬란한 내일이 날 기다려!",
-      "세상 속에서 가장 빛나는 나를 봐!",
-    ],
-  },
-  {
-    title: "신호등",
-    singer: "이무진",
-    youtubeId: "sk6rU_phwio",
-    genre: "포크/어쿠스틱",
-    tag: "국민 애창곡 🚦",
-    lyrics: [
-      "붉은색 푸른색 그 사이 3초 그 짧은 시간",
-      "노란색 빛을 내는 저기 저 신호등이",
-      "내 머릿속을 텅 비워버려 혼란스럽게 해",
-      "내가 건너야 할 곳은 과연 어디인가요",
-      "괴물 같던 세상이 이젠 조금 익숙해져!",
-      "내 작은 꿈을 향해 다시 걸어갈 거야!",
-    ],
-  },
-  {
-    title: "사건의 지평선",
-    singer: "윤하",
-    youtubeId: "BBdC1rl5sKY",
-    genre: "발라드/락",
-    tag: "레전드 🌌",
-    lyrics: [
-      "생각이 많은 밤 하늘을 올려다보면",
-      "아득히 먼 우주 끝 어딘가로 흘러가",
-      "사건의 지평선 너머로 사라진 추억들",
-      "아낌없이 반짝였던 우리 지난 날들",
-      "이제는 미련 없이 너를 보내줄게",
-      "새로운 시작을 향해 높이 날아올라!",
-    ],
-  },
-  {
-    title: "Supernova",
-    singer: "aespa",
-    youtubeId: "phbcNZH4V48",
-    genre: "댄스",
-    tag: "트렌드 ⚡",
-    lyrics: [
-      "사건은 다가와 거세게 커져가",
-      "질문은 계속돼 Where do we go?",
-      "우주를 가르는 강력한 Supernova!",
-      "내 안의 에너지가 폭발하듯 터져 나와",
-      "새로운 차원의 문을 활짝 열어젖혀!",
-    ],
-  },
-  {
-    title: "다시 만나",
-    singer: "더윈드",
-    youtubeId: "bO2v5c4XQYw",
-    genre: "K-POP",
-    tag: "공식 퇴실곡 🎵",
-    audioTrack: "/audio/closing_song.wav",
-    lyrics: [
-      "지나온 시간들이 마치 선물 같아서",
-      "함께 웃고 노래했던 우리의 모든 순간들",
-      "안녕이란 말 대신 밝은 미소로 인사해",
-      "언젠가 다시 만날 그날을 기다릴게",
-      "더 멋진 모습으로 꼭 다시 만나 우리!",
-      "안녕, 우리들의 소중한 학교 노래방!",
-    ],
-  },
-];
+const API_BASE = process.env.NEXT_PUBLIC_API_BASE ?? "http://localhost:8000";
 
 interface KaraokeRoomSectionProps {
   devices: Device[];
-  allSongs?: Song[];
   onSongCompleted?: () => void;
 }
 
-export function KaraokeRoomSection({
-  devices,
-  onSongCompleted,
-}: KaraokeRoomSectionProps) {
-  // 부스 반주기 전원 (relay_1) 확인
+export function KaraokeRoomSection({ devices, onSongCompleted }: KaraokeRoomSectionProps) {
+  // 부스 반주기 전원(relay_1) 확인
   const relayDevice = devices.find((d) => d.id === "relay_1");
   const isPowerOn = relayDevice?.current_state === "on";
 
-  // 화면 모드: 자체 가사 자막 모드 vs 유튜브 영상 모드
-  const [screenMode, setScreenMode] = useState<"lyrics" | "youtube">("lyrics");
+  // ── 선곡 & 재생 ──────────────────────────────────────────
+  const [selectedSong, setSelectedSong] = useState<KaraokeSong>(KARAOKE_SONGS[0]);
+  // 재생 소스는 "어느 곡의 결과인지"와 함께 보관한다.
+  // 곡을 바꿀 때 effect 안에서 null로 되돌릴 필요가 없어(= 동기 setState 없이)
+  // 이전 곡의 소스가 잠깐 보이는 문제도 생기지 않는다.
+  const [resolved, setResolved] = useState<{ songId: string; media: ResolvedMedia } | null>(null);
+  const media = resolved?.songId === selectedSong.id ? resolved.media : null;
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [elapsed, setElapsed] = useState(0);
+  const [duration, setDuration] = useState(0);
+  const [playerError, setPlayerError] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
 
-  // 현재 선곡된 노래 & 재생 상태
-  const [selectedSong, setSelectedSong] = useState<PresetKaraokeSong>(POPULAR_KARAOKE_PRESETS[0]);
-  const [isPlaying, setIsPlaying] = useState<boolean>(false);
-  const [currentLyricIndex, setCurrentLyricIndex] = useState<number>(0);
-  const [playbackSeconds, setPlaybackSeconds] = useState<number>(0);
+  // ── 영상 등록 ────────────────────────────────────────────
+  const [registerInput, setRegisterInput] = useState("");
+  const [registerNotice, setRegisterNotice] = useState<string | null>(null);
 
-  // 검색 및 직접 유튜브 입력
-  const [searchQuery, setSearchQuery] = useState<string>("");
-  const [customUrlInput, setCustomUrlInput] = useState<string>("");
+  // ── 마이크 & 채점 ────────────────────────────────────────
+  const [isMicActive, setIsMicActive] = useState(false);
+  const [isVirtualMic, setIsVirtualMic] = useState(false);
+  const [audioData, setAudioData] = useState<AudioAnalysisResult>({
+    volume: 0,
+    pitch: 0,
+    note: "-",
+    cents: 0,
+  });
+  const [mrVolume, setMrVolume] = useState(0.7);
+  const [showScoreModal, setShowScoreModal] = useState(false);
+  const [isCalculatingScore, setIsCalculatingScore] = useState(false);
+  const [finalScore, setFinalScore] = useState<FinalScore | null>(null);
+  const [animatedScore, setAnimatedScore] = useState(0);
 
-  // 마이크 및 실시간 오디오 분석
-  const [isMicActive, setIsMicActive] = useState<boolean>(false);
-  const [isVirtualMic, setIsVirtualMic] = useState<boolean>(false);
-  const [audioData, setAudioData] = useState<AudioAnalysisResult>({ volume: 0, pitch: 0, note: "-" });
+  // ── refs ─────────────────────────────────────────────────
   const scorerRef = useRef<KaraokeAudioScorer | null>(null);
-  const virtualTimerRef = useRef<NodeJS.Timeout | null>(null);
-
-  // 실시간 K-POP MR 반주 엔진 및 MP3 플레이어
   const accompanimentRef = useRef<KaraokeAccompanimentEngine | null>(null);
-  const bgAudioRef = useRef<HTMLAudioElement | null>(null);
-  const [mrVolume, setMrVolume] = useState<number>(0.7);
-  const [customAudioUrl, setCustomAudioUrl] = useState<string | null>(null);
-  const [customAudioName, setCustomAudioName] = useState<string | null>(null);
-  const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const ytHostRef = useRef<HTMLDivElement | null>(null);
+  const ytHandleRef = useRef<YouTubePlayerHandle | null>(null);
+  const localAudioRef = useRef<HTMLAudioElement | null>(null);
+  const virtualTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const tickTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  /** 곡이 끝났을 때 채점을 한 번만 실행하기 위한 플래그 */
+  const scoredRef = useRef(false);
 
-  // 채점 결과 모달 상태
-  const [showScoreModal, setShowScoreModal] = useState<boolean>(false);
-  const [isCalculatingScore, setIsCalculatingScore] = useState<boolean>(false);
-  const [finalScore, setFinalScore] = useState<{ score: number; comment: string; rank: string } | null>(null);
-  const [animatedScore, setAnimatedScore] = useState<number>(0);
-
-  // 오디오 스코어러 및 반주 엔진 초기화
+  /* ─────────────────────────────────────────────────────────
+   * 엔진 초기화 / 정리
+   * ──────────────────────────────────────────────────────── */
   useEffect(() => {
     scorerRef.current = new KaraokeAudioScorer();
     accompanimentRef.current = new KaraokeAccompanimentEngine();
     return () => {
-      if (scorerRef.current) {
-        scorerRef.current.stopMicrophone();
-      }
-      if (accompanimentRef.current) {
-        accompanimentRef.current.stop();
-      }
-      if (virtualTimerRef.current) {
-        clearInterval(virtualTimerRef.current);
-      }
-      if (bgAudioRef.current) {
-        bgAudioRef.current.pause();
-      }
+      scorerRef.current?.stopMicrophone();
+      accompanimentRef.current?.dispose();
+      ytHandleRef.current?.destroy();
+      localAudioRef.current?.pause();
+      if (virtualTimerRef.current) clearInterval(virtualTimerRef.current);
+      if (tickTimerRef.current) clearInterval(tickTimerRef.current);
     };
   }, []);
 
-  // MR 볼륨 변경 시 실시간 반영
-  const handleVolumeChange = (newVol: number) => {
-    setMrVolume(newVol);
-    if (accompanimentRef.current) {
-      accompanimentRef.current.setVolume(newVol);
-    }
-    if (bgAudioRef.current) {
-      bgAudioRef.current.volume = newVol;
-    }
-  };
-
-  // 사용자 MP3 반주 파일 불러오기
-  const handleCustomAudioUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      const url = URL.createObjectURL(file);
-      setCustomAudioUrl(url);
-      setCustomAudioName(file.name);
-      alert(`'${file.name}' 반주 음원이 등록되었습니다!\n[반주 시작]을 누르면 이 음악이 재생됩니다.`);
-    }
-  };
-
-  // 노래 재생 타이머 & 가사 자동 롤링 (5초마다 다음 가사 라인)
+  /* ─────────────────────────────────────────────────────────
+   * 재생 소스 결정 — 곡이 바뀔 때마다
+   * 로컬 파일 → 유튜브 임베드 → 내장 반주 순으로 확인한다
+   * ──────────────────────────────────────────────────────── */
   useEffect(() => {
-    let interval: NodeJS.Timeout | null = null;
-    if (isPlaying) {
-      interval = setInterval(() => {
-        setPlaybackSeconds((prev) => {
-          const nextSec = prev + 1;
-          const lyricIdx = Math.floor(nextSec / 5) % selectedSong.lyrics.length;
-          setCurrentLyricIndex(lyricIdx);
-          return nextSec;
-        });
-      }, 1000);
-    }
+    let cancelled = false;
+    void resolveMedia(selectedSong).then((m) => {
+      if (!cancelled) setResolved({ songId: selectedSong.id, media: m });
+    });
     return () => {
-      if (interval) clearInterval(interval);
+      cancelled = true;
     };
-  }, [isPlaying, selectedSong.lyrics.length]);
+  }, [selectedSong]);
 
-  // 마이크 토글
-  const toggleMicrophone = async () => {
-    if (isMicActive) {
-      if (scorerRef.current) {
-        scorerRef.current.stopMicrophone();
-      }
-      setIsMicActive(false);
-      setAudioData({ volume: 0, pitch: 0, note: "-" });
-    } else {
-      if (isVirtualMic) {
-        stopVirtualMic();
-      }
-      if (scorerRef.current) {
-        const success = await scorerRef.current.startMicrophone((data) => {
-          setAudioData(data);
+  /* ─────────────────────────────────────────────────────────
+   * 모든 재생 중지 (곡 전환·정지·언마운트 공통)
+   * ──────────────────────────────────────────────────────── */
+  const stopAllPlayback = useCallback(() => {
+    accompanimentRef.current?.stop();
+    if (localAudioRef.current) {
+      localAudioRef.current.pause();
+      localAudioRef.current.currentTime = 0;
+    }
+    ytHandleRef.current?.pause();
+    if (tickTimerRef.current) {
+      clearInterval(tickTimerRef.current);
+      tickTimerRef.current = null;
+    }
+    setIsPlaying(false);
+  }, []);
+
+  /* ─────────────────────────────────────────────────────────
+   * 채점 실행 (곡 종료 자동 호출 + 버튼 수동 호출 공용)
+   * ──────────────────────────────────────────────────────── */
+  const recordSongToDB = useCallback(
+    async (song: KaraokeSong) => {
+      try {
+        await fetch(`${API_BASE}/api/songs`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ title: song.title, singer: song.singer }),
         });
-        if (success) {
-          setIsMicActive(true);
-        } else {
-          alert("마이크 권한을 허용하지 않았거나 연결된 마이크가 없습니다. 대신 '가상보컬' 모드로 채점할 수 있습니다.");
+        onSongCompleted?.();
+      } catch {
+        /* 백엔드가 꺼져 있어도 노래방 기능 자체는 계속 동작해야 한다 */
+      }
+    },
+    [onSongCompleted]
+  );
+
+  const finishAndScore = useCallback(() => {
+    if (scoredRef.current) return; // 중복 채점 방지
+    scoredRef.current = true;
+
+    stopAllPlayback();
+    setIsCalculatingScore(true);
+    setShowScoreModal(true);
+    setAnimatedScore(0);
+    KaraokeAudioScorer.playDrumrollSound();
+
+    const result =
+      scorerRef.current?.calculateFinalScore() ?? {
+        score: 0,
+        comment: "채점 모듈을 초기화하지 못했습니다.",
+        rank: "-",
+        breakdown: { pitch: 0, timing: 0, volume: 0, expression: 0 },
+        sangSomething: false,
+      };
+    setFinalScore(result);
+
+    // 점수 카운트업 연출
+    let current = 0;
+    const step = Math.max(1, Math.ceil(result.score / 25));
+    const counter = setInterval(() => {
+      current = Math.min(result.score, current + step);
+      setAnimatedScore(current);
+
+      if (current >= result.score) {
+        clearInterval(counter);
+        setIsCalculatingScore(false);
+
+        if (result.sangSomething) {
+          KaraokeAudioScorer.playFanfareSound();
+          if (typeof window !== "undefined" && "speechSynthesis" in window) {
+            try {
+              window.speechSynthesis.cancel();
+              const utt = new SpeechSynthesisUtterance(`${result.score}점입니다! ${result.comment}`);
+              utt.lang = "ko-KR";
+              utt.rate = 1.05;
+              window.speechSynthesis.speak(utt);
+            } catch {
+              /* TTS 미지원 브라우저는 건너뛴다 */
+            }
+          }
+          void recordSongToDB(selectedSong);
         }
       }
-    }
-  };
+    }, 40);
+  }, [recordSongToDB, selectedSong, stopAllPlayback]);
 
-  // 가상 마이크 시뮬레이터
-  const toggleVirtualMic = () => {
-    if (isVirtualMic) {
-      stopVirtualMic();
-    } else {
-      if (isMicActive && scorerRef.current) {
-        scorerRef.current.stopMicrophone();
-        setIsMicActive(false);
+  /* ─────────────────────────────────────────────────────────
+   * 유튜브 플레이어 생성 — media가 youtube로 정해졌을 때만
+   * ──────────────────────────────────────────────────────── */
+  useEffect(() => {
+    if (!media || media.source !== "youtube" || !media.youtubeId || !ytHostRef.current) return;
+
+    let disposed = false;
+    const host = ytHostRef.current;
+
+    // YT.Player는 넘긴 엘리먼트를 iframe으로 교체하므로 매번 새 자식을 만든다
+    host.innerHTML = "";
+    const mount = document.createElement("div");
+    mount.className = "w-full h-full";
+    host.appendChild(mount);
+
+    const songId = selectedSong.id;
+    const videoId = media.youtubeId;
+
+    createYouTubePlayer(mount, {
+      videoId,
+      autoplay: false,
+      onReady: (handle) => {
+        if (disposed) {
+          handle.destroy();
+          return;
+        }
+        ytHandleRef.current = handle;
+        handle.setVolume(mrVolume * 100);
+        setDuration(handle.getDuration());
+        // 실제로 재생되는 것이 확인된 ID만 저장한다
+        saveVideoId(songId, videoId);
+      },
+      onStateChange: (state) => {
+        if (disposed) return;
+        if (state === YT_STATE.PLAYING) {
+          setIsPlaying(true);
+          setDuration(ytHandleRef.current?.getDuration() ?? 0);
+        } else if (state === YT_STATE.PAUSED) {
+          setIsPlaying(false);
+        } else if (state === YT_STATE.ENDED) {
+          // 노래가 끝나면 자동으로 점수 화면을 띄운다
+          finishAndScore();
+        }
+      },
+      onError: (_code, message) => {
+        if (disposed) return;
+        // 임베드가 막혔거나 삭제된 영상 — 저장된 ID를 지워 다시 등록받는다
+        clearVideoId(songId);
+        setPlayerError(message);
+        setResolved({
+          songId,
+          media: {
+            source: "synth",
+            reason: "유튜브 재생에 실패해 내장 자동 반주로 전환했습니다",
+          },
+        });
+      },
+    }).catch((err: Error) => {
+      if (disposed) return;
+      setPlayerError(err.message);
+      setResolved({
+        songId,
+        media: {
+          source: "synth",
+          reason: "유튜브에 연결하지 못해 내장 자동 반주로 전환했습니다",
+        },
+      });
+    });
+
+    return () => {
+      disposed = true;
+      ytHandleRef.current?.destroy();
+      ytHandleRef.current = null;
+      host.innerHTML = "";
+    };
+    // mrVolume은 아래 별도 effect에서 반영한다 (여기서 재생성되면 영상이 끊긴다)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [media?.source, media?.youtubeId, selectedSong.id, finishAndScore]);
+
+  /** MR 볼륨 변경을 각 재생 소스에 반영 */
+  useEffect(() => {
+    ytHandleRef.current?.setVolume(mrVolume * 100);
+    if (localAudioRef.current) localAudioRef.current.volume = mrVolume;
+    accompanimentRef.current?.setVolume(mrVolume);
+  }, [mrVolume]);
+
+  /* ─────────────────────────────────────────────────────────
+   * 재생 위치 표시 타이머
+   * ──────────────────────────────────────────────────────── */
+  const startTicker = useCallback(() => {
+    if (tickTimerRef.current) clearInterval(tickTimerRef.current);
+    tickTimerRef.current = setInterval(() => {
+      if (ytHandleRef.current) {
+        setElapsed(Math.floor(ytHandleRef.current.getCurrentTime()));
+      } else if (localAudioRef.current) {
+        setElapsed(Math.floor(localAudioRef.current.currentTime));
+      } else {
+        setElapsed((prev) => prev + 1);
       }
-      setIsVirtualMic(true);
-      const notes = ["C4", "D4", "E4", "F4", "G4", "A4", "B4", "C5"];
-      virtualTimerRef.current = setInterval(() => {
-        const randomVol = Math.floor(45 + Math.random() * 50);
-        const randomPitch = Math.floor(220 + Math.random() * 400);
-        const randomNote = notes[Math.floor(Math.random() * notes.length)];
-        setAudioData({ volume: randomVol, pitch: randomPitch, note: randomNote });
-      }, 150);
-    }
-  };
+    }, 1000);
+  }, []);
 
-  const stopVirtualMic = () => {
+  /* ─────────────────────────────────────────────────────────
+   * 마이크
+   * ──────────────────────────────────────────────────────── */
+  const stopVirtualMic = useCallback(() => {
     setIsVirtualMic(false);
     if (virtualTimerRef.current) {
       clearInterval(virtualTimerRef.current);
       virtualTimerRef.current = null;
     }
-    setAudioData({ volume: 0, pitch: 0, note: "-" });
-  };
+    setAudioData({ volume: 0, pitch: 0, note: "-", cents: 0 });
+  }, []);
 
-  // 노래 시작
-  const handleStartSinging = (song: PresetKaraokeSong) => {
-    setSelectedSong(song);
-    setCurrentLyricIndex(0);
-    setPlaybackSeconds(0);
-    setIsPlaying(true);
-    setShowScoreModal(false);
+  const startMicrophone = useCallback(async (): Promise<boolean> => {
+    if (isVirtualMic) stopVirtualMic();
+    const ok = (await scorerRef.current?.startMicrophone(setAudioData)) ?? false;
+    setIsMicActive(ok);
+    return ok;
+  }, [isVirtualMic, stopVirtualMic]);
 
-    // 1. 반주 음원 재생 (사용자 등록 MP3 또는 내장 퇴실곡 파일)
-    if (customAudioUrl || song.audioTrack) {
-      if (bgAudioRef.current) {
-        bgAudioRef.current.pause();
-      }
-      const audio = new Audio(customAudioUrl || song.audioTrack);
-      audio.volume = mrVolume;
-      audio.loop = true;
-      audio.play().catch(() => {});
-      bgAudioRef.current = audio;
-    } else {
-      // 2. 실시간 Web Audio K-POP MR 반주 엔진 가동!
-      if (accompanimentRef.current) {
-        accompanimentRef.current.setVolume(mrVolume);
-        accompanimentRef.current.start(song.title);
-      }
+  const toggleMicrophone = useCallback(async () => {
+    if (isMicActive) {
+      scorerRef.current?.stopMicrophone();
+      setIsMicActive(false);
+      setAudioData({ volume: 0, pitch: 0, note: "-", cents: 0 });
+      return;
     }
-
-    // 3. 마이크 자동 권한 요청
-    if (!isMicActive && !isVirtualMic) {
-      toggleMicrophone().catch(() => {});
+    const ok = await startMicrophone();
+    if (!ok) {
+      alert(
+        "마이크를 사용할 수 없습니다.\n마이크 권한을 허용했는지 확인하거나, '가상보컬' 버튼으로 채점을 체험해 보세요."
+      );
     }
-  };
+  }, [isMicActive, startMicrophone]);
 
-  const handleStopSinging = () => {
-    setIsPlaying(false);
-    if (accompanimentRef.current) {
-      accompanimentRef.current.stop();
+  const toggleVirtualMic = useCallback(() => {
+    if (isVirtualMic) {
+      stopVirtualMic();
+      return;
     }
-    if (bgAudioRef.current) {
-      bgAudioRef.current.pause();
+    if (isMicActive) {
+      scorerRef.current?.stopMicrophone();
+      setIsMicActive(false);
     }
-  };
-
-  // 노래 완료 & 점수 채점
-  const handleFinishAndScore = async () => {
-    handleStopSinging();
-    setIsCalculatingScore(true);
-    setShowScoreModal(true);
-
-    // 1. 드럼롤 효과음
-    KaraokeAudioScorer.playDrumrollSound();
-
-    // 2. 점수 계산
-    const result = scorerRef.current
-      ? scorerRef.current.calculateFinalScore()
-      : { score: 96, comment: "환상적인 무대 매너와 열창이었습니다!", rank: "SSS" };
-
-    setFinalScore(result);
-
-    // 3. 점수 카운트업
-    let current = 0;
-    const target = result.score;
-    const step = Math.ceil(target / 25);
-    const interval = setInterval(() => {
-      current += step;
-      if (current >= target) {
-        current = target;
-        clearInterval(interval);
-        setIsCalculatingScore(false);
-
-        // 4. 팡파레 사운드
-        KaraokeAudioScorer.playFanfareSound();
-
-        // 5. TTS 축하 멘트
-        if (typeof window !== "undefined" && "speechSynthesis" in window) {
-          try {
-            window.speechSynthesis.cancel();
-            const text = `${result.score}점입니다! ${result.comment}`;
-            const utt = new SpeechSynthesisUtterance(text);
-            utt.lang = "ko-KR";
-            utt.rate = 1.05;
-            window.speechSynthesis.speak(utt);
-          } catch {
-            // ignore
-          }
-        }
-
-        // 6. DB 애창곡 등록
-        recordSongToDB(selectedSong.title, selectedSong.singer);
-      }
-      setAnimatedScore(current);
-    }, 40);
-  };
-
-  const recordSongToDB = async (title: string, singer: string) => {
-    try {
-      await fetch("http://localhost:8000/api/songs", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ title, singer }),
+    scorerRef.current?.resetScore();
+    setIsVirtualMic(true);
+    const notes = ["C4", "D4", "E4", "F4", "G4", "A4", "B4", "C5"];
+    virtualTimerRef.current = setInterval(() => {
+      const volume = Math.floor(45 + Math.random() * 45);
+      const pitch = Math.floor(220 + Math.random() * 400);
+      // 시뮬레이션 값도 채점 통계에 반영해 점수가 실제로 계산되도록 한다
+      scorerRef.current?.feedSimulatedFrame(volume, pitch);
+      setAudioData({
+        volume,
+        pitch,
+        note: notes[Math.floor(Math.random() * notes.length)],
+        cents: Math.floor(Math.random() * 30 - 15),
       });
-      if (onSongCompleted) {
-        onSongCompleted();
+    }, 150);
+  }, [isMicActive, isVirtualMic, stopVirtualMic]);
+
+  /* ─────────────────────────────────────────────────────────
+   * 재생 시작 / 정지
+   * ──────────────────────────────────────────────────────── */
+  const handlePlay = useCallback(async () => {
+    if (!media) return;
+
+    scoredRef.current = false;
+    setShowScoreModal(false);
+    setElapsed(0);
+    scorerRef.current?.resetScore();
+
+    // 마이크가 꺼져 있으면 채점을 위해 자동으로 켠다
+    if (!isMicActive && !isVirtualMic) {
+      await startMicrophone();
+    }
+
+    if (media.source === "youtube" && ytHandleRef.current) {
+      ytHandleRef.current.seekTo(0);
+      ytHandleRef.current.setVolume(mrVolume * 100);
+      ytHandleRef.current.play();
+      // 유튜브 영상이 반주 역할을 하므로 내장 반주는 확실히 끈다 (소리 겹침 방지)
+      accompanimentRef.current?.stop();
+    } else if (media.source === "local" && media.localUrl) {
+      accompanimentRef.current?.stop();
+      if (!localAudioRef.current) {
+        localAudioRef.current = new Audio();
       }
-    } catch {
-      // ignore
+      const audio = localAudioRef.current;
+      if (audio.src !== new URL(media.localUrl, window.location.href).href) {
+        audio.src = media.localUrl;
+      }
+      audio.volume = mrVolume;
+      audio.currentTime = 0;
+      audio.onloadedmetadata = () => setDuration(Math.floor(audio.duration || 0));
+      audio.onended = () => finishAndScore();
+      audio.onerror = () => {
+        setPlayerError("반주 파일을 재생할 수 없습니다. 파일 형식을 확인해 주세요.");
+        setResolved({
+          songId: selectedSong.id,
+          media: { source: "synth", reason: "반주 파일 재생 실패 — 내장 자동 반주로 전환" },
+        });
+      };
+      await audio.play().catch(() => {
+        setPlayerError("브라우저가 자동 재생을 막았습니다. 다시 한 번 눌러 주세요.");
+      });
+    } else {
+      // 내장 신스 반주 — 곡 길이를 알 수 없으므로 [노래 완료] 버튼으로 끝낸다
+      ytHandleRef.current?.pause();
+      accompanimentRef.current?.setVolume(mrVolume);
+      accompanimentRef.current?.start({
+        bpm: selectedSong.mr.bpm,
+        style: selectedSong.mr.style,
+        progression: selectedSong.mr.progression,
+        tonic: selectedSong.mr.tonic,
+      });
+      setDuration(selectedSong.approxDurationSec);
     }
-  };
 
-  // 유튜브 새 탭 열기 (임베드 차단 문제 완벽 우회)
-  const handleOpenYoutubeDirectly = () => {
-    const url = `https://www.youtube.com/watch?v=${selectedSong.youtubeId}`;
-    window.open(url, "_blank", "noopener,noreferrer");
-  };
+    setIsPlaying(true);
+    startTicker();
+  }, [
+    media,
+    isMicActive,
+    isVirtualMic,
+    startMicrophone,
+    mrVolume,
+    selectedSong,
+    startTicker,
+    finishAndScore,
+  ]);
 
-  // 사용자 직접 입력
-  const handleApplyCustomUrl = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!customUrlInput.trim()) return;
+  const handlePause = useCallback(() => {
+    stopAllPlayback();
+  }, [stopAllPlayback]);
 
-    let vid = customUrlInput.trim();
-    if (vid.includes("youtube.com/watch?v=")) {
-      const match = vid.match(/v=([^&]+)/);
-      if (match) vid = match[1];
-    } else if (vid.includes("youtu.be/")) {
-      const parts = vid.split("youtu.be/");
-      if (parts[1]) vid = parts[1].split("?")[0];
-    }
+  /** 목록에서 곡을 고르면 재생 중이던 것을 정리하고 새 곡을 준비한다 */
+  const handleSelectSong = useCallback(
+    (song: KaraokeSong) => {
+      stopAllPlayback();
+      scoredRef.current = false;
+      setSelectedSong(song);
+      setPlayerError(null);
+      setElapsed(0);
+      setDuration(song.approxDurationSec);
+      setRegisterInput("");
+      setRegisterNotice(null);
+      setShowScoreModal(false);
+    },
+    [stopAllPlayback]
+  );
 
-    const newSong: PresetKaraokeSong = {
-      title: "선택한 신청곡",
-      singer: "사용자 선곡",
-      youtubeId: vid,
-      genre: "커스텀",
-      tag: "신청곡 🎯",
-      lyrics: [
-        "내가 신청한 노래방 곡이 재생되고 있습니다",
-        "음악과 리듬에 맞춰 즐겁게 노래해 보세요!",
-        "마이크에 대고 멋진 가창력을 뽐내보세요!",
-        "노래를 마치면 [점수 채점]을 눌러 결과를 확인하세요!",
-      ],
-    };
-    handleStartSinging(newSong);
-    setCustomUrlInput("");
-  };
+  /** 유튜브 노래방 영상 등록 */
+  const handleRegisterVideo = useCallback(
+    (e: React.FormEvent) => {
+      e.preventDefault();
+      const id = parseYouTubeId(registerInput);
+      if (!id) {
+        setRegisterNotice("유튜브 링크 형식이 아닙니다. 주소창의 링크를 그대로 붙여넣어 주세요.");
+        return;
+      }
+      saveVideoId(selectedSong.id, id);
+      setPlayerError(null);
+      setRegisterInput("");
+      setRegisterNotice(`'${selectedSong.title}' 영상이 등록되었습니다.`);
+      setResolved({
+        songId: selectedSong.id,
+        media: {
+          source: "youtube",
+          youtubeId: id,
+          reason: "유튜브 공식 임베드 플레이어로 스트리밍 중 (복제 없음)",
+        },
+      });
+    },
+    [registerInput, selectedSong]
+  );
 
-  const filteredPresets = POPULAR_KARAOKE_PRESETS.filter(
+  /* ─────────────────────────────────────────────────────────
+   * 표시용 파생값
+   * ──────────────────────────────────────────────────────── */
+  const filteredSongs = KARAOKE_SONGS.filter(
     (s) =>
       s.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
       s.singer.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
+  const currentCue =
+    [...selectedSong.guideCues].reverse().find((c) => c.t <= elapsed) ?? selectedSong.guideCues[0];
+  const nextCue = selectedSong.guideCues.find((c) => c.t > elapsed);
+
   const formatSeconds = (sec: number) => {
-    const m = Math.floor(sec / 60);
-    const s = sec % 60;
+    const m = Math.floor(Math.max(0, sec) / 60);
+    const s = Math.floor(Math.max(0, sec) % 60);
     return `${m}:${s < 10 ? "0" : ""}${s}`;
   };
 
+  const progressPct = duration > 0 ? Math.min(100, (elapsed / duration) * 100) : 0;
+
+  // Tailwind는 클래스 문자열을 정적으로 훑기 때문에 `bg-${color}-950` 같은 조합은
+  // 빌드에서 제거된다. 완성된 클래스 문자열을 그대로 적어 둔다.
+  const sourceBadge = {
+    local: {
+      icon: HardDrive,
+      label: "로컬 반주 파일",
+      className: "bg-emerald-950/50 border-emerald-500/40 text-emerald-300",
+    },
+    youtube: {
+      icon: Tv,
+      label: "유튜브 노래방 영상",
+      className: "bg-rose-950/50 border-rose-500/40 text-rose-300",
+    },
+    synth: {
+      icon: Radio,
+      label: "내장 자동 반주",
+      className: "bg-indigo-950/50 border-indigo-500/40 text-indigo-300",
+    },
+  }[media?.source ?? "synth"];
+  const SourceIcon = sourceBadge.icon;
+
   return (
     <div className="space-y-6">
-      {/* Power Off Guard Warning */}
+      {/* 전원 차단 경고 */}
       {!isPowerOn && (
         <div className="p-4 rounded-2xl bg-amber-950/40 border border-amber-500/40 text-amber-200 text-sm flex items-center justify-between shadow-lg">
           <div className="flex items-center gap-3">
@@ -488,257 +544,219 @@ export function KaraokeRoomSection({
             <div>
               <p className="font-bold">현재 부스 반주기 전원(릴레이)이 차단되어 있습니다.</p>
               <p className="text-xs text-amber-300/80 mt-0.5">
-                원활한 노래방 이용을 위해 첫 번째 탭의 키패드에 비밀번호를 입력하거나, 부스 반주기 전원을 켜주세요.
+                첫 번째 탭의 키패드에 예약 비밀번호를 입력하거나, 부스 반주기 전원을 켜 주세요.
               </p>
             </div>
           </div>
-          <span className="text-xs font-mono px-2.5 py-1 rounded bg-amber-900/60 text-amber-300 border border-amber-700">
+          <span className="text-xs font-mono px-2.5 py-1 rounded bg-amber-900/60 text-amber-300 border border-amber-700 shrink-0">
             Relay Power: OFF
           </span>
         </div>
       )}
 
-      {/* Main Karaoke Stage Area */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        {/* Left: Karaoke Screen & Player (8 Cols) */}
-        <div className="lg:col-span-8 bg-slate-900/90 border border-slate-800 rounded-2xl p-6 shadow-2xl flex flex-col justify-between space-y-4">
-          {/* Screen Header & Mode Toggle */}
+        {/* ── 왼쪽: 노래방 화면 ─────────────────────────────── */}
+        <div className="lg:col-span-8 bg-slate-900/90 border border-slate-800 rounded-2xl p-6 shadow-2xl flex flex-col space-y-4">
+          {/* 헤더 */}
           <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-800 pb-3">
-            <div className="flex items-center gap-2.5">
-              <div className="p-2 rounded-xl bg-gradient-to-tr from-purple-600 to-indigo-600 text-white shadow-md">
+            <div className="flex items-center gap-2.5 min-w-0">
+              <div className="p-2 rounded-xl bg-gradient-to-tr from-purple-600 to-indigo-600 text-white shadow-md shrink-0">
                 <Tv className="w-4 h-4" />
               </div>
-              <div>
-                <h3 className="text-base font-bold text-white flex items-center gap-2">
-                  <span>{selectedSong.title}</span>
+              <div className="min-w-0">
+                <h3 className="text-base font-bold text-white flex items-center gap-2 flex-wrap">
+                  <span className="truncate">{selectedSong.title}</span>
                   <span className="text-xs font-normal text-slate-400">- {selectedSong.singer}</span>
-                  {selectedSong.tag && (
-                    <span className="text-[10px] px-2 py-0.5 rounded-full bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">
-                      {selectedSong.tag}
-                    </span>
-                  )}
+                  <span className="text-[10px] px-2 py-0.5 rounded-full bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 shrink-0">
+                    {selectedSong.tag}
+                  </span>
                 </h3>
                 <p className="text-[11px] text-slate-400">
-                  {isPlaying ? `가창 진행 중 (${formatSeconds(playbackSeconds)})` : "대기 중 · 선곡 후 반주를 시작하세요"}
+                  {isPlaying
+                    ? `가창 중 · ${formatSeconds(elapsed)} / ${formatSeconds(duration)}`
+                    : "대기 중 · 곡을 고르고 [반주 시작]을 누르세요"}
                 </p>
               </div>
             </div>
 
-            {/* Screen Mode Switch: Lyrics Screen vs YouTube */}
-            <div className="flex items-center gap-1.5 p-1 rounded-xl bg-slate-950 border border-slate-800">
-              <button
-                onClick={() => setScreenMode("lyrics")}
-                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
-                  screenMode === "lyrics"
-                    ? "bg-indigo-600 text-white shadow"
-                    : "text-slate-400 hover:text-white"
-                }`}
-              >
-                <Music className="w-3.5 h-3.5" />
-                가사 자막 화면 (추천)
-              </button>
-              <button
-                onClick={() => setScreenMode("youtube")}
-                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
-                  screenMode === "youtube"
-                    ? "bg-purple-600 text-white shadow"
-                    : "text-slate-400 hover:text-white"
-                }`}
-              >
-                <Tv className="w-3.5 h-3.5" />
-                유튜브 영상
-              </button>
+            {/* 현재 재생 소스 배지 */}
+            <div
+              className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl border text-[11px] font-bold shrink-0 ${sourceBadge.className}`}
+            >
+              <SourceIcon className="w-3.5 h-3.5" />
+              {sourceBadge.label}
             </div>
           </div>
 
-          {/* Screen Display Frame */}
-          <div className="relative w-full aspect-video rounded-2xl overflow-hidden bg-slate-950 border-2 border-indigo-500/40 shadow-2xl flex flex-col justify-between p-6">
-            {screenMode === "lyrics" ? (
-              /* Built-in Karaoke Screen with Glowing Subtitle Lyrics & Visualizer */
-              <div className="h-full flex flex-col justify-between">
-                {/* Screen Top Bar */}
-                <div className="flex items-center justify-between text-xs text-indigo-300/80 font-mono border-b border-indigo-500/20 pb-2">
-                  <div className="flex items-center gap-2">
-                    <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-ping" />
-                    <span className="font-bold text-white uppercase tracking-wider">KARAOKE LIVE ROOM</span>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <span>{selectedSong.genre}</span>
-                    <span className="bg-indigo-950 px-2 py-0.5 rounded border border-indigo-500/30">
-                      TIME: {formatSeconds(playbackSeconds)}
-                    </span>
-                  </div>
-                </div>
-
-                {/* Center Karaoke Lyrics Presentation */}
-                <div className="flex flex-col items-center justify-center text-center my-auto space-y-4 px-4">
-                  {isPlaying ? (
-                    <>
-                      {/* Active Lyric with Neon Glow & Bouncing Marker */}
-                      <div className="space-y-2 animate-fade-in">
-                        <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-400/20 text-amber-300 text-xs font-bold border border-amber-400/30 animate-pulse">
-                          <span>🎤 지금 부를 소절</span>
-                        </div>
-                        <h2 className="text-2xl sm:text-3xl lg:text-4xl font-black text-transparent bg-clip-text bg-gradient-to-r from-yellow-300 via-amber-200 to-pink-300 tracking-wide drop-shadow-[0_0_20px_rgba(234,179,8,0.4)] leading-snug">
-                          {selectedSong.lyrics[currentLyricIndex] || selectedSong.title}
-                        </h2>
-                      </div>
-
-                      {/* Next Upcoming Lyric Preview */}
-                      <div className="pt-2">
-                        <p className="text-xs sm:text-sm text-slate-400 font-medium">
-                          다음 소절:{" "}
-                          <span className="text-slate-300">
-                            {selectedSong.lyrics[(currentLyricIndex + 1) % selectedSong.lyrics.length]}
-                          </span>
-                        </p>
-                      </div>
-                    </>
-                  ) : (
-                    <div className="space-y-3">
-                      <div className="w-16 h-16 rounded-full bg-indigo-600/30 border border-indigo-500/50 flex items-center justify-center text-indigo-300 shadow-lg mx-auto">
-                        <Play className="w-8 h-8 fill-current ml-1" />
-                      </div>
-                      <h4 className="text-xl font-black text-white">{selectedSong.title}</h4>
-                      <p className="text-xs text-slate-400">{selectedSong.singer} · 가사 자막 준비 완료</p>
-                      <button
-                        onClick={() => handleStartSinging(selectedSong)}
-                        className="px-6 py-2.5 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white font-bold text-xs shadow-lg shadow-indigo-600/30 transition-all cursor-pointer"
-                      >
-                        반주 시작 & 가창하기
-                      </button>
-                    </div>
-                  )}
-                </div>
-
-                {/* Bottom Graphic Equalizer Visualizer */}
-                <div className="flex items-center justify-between pt-3 border-t border-indigo-500/20">
-                  <div className="flex items-center gap-1.5 h-6">
-                    {[40, 75, 55, 90, 65, 80, 45, 100, 60, 85, 50, 70].map((h, i) => (
-                      <div
-                        key={i}
-                        className={`w-1.5 rounded-full transition-all duration-150 ${
-                          isPlaying ? "bg-gradient-to-t from-indigo-500 to-pink-400" : "bg-slate-800"
-                        }`}
-                        style={{
-                          height: isPlaying ? `${Math.max(20, (h * (audioData.volume + 30)) / 100)}%` : "20%",
-                        }}
-                      />
-                    ))}
-                  </div>
-
-                  {/* Manual Lyric Skip Controls */}
-                  {isPlaying && (
-                    <div className="flex items-center gap-1">
-                      <button
-                        onClick={() => setCurrentLyricIndex((prev) => Math.max(0, prev - 1))}
-                        className="p-1 rounded bg-slate-900 hover:bg-slate-800 text-slate-400 hover:text-white text-xs cursor-pointer"
-                        title="이전 소절"
-                      >
-                        <ChevronLeft className="w-4 h-4" />
-                      </button>
-                      <span className="text-[11px] font-mono text-slate-400 px-1.5">
-                        {currentLyricIndex + 1} / {selectedSong.lyrics.length}
+          {/* 화면 */}
+          <div className="relative w-full aspect-video rounded-2xl overflow-hidden bg-slate-950 border-2 border-indigo-500/40 shadow-2xl">
+            {media?.source === "youtube" ? (
+              /* 유튜브 노래방 영상 — 가사는 영상이 직접 표시한다 */
+              <div className="relative w-full h-full">
+                <div ref={ytHostRef} className="w-full h-full" />
+                {/* 구간 안내 오버레이 (영상 위, 클릭은 통과시킨다) */}
+                {isPlaying && currentCue && (
+                  <div className="absolute bottom-0 inset-x-0 pointer-events-none p-3 bg-gradient-to-t from-slate-950/90 to-transparent">
+                    <div className="flex items-center gap-2 text-xs">
+                      <span className="px-2 py-0.5 rounded-full bg-amber-400/25 text-amber-200 border border-amber-400/40 font-bold shrink-0">
+                        {currentCue.label}
                       </span>
-                      <button
-                        onClick={() =>
-                          setCurrentLyricIndex((prev) => (prev + 1) % selectedSong.lyrics.length)
-                        }
-                        className="p-1 rounded bg-slate-900 hover:bg-slate-800 text-slate-400 hover:text-white text-xs cursor-pointer"
-                        title="다음 소절"
-                      >
-                        <ChevronRight className="w-4 h-4" />
-                      </button>
+                      {currentCue.hint && (
+                        <span className="text-slate-300 truncate">{currentCue.hint}</span>
+                      )}
                     </div>
-                  )}
-                </div>
-              </div>
-            ) : (
-              /* YouTube Mode with Open in New Tab Button */
-              <div className="relative w-full h-full flex flex-col justify-between">
-                {/* Embed Warning & Direct Link Banner */}
-                <div className="absolute top-2 left-2 right-2 z-10 p-2.5 rounded-xl bg-slate-950/90 backdrop-blur border border-purple-500/40 flex items-center justify-between gap-2 text-xs shadow-xl">
-                  <div className="flex items-center gap-2 min-w-0">
-                    <Sparkles className="w-4 h-4 text-purple-400 shrink-0" />
-                    <span className="text-slate-300 truncate">
-                      유튜브에서 &apos;동영상을 재생할 수 없음&apos;이 뜰 경우, 아래 버튼으로 바로 열어보세요!
-                    </span>
                   </div>
-                  <button
-                    onClick={handleOpenYoutubeDirectly}
-                    className="px-3 py-1 rounded-lg bg-red-600 hover:bg-red-500 text-white font-bold text-xs flex items-center gap-1.5 shrink-0 transition-colors shadow cursor-pointer"
+                )}
+              </div>
+            ) : media?.source === "local" ? (
+              /* 로컬 반주 파일 재생 화면 */
+              <GuideScreen
+                song={selectedSong}
+                isPlaying={isPlaying}
+                elapsed={elapsed}
+                cueLabel={currentCue?.label}
+                cueHint={currentCue?.hint}
+                nextCueLabel={nextCue?.label}
+                volume={audioData.volume}
+                headline="학교 보유 반주 파일로 재생 중"
+                onStart={handlePlay}
+              />
+            ) : (
+              /* 유튜브 영상이 아직 등록되지 않았거나 재생에 실패한 경우 */
+              <div className="w-full h-full overflow-y-auto p-5 flex flex-col justify-center">
+                {playerError && (
+                  <div className="mb-3 flex items-start gap-2 p-2.5 rounded-xl bg-rose-950/50 border border-rose-500/40 text-rose-200 text-xs">
+                    <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
+                    <span>{playerError}</span>
+                  </div>
+                )}
+
+                <div className="text-center space-y-1 mb-4">
+                  <Link2 className="w-8 h-8 text-indigo-400 mx-auto" />
+                  <h4 className="text-base font-black text-white">노래방 영상 등록하기</h4>
+                  <p className="text-[11px] text-slate-400 leading-relaxed">
+                    <span className="text-indigo-300 font-bold">{selectedSong.title}</span>의 노래방
+                    영상을 유튜브에서 찾아 링크를 붙여넣으면, 가사가 나오는 영상이 이 화면에
+                    재생됩니다.
+                    <br />
+                    등록 전에는 내장 자동 반주로도 노래하고 점수를 받을 수 있습니다.
+                  </p>
+                </div>
+
+                <div className="flex justify-center mb-3">
+                  <a
+                    href={youtubeSearchUrl(selectedSong)}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="px-3 py-1.5 rounded-lg bg-red-600 hover:bg-red-500 text-white font-bold text-xs flex items-center gap-1.5 transition-colors shadow"
                   >
                     <ExternalLink className="w-3.5 h-3.5" />
-                    유튜브에서 반주 열기
-                  </button>
+                    유튜브에서 &quot;{selectedSong.youtubeSearchQuery}&quot; 검색
+                  </a>
                 </div>
 
-                <div className="w-full h-full pt-12">
-                  <iframe
-                    src={`https://www.youtube.com/embed/${selectedSong.youtubeId}?autoplay=1&enablejsapi=1`}
-                    title={`${selectedSong.title} 노래방 영상`}
-                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                    allowFullScreen
-                    className="w-full h-full rounded-xl border-0"
+                <form onSubmit={handleRegisterVideo} className="flex gap-2 max-w-md mx-auto w-full">
+                  <input
+                    type="text"
+                    value={registerInput}
+                    onChange={(e) => setRegisterInput(e.target.value)}
+                    placeholder="유튜브 링크를 붙여넣으세요"
+                    className="flex-1 px-3 py-2 rounded-xl bg-slate-900 border border-slate-700 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500"
                   />
-                </div>
+                  <button
+                    type="submit"
+                    className="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs transition-colors shrink-0 cursor-pointer"
+                  >
+                    등록
+                  </button>
+                </form>
+
+                {registerNotice && (
+                  <p className="text-center text-[11px] text-emerald-300 mt-2 flex items-center justify-center gap-1">
+                    <CheckCircle2 className="w-3.5 h-3.5" />
+                    {registerNotice}
+                  </p>
+                )}
+
+                {isPlaying && currentCue && (
+                  <div className="mt-4 text-center">
+                    <span className="text-xs px-3 py-1 rounded-full bg-amber-400/20 text-amber-300 border border-amber-400/30 font-bold">
+                      {currentCue.label}
+                    </span>
+                  </div>
+                )}
               </div>
             )}
           </div>
 
-          {/* Bottom Karaoke Controller Bar */}
-          <div className="flex flex-wrap items-center justify-between gap-3 pt-2">
+          {/* 진행 바 */}
+          <div className="space-y-1">
+            <div className="h-1.5 w-full rounded-full bg-slate-800 overflow-hidden">
+              <div
+                className="h-full rounded-full bg-gradient-to-r from-indigo-500 to-pink-400 transition-all duration-500"
+                style={{ width: `${progressPct}%` }}
+              />
+            </div>
+            <div className="flex justify-between text-[10px] font-mono text-slate-500">
+              <span>{formatSeconds(elapsed)}</span>
+              <span>{duration > 0 ? formatSeconds(duration) : "--:--"}</span>
+            </div>
+          </div>
+
+          {/* 재생 근거 안내 — 전시회 관람객에게 보여 줄 문구 */}
+          {media && (
+            <p className="flex items-center gap-1.5 text-[11px] text-slate-500">
+              <ShieldCheck className="w-3.5 h-3.5 text-emerald-500/70 shrink-0" />
+              {media.reason}
+            </p>
+          )}
+
+          {/* 컨트롤 바 */}
+          <div className="flex flex-wrap items-center justify-between gap-3 pt-1">
             <div className="flex flex-wrap items-center gap-2">
               <button
-                onClick={() => (isPlaying ? handleStopSinging() : handleStartSinging(selectedSong))}
-                className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer"
+                onClick={() => (isPlaying ? handlePause() : void handlePlay())}
+                disabled={!media}
+                className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 disabled:opacity-40 disabled:cursor-not-allowed text-slate-200 border border-slate-700 text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer"
               >
                 {isPlaying ? <Pause className="w-3.5 h-3.5" /> : <Play className="w-3.5 h-3.5 fill-current" />}
-                {isPlaying ? "반주 일시정지" : "반주 시작"}
+                {isPlaying ? "일시정지" : "반주 시작"}
               </button>
 
               <button
-                onClick={handleFinishAndScore}
+                onClick={finishAndScore}
                 className="px-4 py-2 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 text-slate-950 font-black text-xs flex items-center gap-1.5 shadow-lg shadow-amber-500/20 transition-all cursor-pointer"
               >
                 <Trophy className="w-4 h-4" />
-                노래 완료 & 점수 채점! 💯
+                노래 완료 &amp; 점수 채점! 💯
               </button>
 
-              {/* Custom MP3 File Load Button */}
-              <button
-                onClick={() => fileInputRef.current?.click()}
-                className="px-3 py-2 rounded-xl bg-slate-800/80 hover:bg-slate-800 text-indigo-300 border border-indigo-500/30 text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer"
-                title="소장하고 있는 실제 노래방 MP3/WAV 반주 파일을 불러옵니다"
-              >
-                <FolderPlus className="w-3.5 h-3.5" />
-                {customAudioName ? (
-                  <span className="truncate max-w-[100px]">{customAudioName}</span>
-                ) : (
-                  "내 MP3 반주 넣기"
-                )}
-              </button>
-              <input
-                type="file"
-                ref={fileInputRef}
-                accept="audio/*"
-                className="hidden"
-                onChange={handleCustomAudioUpload}
-              />
+              {media?.source === "youtube" && media.youtubeId && (
+                <a
+                  href={youtubeWatchUrl(media.youtubeId)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="px-3 py-2 rounded-xl bg-slate-800/80 hover:bg-slate-800 text-slate-300 border border-slate-700 text-xs font-semibold flex items-center gap-1.5 transition-colors"
+                  title="화면이 작으면 유튜브에서 직접 크게 열 수 있습니다"
+                >
+                  <ExternalLink className="w-3.5 h-3.5" />
+                  유튜브에서 열기
+                </a>
+              )}
             </div>
 
             <div className="flex flex-wrap items-center gap-3">
-              {/* Accompaniment (MR) Volume Slider */}
+              {/* MR 볼륨 */}
               <div className="flex items-center gap-2 bg-slate-950/80 px-3 py-1.5 rounded-xl border border-slate-800 text-xs">
                 <SlidersHorizontal className="w-3.5 h-3.5 text-indigo-400" />
-                <span className="text-[11px] text-slate-400">MR 볼륨</span>
+                <span className="text-[11px] text-slate-400">반주 볼륨</span>
                 <input
                   type="range"
                   min="0"
                   max="1"
                   step="0.05"
                   value={mrVolume}
-                  onChange={(e) => handleVolumeChange(parseFloat(e.target.value))}
+                  onChange={(e) => setMrVolume(parseFloat(e.target.value))}
                   className="w-16 sm:w-20 h-1.5 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-indigo-500"
                 />
                 <span className="font-mono text-[10px] text-indigo-300 w-7 text-right">
@@ -746,18 +764,22 @@ export function KaraokeRoomSection({
                 </span>
               </div>
 
-              {/* Vocal Microphone Meters */}
+              {/* 마이크 미터 */}
               <div className="flex items-center gap-3 bg-slate-950/80 px-3 py-1.5 rounded-xl border border-slate-800 text-xs">
                 <button
-                  onClick={toggleMicrophone}
+                  onClick={() => void toggleMicrophone()}
                   className={`p-1.5 rounded-lg border transition-colors cursor-pointer ${
                     isMicActive
                       ? "bg-rose-950 text-rose-300 border-rose-500/50"
                       : "bg-slate-800 text-slate-400 border-slate-700"
                   }`}
-                  title={isMicActive ? "실제 마이크 끄기" : "실제 마이크 켜기"}
+                  title={isMicActive ? "마이크 끄기" : "마이크 켜기"}
                 >
-                  {isMicActive ? <Mic className="w-4 h-4 text-rose-400 animate-pulse" /> : <MicOff className="w-4 h-4" />}
+                  {isMicActive ? (
+                    <Mic className="w-4 h-4 text-rose-400 animate-pulse" />
+                  ) : (
+                    <MicOff className="w-4 h-4" />
+                  )}
                 </button>
 
                 <button
@@ -767,12 +789,11 @@ export function KaraokeRoomSection({
                       ? "bg-cyan-950 text-cyan-300 border-cyan-500/50"
                       : "bg-slate-800 text-slate-400 border-slate-700"
                   }`}
-                  title="마이크가 없을 때 가상 보컬 데이터 시뮬레이션"
+                  title="마이크가 없을 때 채점을 체험하는 시뮬레이션 모드"
                 >
                   {isVirtualMic ? "가상보컬 ON" : "가상보컬"}
                 </button>
 
-                {/* Volume VU Meter Bar */}
                 <div className="flex items-center gap-1.5">
                   <Volume2 className="w-3.5 h-3.5 text-slate-400" />
                   <div className="w-20 sm:w-24 h-2.5 rounded-full bg-slate-800 overflow-hidden p-0.5 flex items-center">
@@ -787,117 +808,122 @@ export function KaraokeRoomSection({
                       style={{ width: `${Math.max(4, audioData.volume)}%` }}
                     />
                   </div>
-                  <span className="font-mono text-[10px] w-6 text-right text-slate-400">
-                    {audioData.volume}%
-                  </span>
                 </div>
 
-                {/* Pitch Note Badge */}
-                <span className="font-mono text-[10px] px-1.5 py-0.5 rounded bg-slate-800 text-indigo-300 border border-slate-700">
-                  음정: {audioData.note} ({audioData.pitch}Hz)
-                </span>
+                {/* 음정 정확도 게이지 — 가운데에 가까울수록 정확 */}
+                <div className="hidden sm:flex items-center gap-1.5" title="음정 정확도">
+                  <span className="font-mono text-[10px] text-slate-400">{audioData.note}</span>
+                  <div className="relative w-14 h-2.5 rounded-full bg-slate-800 overflow-hidden">
+                    <div className="absolute left-1/2 top-0 w-px h-full bg-slate-600" />
+                    {audioData.pitch > 0 && (
+                      <div
+                        className={`absolute top-0.5 w-1.5 h-1.5 rounded-full transition-all duration-75 ${
+                          Math.abs(audioData.cents) < 15 ? "bg-emerald-400" : "bg-amber-400"
+                        }`}
+                        style={{
+                          left: `calc(${50 + Math.max(-45, Math.min(45, audioData.cents))}% - 3px)`,
+                        }}
+                      />
+                    )}
+                  </div>
+                </div>
               </div>
             </div>
           </div>
         </div>
 
-        {/* Right: Song Selection List & Search (4 Cols) */}
-        <div className="lg:col-span-4 bg-slate-900/90 border border-slate-800 rounded-2xl p-5 shadow-xl flex flex-col justify-between space-y-4">
-          <div>
-            <div className="flex items-center justify-between border-b border-slate-800 pb-3 mb-3">
-              <h3 className="text-sm font-bold text-white flex items-center gap-2">
-                <Music className="w-4 h-4 text-amber-400" />
-                노래방 인기곡 선곡
-              </h3>
-              <span className="text-[11px] text-slate-400">TJ/금영 MR 연동</span>
-            </div>
-
-            {/* Search Input */}
-            <div className="relative mb-3">
-              <Search className="w-4 h-4 text-slate-500 absolute left-3 top-2.5" />
-              <input
-                type="text"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="곡명 또는 가수 검색..."
-                className="w-full pl-9 pr-3 py-1.5 rounded-xl bg-slate-950 border border-slate-800 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500"
-              />
-            </div>
-
-            {/* Song Preset List */}
-            <div className="space-y-2 max-h-[340px] overflow-y-auto pr-1">
-              {filteredPresets.map((preset) => {
-                const isCurrent = selectedSong.title === preset.title;
-                return (
-                  <div
-                    key={preset.title}
-                    onClick={() => handleStartSinging(preset)}
-                    className={`p-2.5 rounded-xl border transition-all cursor-pointer flex items-center justify-between ${
-                      isCurrent
-                        ? "bg-indigo-950/60 border-indigo-500 text-white shadow-md shadow-indigo-950/40"
-                        : "bg-slate-950/50 border-slate-800/80 hover:bg-slate-800/50 text-slate-300"
-                    }`}
-                  >
-                    <div className="min-w-0 flex-1 pr-2">
-                      <div className="flex items-center gap-1.5">
-                        <span className="text-xs font-bold truncate">{preset.title}</span>
-                        {preset.tag && (
-                          <span className="text-[9px] px-1.5 py-0.2 rounded bg-slate-800 text-amber-300 shrink-0">
-                            {preset.tag}
-                          </span>
-                        )}
-                      </div>
-                      <p className="text-[11px] text-slate-400 truncate mt-0.5">
-                        {preset.singer} · {preset.genre}
-                      </p>
-                    </div>
-
-                    <button
-                      className={`px-2 py-1 rounded-lg text-[10px] font-bold flex items-center gap-1 shrink-0 ${
-                        isCurrent
-                          ? "bg-indigo-500 text-white"
-                          : "bg-slate-800 hover:bg-slate-700 text-slate-300"
-                      }`}
-                    >
-                      <Play className="w-2.5 h-2.5 fill-current" />
-                      선곡
-                    </button>
-                  </div>
-                );
-              })}
-            </div>
+        {/* ── 오른쪽: 선곡 목록 ─────────────────────────────── */}
+        <div className="lg:col-span-4 bg-slate-900/90 border border-slate-800 rounded-2xl p-5 shadow-xl flex flex-col space-y-4">
+          <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+            <h3 className="text-sm font-bold text-white flex items-center gap-2">
+              <Music className="w-4 h-4 text-amber-400" />
+              학생 애창곡 TOP 10
+            </h3>
+            <span className="text-[11px] text-slate-400">2026.09 기준</span>
           </div>
 
-          {/* Direct Custom YouTube Input */}
-          <form onSubmit={handleApplyCustomUrl} className="pt-2 border-t border-slate-800/80 space-y-2">
-            <p className="text-[11px] font-semibold text-slate-400 flex items-center gap-1">
-              <Sparkles className="w-3 h-3 text-amber-400" />
-              유튜브 링크/ID 직접 입력 (자유 선곡)
+          <div className="relative">
+            <Search className="w-4 h-4 text-slate-500 absolute left-3 top-2.5" />
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="곡명 또는 가수 검색..."
+              className="w-full pl-9 pr-3 py-1.5 rounded-xl bg-slate-950 border border-slate-800 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500"
+            />
+          </div>
+
+          <div className="space-y-2 overflow-y-auto pr-1 flex-1 max-h-[520px]">
+            {filteredSongs.map((song) => {
+              const isCurrent = selectedSong.id === song.id;
+              const hasVideo = Boolean(getVideoId(song));
+              return (
+                <button
+                  key={song.id}
+                  onClick={() => handleSelectSong(song)}
+                  className={`w-full text-left p-2.5 rounded-xl border transition-all cursor-pointer ${
+                    isCurrent
+                      ? "bg-indigo-950/60 border-indigo-500 text-white shadow-md shadow-indigo-950/40"
+                      : "bg-slate-950/50 border-slate-800/80 hover:bg-slate-800/50 text-slate-300"
+                  }`}
+                >
+                  <div className="flex items-center gap-2">
+                    <span
+                      className={`w-5 text-center text-[11px] font-black shrink-0 ${
+                        isCurrent ? "text-amber-300" : "text-slate-600"
+                      }`}
+                    >
+                      {KARAOKE_SONGS.indexOf(song) + 1}
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-xs font-bold truncate">{song.title}</span>
+                        <span className="text-[9px] px-1.5 py-px rounded bg-slate-800 text-amber-300 shrink-0">
+                          {song.tag}
+                        </span>
+                      </div>
+                      <p className="text-[11px] text-slate-400 truncate mt-0.5">
+                        {song.singer} · {song.genre}
+                      </p>
+                    </div>
+                    <span
+                      className={`text-[9px] px-1.5 py-0.5 rounded shrink-0 border ${
+                        hasVideo
+                          ? "bg-emerald-950/60 text-emerald-300 border-emerald-700/60"
+                          : "bg-slate-800/60 text-slate-500 border-slate-700"
+                      }`}
+                      title={hasVideo ? "노래방 영상이 등록된 곡" : "영상 미등록 — 내장 반주로 재생"}
+                    >
+                      {hasVideo ? "영상 ✓" : "미등록"}
+                    </span>
+                  </div>
+                  {isCurrent && (
+                    <p className="text-[10px] text-indigo-300/80 mt-1.5 pl-7 leading-relaxed">
+                      {song.pickReason}
+                    </p>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+
+          <div className="pt-3 border-t border-slate-800/80 text-[11px] text-slate-500 leading-relaxed">
+            <p className="flex items-start gap-1.5">
+              <ShieldCheck className="w-3.5 h-3.5 text-emerald-500/70 shrink-0 mt-0.5" />
+              <span>
+                노래방 영상은 <strong className="text-slate-400">내려받지 않고</strong> 유튜브 공식
+                플레이어로 재생합니다. 자세한 근거는{" "}
+                <code className="text-indigo-400">docs/부록F</code> 문서를 확인하세요.
+              </span>
             </p>
-            <div className="flex gap-2">
-              <input
-                type="text"
-                value={customUrlInput}
-                onChange={(e) => setCustomUrlInput(e.target.value)}
-                placeholder="유튜브 링크 또는 영상 ID"
-                className="flex-1 px-3 py-1.5 rounded-xl bg-slate-950 border border-slate-800 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500"
-              />
-              <button
-                type="submit"
-                className="px-3 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs transition-colors shrink-0 cursor-pointer"
-              >
-                선곡
-              </button>
-            </div>
-          </form>
+          </div>
         </div>
       </div>
 
-      {/* Score Celebration Modal */}
+      {/* ── 점수 결과 모달 ─────────────────────────────────── */}
       {showScoreModal && (
-        <div className="fixed inset-0 bg-slate-950/85 backdrop-blur-md flex items-center justify-center z-50 p-4 animate-fade-in">
-          <div className="w-full max-w-md bg-gradient-to-b from-slate-900 to-indigo-950 border-2 border-amber-500/60 rounded-3xl p-6 shadow-2xl text-center relative overflow-hidden space-y-6">
-            {/* Background Confetti Sparks Animation */}
+        <div className="fixed inset-0 bg-slate-950/85 backdrop-blur-md flex items-center justify-center z-50 p-4">
+          <div className="w-full max-w-md bg-gradient-to-b from-slate-900 to-indigo-950 border-2 border-amber-500/60 rounded-3xl p-6 shadow-2xl text-center relative overflow-hidden space-y-5">
             <div className="absolute inset-0 pointer-events-none opacity-40">
               <div className="absolute w-2 h-2 rounded-full bg-amber-400 top-6 left-12 animate-ping" />
               <div className="absolute w-3 h-3 rounded-full bg-rose-400 top-16 right-10 animate-bounce" />
@@ -905,44 +931,69 @@ export function KaraokeRoomSection({
               <div className="absolute w-2 h-2 rounded-full bg-emerald-400 bottom-16 right-12 animate-ping" />
             </div>
 
-            {/* Modal Header */}
-            <div>
+            <div className="relative">
               <span className="text-[11px] uppercase tracking-wider px-3 py-1 rounded-full bg-amber-500/20 text-amber-300 font-bold border border-amber-500/30">
-                KARAOKE SCORE RESULT
+                KARAOKE SCORE
               </span>
-              <h3 className="text-xl font-black text-white mt-2">
-                {selectedSong.title}
-              </h3>
+              <h3 className="text-xl font-black text-white mt-2">{selectedSong.title}</h3>
               <p className="text-xs text-slate-400">{selectedSong.singer}</p>
             </div>
 
-            {/* Digital Scoreboard Display */}
-            <div className="relative py-4">
-              <div className="w-40 h-40 mx-auto rounded-full bg-gradient-to-br from-amber-500/20 via-purple-500/20 to-indigo-500/20 border-4 border-amber-400/80 flex flex-col items-center justify-center shadow-xl shadow-amber-500/20">
-                <span className="text-xs font-bold text-amber-300">FINAL SCORE</span>
-                <div className="text-5xl font-black text-amber-400 tracking-tighter my-1">
+            <div className="relative py-2">
+              <div className="w-36 h-36 mx-auto rounded-full bg-gradient-to-br from-amber-500/20 via-purple-500/20 to-indigo-500/20 border-4 border-amber-400/80 flex flex-col items-center justify-center shadow-xl shadow-amber-500/20">
+                <span className="text-[10px] font-bold text-amber-300">FINAL SCORE</span>
+                <div className="text-5xl font-black text-amber-400 tracking-tighter my-0.5">
                   {animatedScore}
                   <span className="text-2xl font-bold text-amber-200">점</span>
                 </div>
                 <div className="px-2.5 py-0.5 rounded-full bg-amber-400 text-slate-950 font-black text-xs">
-                  등급: {finalScore?.rank || "A"}
+                  등급 {finalScore?.rank ?? "-"}
                 </div>
               </div>
             </div>
 
-            {/* Evaluation Comment */}
-            <div className="bg-slate-900/80 border border-slate-800 rounded-2xl p-4 shadow-inner">
+            {/* 항목별 점수 — 왜 이 점수인지 학생에게 보여 준다 */}
+            {finalScore?.sangSomething && (
+              <div className="relative grid grid-cols-4 gap-1.5">
+                {[
+                  { label: "음정", value: finalScore.breakdown.pitch, max: 35 },
+                  { label: "박자", value: finalScore.breakdown.timing, max: 30 },
+                  { label: "성량", value: finalScore.breakdown.volume, max: 20 },
+                  { label: "표현", value: finalScore.breakdown.expression, max: 15 },
+                ].map((item) => (
+                  <div
+                    key={item.label}
+                    className="bg-slate-900/70 border border-slate-800 rounded-xl p-2"
+                  >
+                    <p className="text-[10px] text-slate-400">{item.label}</p>
+                    <p className="text-sm font-black text-indigo-300">
+                      {item.value}
+                      <span className="text-[10px] font-normal text-slate-500">/{item.max}</span>
+                    </p>
+                    <div className="h-1 mt-1 rounded-full bg-slate-800 overflow-hidden">
+                      <div
+                        className="h-full rounded-full bg-indigo-500"
+                        style={{ width: `${(item.value / item.max) * 100}%` }}
+                      />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            <div className="relative bg-slate-900/80 border border-slate-800 rounded-2xl p-3.5 shadow-inner">
               <p className="text-sm font-bold text-slate-100 flex items-center justify-center gap-1.5">
-                <Sparkles className="w-4 h-4 text-amber-400" />
-                {isCalculatingScore ? "점수를 정밀 채점하고 있습니다..." : finalScore?.comment}
+                <Sparkles className="w-4 h-4 text-amber-400 shrink-0" />
+                {isCalculatingScore ? "점수를 채점하고 있습니다..." : finalScore?.comment}
               </p>
-              <p className="text-[11px] text-slate-400 mt-1">
-                학교 노래방 애창곡 DB에 해당 가창 기록이 자동으로 반영되었습니다!
-              </p>
+              {finalScore?.sangSomething && !isCalculatingScore && (
+                <p className="text-[11px] text-slate-400 mt-1">
+                  애창곡 DB에 가창 기록이 등록되었습니다!
+                </p>
+              )}
             </div>
 
-            {/* Action Buttons */}
-            <div className="flex items-center justify-center gap-3 pt-2">
+            <div className="relative flex items-center justify-center gap-3">
               <button
                 onClick={() => setShowScoreModal(false)}
                 className="px-5 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 font-bold text-xs transition-colors cursor-pointer flex items-center gap-1.5"
@@ -953,7 +1004,7 @@ export function KaraokeRoomSection({
               <button
                 onClick={() => {
                   setShowScoreModal(false);
-                  handleStartSinging(selectedSong);
+                  void handlePlay();
                 }}
                 className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 text-slate-950 font-black text-xs shadow-lg shadow-amber-500/30 transition-all cursor-pointer flex items-center gap-1.5"
               >
@@ -966,4 +1017,91 @@ export function KaraokeRoomSection({
       )}
     </div>
   );
+}
+
+/* ─────────────────────────────────────────────────────────────
+ * 로컬 반주 파일 재생 시의 화면 (영상이 없으므로 구간 안내를 크게 보여 준다)
+ * ──────────────────────────────────────────────────────────── */
+function GuideScreen({
+  song,
+  isPlaying,
+  elapsed,
+  cueLabel,
+  cueHint,
+  nextCueLabel,
+  volume,
+  headline,
+  onStart,
+}: {
+  song: KaraokeSong;
+  isPlaying: boolean;
+  elapsed: number;
+  cueLabel?: string;
+  cueHint?: string;
+  nextCueLabel?: string;
+  volume: number;
+  headline: string;
+  onStart: () => void;
+}) {
+  return (
+    <div className="h-full flex flex-col justify-between p-6">
+      <div className="flex items-center justify-between text-xs text-indigo-300/80 font-mono border-b border-indigo-500/20 pb-2">
+        <div className="flex items-center gap-2">
+          <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-ping" />
+          <span className="font-bold text-white uppercase tracking-wider">KARAOKE LIVE</span>
+        </div>
+        <span>{headline}</span>
+      </div>
+
+      <div className="flex flex-col items-center justify-center text-center my-auto space-y-4 px-4">
+        {isPlaying ? (
+          <>
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-400/20 text-amber-300 text-xs font-bold border border-amber-400/30">
+              🎤 {formatTime(elapsed)}
+            </div>
+            <h2 className="text-2xl sm:text-3xl lg:text-4xl font-black text-transparent bg-clip-text bg-gradient-to-r from-yellow-300 via-amber-200 to-pink-300 drop-shadow-[0_0_20px_rgba(234,179,8,0.4)] leading-snug">
+              {cueLabel}
+            </h2>
+            {cueHint && <p className="text-sm text-slate-300">{cueHint}</p>}
+            {nextCueLabel && (
+              <p className="text-xs text-slate-500">다음 구간: {nextCueLabel}</p>
+            )}
+          </>
+        ) : (
+          <div className="space-y-3">
+            <div className="w-16 h-16 rounded-full bg-indigo-600/30 border border-indigo-500/50 flex items-center justify-center text-indigo-300 shadow-lg mx-auto">
+              <Play className="w-8 h-8 fill-current ml-1" />
+            </div>
+            <h4 className="text-xl font-black text-white">{song.title}</h4>
+            <p className="text-xs text-slate-400">{song.singer}</p>
+            <button
+              onClick={onStart}
+              className="px-6 py-2.5 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white font-bold text-xs shadow-lg shadow-indigo-600/30 transition-all cursor-pointer"
+            >
+              반주 시작 &amp; 가창하기
+            </button>
+          </div>
+        )}
+      </div>
+
+      {/* 그래픽 이퀄라이저 */}
+      <div className="flex items-center gap-1.5 h-6 pt-3 border-t border-indigo-500/20">
+        {[40, 75, 55, 90, 65, 80, 45, 100, 60, 85, 50, 70].map((h, i) => (
+          <div
+            key={i}
+            className={`w-1.5 rounded-full transition-all duration-150 ${
+              isPlaying ? "bg-gradient-to-t from-indigo-500 to-pink-400" : "bg-slate-800"
+            }`}
+            style={{ height: isPlaying ? `${Math.max(20, (h * (volume + 30)) / 100)}%` : "20%" }}
+          />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function formatTime(sec: number) {
+  const m = Math.floor(Math.max(0, sec) / 60);
+  const s = Math.floor(Math.max(0, sec) % 60);
+  return `${m}:${s < 10 ? "0" : ""}${s}`;
 }
