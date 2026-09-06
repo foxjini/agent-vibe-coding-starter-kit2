@@ -16,11 +16,19 @@ from datetime import datetime, timezone
 import requests
 from dotenv import load_dotenv
 
+# 윈도우 콘솔 UTF-8 호환성 보장
+if sys.platform == "win32":
+    try:
+        sys.stdout.reconfigure(encoding="utf-8")
+        sys.stderr.reconfigure(encoding="utf-8")
+    except Exception:
+        pass
+
 # 1. 환경 설정 불러오기
 load_dotenv()
 
 # 백엔드 주소 (라즈베리파이에서 실행할 때는 백엔드가 켜진 PC의 IP를 적어주세요!)
-# 예: BACKEND_URL = "http://192.168.0.100:8000"
+# 예: BACKEND_URL = "http://192.168.35.71:8000"
 BACKEND_URL = os.getenv("BACKEND_URL", "http://localhost:8000").rstrip("/")
 DEVICE_API_KEY = os.getenv("DEVICE_API_KEY", "wake_up_2026_09_05_v1_0_0")
 
@@ -35,14 +43,21 @@ print("=" * 65)
 print(f"📍 연결할 백엔드 주소: {BACKEND_URL}")
 print(f"🔑 우리 팀 비밀 암호: {DEVICE_API_KEY[:6]}****")
 print("=" * 65)
-print("💡 [안내] 실제 하드웨어 핀 연결 없이, 화면 글자(print)로 성공을 확인합니다.\n")
+
+# 리눅스(라즈베리파이)에서 localhost 사용 시 주의 안내
+if ("localhost" in BACKEND_URL or "127.0.0.1" in BACKEND_URL) and sys.platform != "win32":
+    print("⚠️ [주의] 라즈베리파이(Linux)에서 'localhost'는 파이 자신을 가리킵니다.")
+    print("   백엔드가 실행 중인 PC의 Wi-Fi IP(예: http://192.168.35.71:8000)를")
+    print("   pi/.env 파일의 BACKEND_URL에 적어주세요!\n")
+
+print("💡 [안내] 실제 하드웨어 핀 연결 없이, 화면 글자(print)로 통신 성공을 확인합니다.\n")
 
 
 def check_backend_connection() -> bool:
     """백엔드가 켜져 있는지 확인하는 헬스체크"""
-    print("🔍 1단계: 백엔드 우체국이 문을 열었는지 확인 중...")
+    print("🔍 1단계: 백엔드 서버가 문을 열었는지 확인 중...")
     try:
-        res = requests.get(f"{BACKEND_URL}/health", timeout=3.0)
+        res = requests.get(f"{BACKEND_URL}/health", timeout=3.5)
         if res.status_code == 200:
             print("  ✅ [성공!] 백엔드 서버와 연결되었습니다! (상태 코드: 200 OK)")
             return True
@@ -54,7 +69,9 @@ def check_backend_connection() -> bool:
         print("  👉 처방전:")
         print("     1) 백엔드 담당 친구의 컴퓨터에서 백엔드 서버가 켜져 있는지 확인하세요.")
         print(f"     2) 라즈베리파이 .env 파일의 BACKEND_URL({BACKEND_URL})에 친구 PC의 실제 IP가 적혀 있는지 확인하세요.")
-        print("     3) 두 컴퓨터가 같은 와이파이(Wi-Fi)에 연결되어 있는지 확인하세요.\n")
+        print("     3) 두 컴퓨터가 같은 와이파이(Wi-Fi)에 연결되어 있는지 확인하세요.")
+        print("     4) Windows 방화벽이 8000번 포트를 막고 있다면 아래 명령어로 허용하세요:")
+        print("        netsh advfirewall firewall add rule name=\"fastapi-dev\" dir=in action=allow protocol=TCP localport=8000\n")
         return False
     except Exception as e:
         print(f"\n❌ [오류 발생]: {e}\n")
