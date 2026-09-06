@@ -20,7 +20,7 @@ $Root = Split-Path -Parent $MyInvocation.MyCommand.Path
 
 # 1. 백엔드 실행 창
 Write-Host ">> [1/4] 백엔드(FastAPI) 서버 창을 엽니다..." -ForegroundColor Green
-Start-Process powershell -ArgumentList "-NoExit", "-Command", "cd '$Root\backend'; .\venv\Scripts\Activate.ps1; Write-Host '--- [1] 백엔드 FastAPI 서버 실행 중 ---' -ForegroundColor Green; uvicorn main:app --reload --port 8000"
+Start-Process powershell -ArgumentList "-NoExit", "-Command", "cd '$Root\backend'; .\venv\Scripts\Activate.ps1; Write-Host '--- [1] 백엔드 FastAPI 서버 실행 중 ---' -ForegroundColor Green; uvicorn main:app --reload --host 0.0.0.0 --port 8000"
 
 Start-Sleep -Seconds 2
 
