@@ -1,0 +1,1144 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>라즈베리파이 5 입문: 회로 없이 통신부터 정복하기 (ELI5 노래방 부스 편)</title>
+  <style>
+    /* ==========================================================================
+       Meta Brand Presentation Style — Design Tokens & Core System
+       Pure White Background + Crisp Borders + Meta Blue Points
+       ========================================================================== */
+    :root {
+      --bg-primary: #FFFFFF;
+      --bg-secondary: #F8F9FA;
+      --bg-tertiary: #F0F2F5;
+      --card-bg: #FFFFFF;
+      --border-color: #E4E6EB;
+      --border-subtle: #CED0D4;
+      
+      --text-primary: #1C1E21;
+      --text-secondary: #65676B;
+      --text-muted: #8A8D91;
+      
+      --meta-blue: #0866FF;
+      --meta-blue-hover: #0052CC;
+      --meta-blue-light: #E7F3FF;
+      
+      --accent-green: #00A400;
+      --accent-green-light: #EBF8EB;
+      --accent-amber: #F58B00;
+      --accent-amber-light: #FFF8EB;
+      --accent-red: #FA383E;
+      --accent-red-light: #FDE8E8;
+      --accent-purple: #8B5CF6;
+      --accent-purple-light: #F3E8FF;
+
+      --font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+      
+      --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.05);
+      --shadow-md: 0 4px 14px rgba(0, 0, 0, 0.06);
+      --shadow-lg: 0 10px 30px rgba(0, 0, 0, 0.08);
+      --radius-sm: 8px;
+      --radius-md: 12px;
+      --radius-lg: 16px;
+      --radius-full: 9999px;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background-color: var(--bg-secondary);
+      color: var(--text-primary);
+      font-family: var(--font-family);
+      line-height: 1.5;
+      -webkit-font-smoothing: antialiased;
+      display: flex;
+      flex-direction: column;
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    /* Top Navigation Bar */
+    header.meta-nav {
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      background: rgba(255, 255, 255, 0.95);
+      backdrop-filter: blur(8px);
+      border-bottom: 1px solid var(--border-color);
+      padding: 0.75rem 1.5rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .brand-group {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+
+    .meta-logo-icon {
+      width: 28px;
+      height: 28px;
+      color: var(--meta-blue);
+      flex-shrink: 0;
+    }
+
+    .brand-title {
+      font-size: 0.95rem;
+      font-weight: 700;
+      color: var(--text-primary);
+      letter-spacing: -0.01em;
+    }
+
+    .brand-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.25rem;
+      padding: 0.2rem 0.6rem;
+      background-color: var(--meta-blue-light);
+      color: var(--meta-blue);
+      border-radius: var(--radius-full);
+      font-size: 0.75rem;
+      font-weight: 600;
+    }
+
+    .nav-controls {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+
+    .slide-counter {
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: var(--text-secondary);
+      min-width: 60px;
+      text-align: center;
+    }
+
+    .btn-nav {
+      background: var(--bg-primary);
+      border: 1px solid var(--border-color);
+      color: var(--text-primary);
+      padding: 0.45rem 0.9rem;
+      border-radius: var(--radius-sm);
+      font-size: 0.85rem;
+      font-weight: 600;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+      transition: all 0.15s ease;
+    }
+
+    .btn-nav:hover:not(:disabled) {
+      background: var(--bg-tertiary);
+      border-color: var(--border-subtle);
+    }
+
+    .btn-nav:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+    }
+
+    .btn-nav.primary {
+      background: var(--meta-blue);
+      color: #FFFFFF;
+      border-color: var(--meta-blue);
+    }
+
+    .btn-nav.primary:hover:not(:disabled) {
+      background: var(--meta-blue-hover);
+    }
+
+    /* Progress Bar */
+    .progress-track {
+      position: sticky;
+      top: 57px;
+      z-index: 99;
+      height: 3px;
+      background: var(--border-color);
+      width: 100%;
+    }
+
+    .progress-fill {
+      height: 100%;
+      background: var(--meta-blue);
+      width: 11.11%;
+      transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    /* Main Slide Stage */
+    main.stage {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 2rem 1.5rem;
+    }
+
+    .slides-wrapper {
+      width: 100%;
+      max-width: 1080px;
+    }
+
+    /* Each Slide Card */
+    .slide-card {
+      display: none; /* hidden by default */
+      background: var(--card-bg);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-lg);
+      box-shadow: var(--shadow-md);
+      padding: 3rem;
+      flex-direction: column;
+      position: relative;
+    }
+
+    .slide-card.active {
+      display: flex;
+      animation: fadeIn 0.25s ease-out;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(6px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* Typography & Hierarchy */
+    .slide-meta-label {
+      font-size: 0.8rem;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--meta-blue);
+      font-weight: 700;
+      margin-bottom: 0.5rem;
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+    }
+
+    .slide-title {
+      font-size: 2.1rem;
+      font-weight: 800;
+      letter-spacing: -0.03em;
+      color: var(--text-primary);
+      margin-bottom: 0.75rem;
+      line-height: 1.25;
+    }
+
+    .slide-desc {
+      font-size: 1.05rem;
+      color: var(--text-secondary);
+      margin-bottom: 2rem;
+      line-height: 1.6;
+    }
+
+    /* Component: Pill Tags */
+    .tag-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      margin-top: 1rem;
+    }
+
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+      padding: 0.35rem 0.8rem;
+      border-radius: var(--radius-full);
+      font-size: 0.8rem;
+      font-weight: 600;
+    }
+
+    .pill.blue { background: var(--meta-blue-light); color: var(--meta-blue); }
+    .pill.green { background: var(--accent-green-light); color: var(--accent-green); }
+    .pill.amber { background: var(--accent-amber-light); color: var(--accent-amber); }
+    .pill.purple { background: var(--accent-purple-light); color: var(--accent-purple); }
+    .pill.gray { background: var(--bg-tertiary); color: var(--text-secondary); }
+
+    /* Component: 2/3 Column Grids */
+    .grid-2 {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 1.5rem;
+      margin-top: 0.5rem;
+    }
+
+    .grid-3 {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 1.25rem;
+      margin-top: 0.5rem;
+    }
+
+    .card {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-md);
+      padding: 1.5rem;
+      display: flex;
+      flex-direction: column;
+      transition: transform 0.15s ease, box-shadow 0.15s ease;
+    }
+
+    .card:hover {
+      border-color: var(--border-subtle);
+      box-shadow: var(--shadow-sm);
+    }
+
+    .card-icon {
+      width: 40px;
+      height: 40px;
+      border-radius: var(--radius-md);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 1rem;
+      font-size: 1.25rem;
+    }
+
+    .card-icon.blue { background: var(--meta-blue-light); color: var(--meta-blue); }
+    .card-icon.green { background: var(--accent-green-light); color: var(--accent-green); }
+    .card-icon.amber { background: var(--accent-amber-light); color: var(--accent-amber); }
+    .card-icon.purple { background: var(--accent-purple-light); color: var(--accent-purple); }
+
+    .card-title {
+      font-size: 1.05rem;
+      font-weight: 700;
+      color: var(--text-primary);
+      margin-bottom: 0.5rem;
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+    }
+
+    .card-text {
+      font-size: 0.9rem;
+      color: var(--text-secondary);
+      line-height: 1.55;
+    }
+
+    /* Code Snippet Box */
+    .code-box {
+      background: #1E2124;
+      color: #E4E6EB;
+      border-radius: var(--radius-md);
+      padding: 1.25rem;
+      font-family: var(--font-mono);
+      font-size: 0.85rem;
+      line-height: 1.6;
+      position: relative;
+      margin: 1rem 0;
+      overflow-x: auto;
+    }
+
+    .code-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 0.75rem;
+      padding-bottom: 0.5rem;
+      border-bottom: 1px solid #33383F;
+      font-size: 0.75rem;
+      color: #8A8D91;
+    }
+
+    .btn-copy {
+      background: #2D3136;
+      border: 1px solid #444950;
+      color: #E4E6EB;
+      padding: 0.25rem 0.6rem;
+      border-radius: 4px;
+      font-size: 0.75rem;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.25rem;
+      transition: background 0.15s;
+    }
+
+    .btn-copy:hover {
+      background: #3B4048;
+    }
+
+    pre {
+      font-family: inherit;
+      white-space: pre-wrap;
+    }
+
+    .code-kw { color: #FF7B72; font-weight: 600; }
+    .code-str { color: #A5D6FF; }
+    .code-fn { color: #D2A8FF; }
+    .code-cmt { color: #8B949E; font-style: italic; }
+    .code-num { color: #79C0FF; }
+
+    /* Comparison / Mapping Table */
+    .mapping-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 1rem 0;
+      font-size: 0.9rem;
+    }
+
+    .mapping-table th {
+      background: var(--bg-tertiary);
+      color: var(--text-primary);
+      text-align: left;
+      padding: 0.75rem 1rem;
+      font-weight: 700;
+      border-bottom: 2px solid var(--border-color);
+    }
+
+    .mapping-table td {
+      padding: 0.85rem 1rem;
+      border-bottom: 1px solid var(--border-color);
+      color: var(--text-secondary);
+      vertical-align: middle;
+    }
+
+    .mapping-table tr:hover td {
+      background: var(--bg-secondary);
+    }
+
+    .term-tech {
+      font-family: var(--font-mono);
+      font-weight: 700;
+      color: var(--meta-blue);
+      font-size: 0.85rem;
+    }
+
+    .term-eli5 {
+      font-weight: 700;
+      color: var(--text-primary);
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+    }
+
+    /* Interactive Simulator */
+    .simulator-container {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-md);
+      padding: 1.5rem;
+      margin-top: 1rem;
+    }
+
+    .sim-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 1rem;
+      flex-wrap: wrap;
+      gap: 0.75rem;
+    }
+
+    .sim-screen {
+      background: #1A1D20;
+      border-radius: var(--radius-sm);
+      padding: 1.1rem;
+      color: #00FF66;
+      font-family: var(--font-mono);
+      font-size: 0.83rem;
+      min-height: 130px;
+      line-height: 1.65;
+      overflow-y: auto;
+    }
+
+    /* Toast */
+    #toast {
+      position: fixed;
+      bottom: 2rem;
+      left: 50%;
+      transform: translateX(-50%) translateY(100px);
+      background: #1C1E21;
+      color: #FFFFFF;
+      padding: 0.6rem 1.25rem;
+      border-radius: var(--radius-full);
+      font-size: 0.85rem;
+      font-weight: 600;
+      box-shadow: var(--shadow-lg);
+      transition: transform 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+      z-index: 1000;
+      pointer-events: none;
+    }
+
+    #toast.show {
+      transform: translateX(-50%) translateY(0);
+    }
+
+    /* Responsive */
+    @media (max-width: 840px) {
+      .slide-card {
+        padding: 1.75rem;
+      }
+      .slide-title {
+        font-size: 1.6rem;
+      }
+      .grid-2, .grid-3 {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    /* SVG Icon styles */
+    .icon-svg {
+      width: 18px;
+      height: 18px;
+      display: inline-block;
+      vertical-align: text-bottom;
+      stroke-width: 2;
+      stroke: currentColor;
+      fill: none;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Top Navigation Header -->
+  <header class="meta-nav">
+    <div class="brand-group">
+      <!-- Meta Presentation Brand Mark -->
+      <svg class="meta-logo-icon" viewBox="0 0 24 24" fill="currentColor">
+        <path d="M12 2C6.477 2 2 6.477 2 12c0 4.991 3.657 9.128 8.438 9.879V14.89h-2.54V12h2.54V9.797c0-2.506 1.492-3.89 3.777-3.89 1.094 0 2.238.195 2.238.195v2.46h-1.26c-1.243 0-1.63.771-1.63 1.562V12h2.773l-.443 2.89h-2.33v6.989C18.343 21.129 22 16.99 22 12c0-5.523-4.477-10-10-10z"/>
+      </svg>
+      <span class="brand-title">학교 노래방 부스 관리 시스템 · 라즈베리파이 5 입문</span>
+      <span class="brand-badge">ELI5 가이드</span>
+    </div>
+
+    <div class="nav-controls">
+      <span class="slide-counter" id="slideIndicator">01 / 09</span>
+      <button class="btn-nav" id="btnPrev" onclick="prevSlide()" disabled>
+        <svg class="icon-svg" viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"></polyline></svg>
+        이전
+      </button>
+      <button class="btn-nav primary" id="btnNext" onclick="nextSlide()">
+        다음
+        <svg class="icon-svg" viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"></polyline></svg>
+      </button>
+      <button class="btn-nav" onclick="toggleFullscreen()" title="전체화면">
+        <svg class="icon-svg" viewBox="0 0 24 24"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"></path></svg>
+      </button>
+    </div>
+  </header>
+
+  <!-- Progress Bar -->
+  <div class="progress-track">
+    <div class="progress-fill" id="progressFill"></div>
+  </div>
+
+  <!-- Main Slide Stage with Raw Semantic HTML Slides -->
+  <main class="stage">
+    <div class="slides-wrapper">
+
+      <!-- ====================================================================
+           SLIDE 1: COVER
+           ==================================================================== -->
+      <article class="slide-card active" data-slide="0">
+        <div class="slide-meta-label">
+          <svg class="icon-svg" viewBox="0 0 24 24"><polygon points="12 2 2 7 12 12 22 7 12 2"></polygon><polyline points="2 17 12 22 22 17"></polyline><polyline points="2 12 12 17 22 12"></polyline></svg>
+          Meta Brand Style · ELI5 시리즈
+        </div>
+        <h1 class="slide-title">라즈베리파이 5 첫걸음:<br>회로 없이 print()로 통신부터 정복하기</h1>
+        <p class="slide-desc">노래방 카운터 관리 컴퓨터(백엔드)와 노래방 룸 도우미(라즈베리파이)가 처음으로 인사하는 날! 하드웨어 핀이나 납땜 없이, 키보드와 화면 출력만으로 통신 성공을 만듭니다.</p>
+
+        <div class="grid-3" style="margin-top: 0.5rem;">
+          <div class="card">
+            <div class="card-icon blue">
+              <svg class="icon-svg" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+            </div>
+            <div class="card-title">Zero Hardware</div>
+            <div class="card-text">전선 연결? 납땜? 지금은 단 하나도 필요 없습니다. 오직 파이썬 <code>print()</code> 글자로만 시뮬레이션합니다.</div>
+          </div>
+
+          <div class="card">
+            <div class="card-icon green">
+              <svg class="icon-svg" viewBox="0 0 24 24"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
+            </div>
+            <div class="card-title">ELI5 쉬운 설명</div>
+            <div class="card-text">5살 아이에게 설명하듯 어려운 기술 용어를 코인 노래방의 일상 언어로 1:1 완벽 번역해 드립니다.</div>
+          </div>
+
+          <div class="card">
+            <div class="card-icon purple">
+              <svg class="icon-svg" viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>
+            </div>
+            <div class="card-title">단 3가지만 맞추기</div>
+            <div class="card-text">카운터 IP 주소, 출입증(API Key), 부품 이름표(ID) 딱 3개만 맞추면 무조건 연결에 성공합니다.</div>
+          </div>
+        </div>
+
+        <div class="tag-list" style="margin-top: 2rem;">
+          <span class="pill blue">🎯 대상: 하드웨어 담당 (학생A 조장, 학생B)</span>
+          <span class="pill green">⏱️ 소요 시간: 15분</span>
+          <span class="pill gray">💻 준비물: 파이썬이 설치된 PC 또는 라즈베리파이 5</span>
+        </div>
+      </article>
+
+      <!-- ====================================================================
+           SLIDE 2: THE BIG PICTURE
+           ==================================================================== -->
+      <article class="slide-card" data-slide="1">
+        <div class="slide-meta-label">
+          <svg class="icon-svg" viewBox="0 0 24 24"><polygon points="12 2 2 7 12 12 22 7 12 2"></polygon><polyline points="2 17 12 22 22 17"></polyline><polyline points="2 12 12 17 22 12"></polyline></svg>
+          우리가 만들 전체 시스템 구조
+        </div>
+        <h1 class="slide-title">우리가 만드는 큰 그림:<br>노래방 카운터와 룸 현장 도우미</h1>
+        <p class="slide-desc">시스템이 복잡해 보이지만, 사실은 '예약 손님', '카운터 컴퓨터(백엔드)', '룸 도우미(라즈베리파이)' 3명이 유기적으로 대화하는 구조입니다.</p>
+
+        <div class="grid-2">
+          <div class="card" style="border-left: 4px solid var(--meta-blue);">
+            <div class="card-title">
+              <span class="pill blue">본부</span> 카운터 관리 컴퓨터 (백엔드 + DB)
+            </div>
+            <div class="card-text" style="margin-top: 0.5rem;">
+              <strong>역할:</strong> 노래방 총괄 지휘 본부<br>
+              • 학생들의 웹 예약(시간, 학번, 4자리 비밀번호)을 장부(DB)에 저장합니다.<br>
+              • 예약 시간이 되면 <em>"1번 룸 도어락 열어라!", "노래방 반주기 전원 켜라!"</em> 하고 지시서를 작성해 둡니다.
+            </div>
+          </div>
+
+          <div class="card" style="border-left: 4px solid var(--accent-green);">
+            <div class="card-title">
+              <span class="pill green">현장</span> 룸 관리 도우미 (라즈베리파이 5)
+            </div>
+            <div class="card-text" style="margin-top: 0.5rem;">
+              <strong>역할:</strong> 부스 룸 현장의 믿음직한 행동대장<br>
+              • 3초마다 카운터에 가서 <em>"저 지금 할 일 있나요?"</em> 하고 지시서를 확인합니다.<br>
+              • 지시가 떨어지면 문을 열고(print), 전원을 켜고(print), <em>"다 했습니다!"</em> 하고 보고합니다.
+            </div>
+          </div>
+        </div>
+
+        <div class="card" style="margin-top: 1.5rem; background: var(--bg-tertiary);">
+          <div class="card-title">
+            <svg class="icon-svg" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>
+            라즈베리파이 담당 학생이 기억할 핵심 원칙
+          </div>
+          <div class="card-text">
+            백엔드의 데이터베이스나 프론트엔드 React 코드를 내가 직접 수정할 필요가 전혀 없습니다!<br>
+            오직 <strong>"카운터가 내려준 메모지를 읽고, 그대로 화면에 출력(print)한 뒤, 완료 보고서 보내기"</strong>만 완성하면 내 몫의 개발은 끝납니다.
+          </div>
+        </div>
+      </article>
+
+      <!-- ====================================================================
+           SLIDE 3: REST & JSON CONCEPTS
+           ==================================================================== -->
+      <article class="slide-card" data-slide="2">
+        <div class="slide-meta-label">
+          <svg class="icon-svg" viewBox="0 0 24 24"><polygon points="12 2 2 7 12 12 22 7 12 2"></polygon><polyline points="2 17 12 22 22 17"></polyline><polyline points="2 12 12 17 22 12"></polyline></svg>
+          대화의 수단과 규칙
+        </div>
+        <h1 class="slide-title">대화 수단: 표준 쪽지(JSON)와<br>무전 규칙(REST API) 익히기</h1>
+        <p class="slide-desc">서로 다른 컴퓨터가 대화할 때는 아무렇게나 말할 수 없습니다. 딱 정해진 '메모지 양식'과 '대화 방법'을 사용합니다.</p>
+
+        <table class="mapping-table">
+          <thead>
+            <tr>
+              <th style="width: 25%;">전문 기술 용어</th>
+              <th style="width: 35%;">ELI5 일상 비유</th>
+              <th>우리 노래방 프로젝트에서의 실제 의미</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><span class="term-tech">REST API</span></td>
+              <td><span class="term-eli5">📋 공식 심부름 창구</span></td>
+              <td>카운터 컴퓨터와 룸 도우미가 통신하기로 약속한 정규 주소 (URL)</td>
+            </tr>
+            <tr>
+              <td><span class="term-tech">JSON</span></td>
+              <td><span class="term-eli5">📝 [항목 : 내용] 쪽지</span></td>
+              <td>컴퓨터들이 좋아하는 표준 쪽지 서식 (예: <code>{"state": "unlocked"}</code>)</td>
+            </tr>
+            <tr>
+              <td><span class="term-tech">Desired-State</span></td>
+              <td><span class="term-eli5">📢 카운터의 '지시서'</span></td>
+              <td>카운터가 바라는 상태 (예: 도어락 열어둬! 릴레이 켜!)</td>
+            </tr>
+            <tr>
+              <td><span class="term-tech">Current-State</span></td>
+              <td><span class="term-eli5">🫡 도우미의 '완료 보고'</span></td>
+              <td>현장에서 실제 실행한 결과 보고 (예: 도어락 열었음!)</td>
+            </tr>
+            <tr>
+              <td><span class="term-tech">GET 요청</span></td>
+              <td><span class="term-eli5">👀 "지시서 볼래요"</span></td>
+              <td>카운터에 적힌 목표 상태를 읽어올 때 쓰는 명령어</td>
+            </tr>
+            <tr>
+              <td><span class="term-tech">POST 요청</span></td>
+              <td><span class="term-eli5">✍️ "보고서 낼게요"</span></td>
+              <td>카운터에 내 완료 상태를 기록해달라고 보낼 때 쓰는 명령어</td>
+            </tr>
+          </tbody>
+        </table>
+      </article>
+
+      <!-- ====================================================================
+           SLIDE 4: POLLING MECHANISM & SIMULATOR
+           ==================================================================== -->
+      <article class="slide-card" data-slide="3">
+        <div class="slide-meta-label">
+          <svg class="icon-svg" viewBox="0 0 24 24"><polygon points="12 2 2 7 12 12 22 7 12 2"></polygon><polyline points="2 17 12 22 22 17"></polyline><polyline points="2 12 12 17 22 12"></polyline></svg>
+          동작 메커니즘
+        </div>
+        <h1 class="slide-title">핵심 원리: 폴링(Polling)의 마법<br>"도우미는 왜 3초마다 카운터에 갈까?"</h1>
+        <p class="slide-desc">카운터가 룸 도우미에게 일일이 전화를 걸면 방화벽이나 학교 Wi-Fi 때문에 막힙니다. 대신 도우미가 3초마다 카운터를 찾아가는 '폴링' 방식을 씁니다.</p>
+
+        <div class="grid-3">
+          <div class="card" style="border-top: 4px solid var(--meta-blue);">
+            <div class="card-title">① 지시서 확인 (GET)</div>
+            <div class="card-text">
+              3초마다 <code>GET .../desired-state</code> 호출<br>
+              <em>"카운터님, 지금 도어락 열어야 하나요? 릴레이 켜야 하나요?"</em>
+            </div>
+          </div>
+
+          <div class="card" style="border-top: 4px solid var(--accent-amber);">
+            <div class="card-title">② 모의 동작 (print)</div>
+            <div class="card-text">
+              받은 지시가 'unlocked'라면?<br>
+              터미널에 외치기:<br>
+              <code>print("🚪 철컥! 도어락 해제!")</code>
+            </div>
+          </div>
+
+          <div class="card" style="border-top: 4px solid var(--accent-green);">
+            <div class="card-title">③ 완료 보고 (POST)</div>
+            <div class="card-text">
+              <code>POST .../state</code> 전송<br>
+              <em>"카운터님, 지시대로 도어락 열어두었습니다!"</em> (웹 화면에 즉시 반영)
+            </div>
+          </div>
+        </div>
+
+        <!-- Interactive Simulator Box -->
+        <div class="simulator-container">
+          <div class="sim-bar">
+            <span style="font-weight: 700; font-size: 0.95rem;">🎮 가상 폴링 인터랙티브 체험</span>
+            <button class="btn-nav primary" onclick="runSimCycle()">
+              카운터에서 도어락 해제 지시 내리기 (클릭!)
+            </button>
+          </div>
+          <div class="sim-screen" id="simConsole">
+[라즈베리파이 5 도우미 대기 중...]
+3초마다 백엔드 카운터에 물어보는 폴링 루프가 실행되고 있습니다.
+위 파란색 버튼을 눌러 카운터에서 '도어락 해제' 지시를 내려보세요!
+          </div>
+        </div>
+      </article>
+
+      <!-- ====================================================================
+           SLIDE 5: 3 GOLDEN KEYS
+           ==================================================================== -->
+      <article class="slide-card" data-slide="4">
+        <div class="slide-meta-label">
+          <svg class="icon-svg" viewBox="0 0 24 24"><polygon points="12 2 2 7 12 12 22 7 12 2"></polygon><polyline points="2 17 12 22 22 17"></polyline><polyline points="2 12 12 17 22 12"></polyline></svg>
+          성공을 위한 필수 조건
+        </div>
+        <h1 class="slide-title">딱 3가지만 맞추면 끝!<br>연동 성공을 여는 황금 열쇠 3가지</h1>
+        <p class="slide-desc">복잡한 코드를 몰라도 괜찮습니다. 라즈베리파이 담당자는 친구와 아래 3가지 값만 맞추면 무조건 통신이 연결됩니다.</p>
+
+        <div class="grid-3">
+          <div class="card">
+            <div class="card-icon blue">📍</div>
+            <div class="card-title">1. 카운터 주소</div>
+            <div class="card-text">
+              <strong>BACKEND_URL</strong><br>
+              백엔드 실행 중인 친구 컴퓨터의 IP 주소<br>
+              <code style="color: var(--meta-blue); font-weight: 700;">http://192.168.0.25:8000</code><br>
+              <span style="font-size: 0.78rem; color: var(--accent-red);">※ 파이에서 localhost는 자기 자신이므로 사용 금지!</span>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-icon green">🔑</div>
+            <div class="card-title">2. 도우미 출입증</div>
+            <div class="card-text">
+              <strong>DEVICE_API_KEY</strong><br>
+              카운터에 접근할 때 보여주는 비밀 암호<br>
+              <code style="color: var(--accent-green); font-weight: 700;">KARAOKE_2026_09_05_v1_0_0</code><br>
+              <span style="font-size: 0.78rem; color: var(--text-muted);">헤더(X-Device-Api-Key)에 항상 담아 보냅니다.</span>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-icon purple">🏷️</div>
+            <div class="card-title">3. 부품 이름표 (ID)</div>
+            <div class="card-text">
+              <strong>device_id</strong><br>
+              카운터 장부에 등록된 내 부품 ID<br>
+              • <code>door_lock_1</code> (도어락)<br>
+              • <code>relay_1</code> (반주기 전원 릴레이)<br>
+              • <code>led_1</code> (부스 조명)<br>
+              • <code>speaker_1</code> (스피커)
+            </div>
+          </div>
+        </div>
+
+        <div class="card" style="margin-top: 1.5rem;">
+          <div class="card-title">📂 환경설정 파일: pi/.env 확인하기</div>
+          <div class="card-text">
+            <code>pi</code> 폴더에 있는 <code>.env</code> 파일에 위 3가지를 적어두면 파이썬이 자동으로 읽어옵니다:
+          </div>
+          <div class="code-box" style="margin-bottom: 0;">
+<span class="code-cmt"># pi/.env 설정 파일 예시</span>
+BACKEND_URL=<span class="code-str">http://192.168.0.25:8000</span>
+DEVICE_API_KEY=<span class="code-str">KARAOKE_2026_09_05_v1_0_0</span>
+GPIOZERO_PIN_FACTORY=<span class="code-str">lgpio</span>
+          </div>
+        </div>
+      </article>
+
+      <!-- ====================================================================
+           SLIDE 6: STEP 1 PING CODE
+           ==================================================================== -->
+      <article class="slide-card" data-slide="5">
+        <div class="slide-meta-label">
+          <svg class="icon-svg" viewBox="0 0 24 24"><polygon points="12 2 2 7 12 12 22 7 12 2"></polygon><polyline points="2 17 12 22 22 17"></polyline><polyline points="2 12 12 17 22 12"></polyline></svg>
+          실습 1단계
+        </div>
+        <h1 class="slide-title">[1단계 실습] 5줄짜리 파이썬 코드로<br>카운터에 첫 인사 건네기 (Ping)</h1>
+        <p class="slide-desc">라즈베리파이에서 백엔드 컴퓨터로 통신선이 제대로 뚫려 있는지 1초 만에 테스트하는 초간단 스크립트입니다.</p>
+
+        <div class="code-box">
+          <div class="code-header">
+            <span>pi/01_ping_backend.py</span>
+            <button class="btn-copy" onclick="copyCode(this, 'codePing')">📋 코드 복사</button>
+          </div>
+          <pre id="codePing"><span class="code-kw">import</span> os, requests
+<span class="code-kw">from</span> dotenv <span class="code-kw">import</span> load_dotenv
+
+load_dotenv()  <span class="code-cmt"># 1. pi/.env 파일에서 주소 가져오기</span>
+BACKEND_URL = os.getenv(<span class="code-str">"BACKEND_URL"</span>, <span class="code-str">"http://127.0.0.1:8000"</span>)
+
+<span class="code-cmt"># 2. 카운터에 "지금 등록된 부품 목록 보여주세요" 하고 물어보기</span>
+print(<span class="code-str">f"🍓 [라즈베리파이 5] 카운터로 인사를 건넵니다: {BACKEND_URL}/api/devices"</span>)
+response = requests.get(<span class="code-str">f"{BACKEND_URL}/api/devices"</span>, timeout=<span class="code-num">3</span>)
+
+<span class="code-kw">if</span> response.status_code == <span class="code-num">200</span>:
+    print(<span class="code-str">"🎉 [성공 200 OK] 카운터와 정상적으로 연결되었습니다!"</span>)
+    print(<span class="code-str">"📦 등록된 부품:"</span>, [d[<span class="code-str">'id'</span>] <span class="code-kw">for</span> d <span class="code-kw">in</span> response.json().get(<span class="code-str">'data'</span>, [])])
+<span class="code-kw">else</span>:
+    print(<span class="code-str">f"⚠️ 연결은 됐지만 응답 코드가 다릅니다: {response.status_code}"</span>)</pre>
+        </div>
+
+        <div class="grid-2" style="margin-top: 0.5rem;">
+          <div class="card" style="background: var(--bg-tertiary);">
+            <div class="card-title">💻 터미널 실행 명령어</div>
+            <div class="code-box" style="margin: 0.5rem 0 0 0; background: #000;">
+cd pi
+python 01_ping_backend.py
+            </div>
+          </div>
+
+          <div class="card" style="background: var(--accent-green-light); border-color: #B4E3B4;">
+            <div class="card-title" style="color: var(--accent-green);">🎉 성공 시 나오는 화면</div>
+            <div class="card-text" style="font-family: var(--font-mono); font-size: 0.82rem; color: #0C5A0C; line-height: 1.6;">
+🍓 [라즈베리파이 5] 노래방 카운터로 인사를 건넵니다...<br>
+🎉 [성공 200 OK] 백엔드 카운터와 통신선이 완벽하게 연결되었습니다!<br>
+📦 카운터 장부에 등록된 부품: ['door_lock_1', 'relay_1', 'led_1', 'speaker_1', 'keypad_1', 'pir_1']
+            </div>
+          </div>
+        </div>
+      </article>
+
+      <!-- ====================================================================
+           SLIDE 7: STEP 2 MOCK DAEMON
+           ==================================================================== -->
+      <article class="slide-card" data-slide="6">
+        <div class="slide-meta-label">
+          <svg class="icon-svg" viewBox="0 0 24 24"><polygon points="12 2 2 7 12 12 22 7 12 2"></polygon><polyline points="2 17 12 22 22 17"></polyline><polyline points="2 12 12 17 22 12"></polyline></svg>
+          실습 2단계
+        </div>
+        <h1 class="slide-title">[2단계 실습] 지시서 읽고 화면에<br>print()로 외치며 완료 보고하기</h1>
+        <p class="slide-desc">실제 모터를 달지 않아도, 카운터의 '도어락 열기' 지시를 받아 화면에 출력하고 카운터에 보고하는 실전 데몬입니다.</p>
+
+        <div class="code-box">
+          <div class="code-header">
+            <span>pi/02_karaoke_daemon_mock.py (핵심 로직 발췌)</span>
+            <button class="btn-copy" onclick="copyCode(this, 'codeDaemon')">📋 코드 복사</button>
+          </div>
+          <pre id="codeDaemon"><span class="code-kw">import</span> time, requests
+
+HEADERS = {<span class="code-str">"X-Device-Api-Key"</span>: <span class="code-str">"KARAOKE_2026_09_05_v1_0_0"</span>}
+
+<span class="code-kw">def</span> <span class="code-fn">poll_and_act</span>(device_id):
+    <span class="code-cmt"># 1. 카운터에 "이 부품의 목표 상태는 무엇인가요?" 묻기</span>
+    url = <span class="code-str">f"http://192.168.0.25:8000/api/v1/devices/{device_id}/desired-state"</span>
+    res = requests.get(url, headers=HEADERS)
+    desired = res.json()[<span class="code-str">"data"</span>].get(<span class="code-str">"desired_state"</span>)
+
+    <span class="code-cmt"># 2. 지시가 변경되었으면 실제 하드웨어 대신 print()로 동작 시뮬레이션</span>
+    <span class="code-kw">if</span> desired == <span class="code-str">"unlocked"</span>:
+        print(<span class="code-str">f"🚪 [동작 시뮬레이션] {device_id} 철컥! 도어락이 해제되었습니다!"</span>)
+        
+        <span class="code-cmt"># 3. 카운터에 "도어락 열었습니다!" 보고하기</span>
+        report_url = <span class="code-str">f"http://192.168.0.25:8000/api/v1/devices/{device_id}/state"</span>
+        requests.post(report_url, headers=HEADERS, json={<span class="code-str">"state"</span>: <span class="code-str">"unlocked"</span>})
+        print(<span class="code-str">f"📤 [보고 완료] 카운터에 unlocked 상태 보고 완료!"</span>)
+
+<span class="code-cmt"># 3초마다 반복 실행 (무한 루프)</span>
+<span class="code-kw">while</span> <span class="code-kw">True</span>:
+    poll_and_act(<span class="code-str">"door_lock_1"</span>)
+    poll_and_act(<span class="code-str">"relay_1"</span>)
+    time.sleep(<span class="code-num">3</span>)</pre>
+        </div>
+
+        <div class="card" style="background: var(--meta-blue-light); border-color: #B9DAFF;">
+          <div class="card-title" style="color: var(--meta-blue);">✨ 마법 같은 순간 확인하기</div>
+          <div class="card-text">
+            1. 백엔드 담당 친구가 웹 대시보드에서 <strong>[도어락 해제]</strong> 버튼을 누릅니다.<br>
+            2. 3초 안에 내 라즈베리파이 화면에 <strong>"🚪 철컥! 도어락이 해제되었습니다!"</strong> 하고 글자가 뜹니다.<br>
+            3. 웹 대시보드의 도어락 아이콘이 초록색 '열림'으로 실시간 변경됩니다. <strong>(연동 성공!)</strong>
+          </div>
+        </div>
+      </article>
+
+      <!-- ====================================================================
+           SLIDE 8: TROUBLESHOOTING CHEAT SHEET
+           ==================================================================== -->
+      <article class="slide-card" data-slide="7">
+        <div class="slide-meta-label">
+          <svg class="icon-svg" viewBox="0 0 24 24"><polygon points="12 2 2 7 12 12 22 7 12 2"></polygon><polyline points="2 17 12 22 22 17"></polyline><polyline points="2 12 12 17 22 12"></polyline></svg>
+          에러 해결 치트키
+        </div>
+        <h1 class="slide-title">에러가 발생해도 당황하지 마세요!<br>초보자를 위한 3초 해결 처방전</h1>
+        <p class="slide-desc">에러는 내가 코딩을 못해서가 아닙니다. 컴퓨터가 서로를 찾아가는 과정에서 보내는 친절한 신호일 뿐입니다.</p>
+
+        <div class="grid-2">
+          <div class="card" style="border-left: 4px solid var(--accent-red);">
+            <div class="card-title" style="color: var(--accent-red);">🚨 401 Unauthorized</div>
+            <div class="card-text">
+              <strong>뜻:</strong> <em>"출입증(API 키)이 틀렸어요!"</em><br>
+              <strong>원인:</strong> 백엔드의 키와 파이의 키가 서로 다름<br>
+              <strong>처방:</strong> <code>pi/.env</code> 파일의 <code>DEVICE_API_KEY</code>가 백엔드와 똑같이 <code>KARAOKE_2026_09_05_v1_0_0</code>인지 확인!
+            </div>
+          </div>
+
+          <div class="card" style="border-left: 4px solid var(--accent-amber);">
+            <div class="card-title" style="color: var(--accent-amber);">🔍 404 Not Found</div>
+            <div class="card-text">
+              <strong>뜻:</strong> <em>"장부(DB)에 그런 부품 이름이 없어요!"</em><br>
+              <strong>원인:</strong> <code>door_lock_1</code> 대신 <code>doorlock</code>처럼 오타가 남<br>
+              <strong>처방:</strong> 부품 이름표(ID) 스펠링을 <code>door_lock_1</code>, <code>relay_1</code>로 정확히 확인!
+            </div>
+          </div>
+
+          <div class="card" style="border-left: 4px solid var(--accent-purple);">
+            <div class="card-title" style="color: var(--accent-purple);">🚫 Connection Refused</div>
+            <div class="card-text">
+              <strong>뜻:</strong> <em>"카운터 문이 닫혀 있어요!"</em><br>
+              <strong>원인:</strong> 백엔드 서버(FastAPI)가 아직 실행 중이지 않음<br>
+              <strong>처방:</strong> 백엔드 담당 친구에게 <em>"서버(uvicorn) 켜져 있어?"</em> 하고 물어보기!
+            </div>
+          </div>
+
+          <div class="card" style="border-left: 4px solid var(--meta-blue);">
+            <div class="card-title" style="color: var(--meta-blue);">⏳ Connection Timeout</div>
+            <div class="card-text">
+              <strong>뜻:</strong> <em>"카운터 주소(IP)로 찾아가는 길이 끊겼어요!"</em><br>
+              <strong>원인:</strong> 두 컴퓨터가 서로 다른 Wi-Fi에 연결되어 있음<br>
+              <strong>처방:</strong> 백엔드 PC와 라즈베리파이가 <strong>동일한 공유기(Wi-Fi)</strong>에 접속했는지 확인!
+            </div>
+          </div>
+        </div>
+      </article>
+
+      <!-- ====================================================================
+           SLIDE 9: NEXT STEPS (ROADMAP)
+           ==================================================================== -->
+      <article class="slide-card" data-slide="8">
+        <div class="slide-meta-label">
+          <svg class="icon-svg" viewBox="0 0 24 24"><polygon points="12 2 2 7 12 12 22 7 12 2"></polygon><polyline points="2 17 12 22 22 17"></polyline><polyline points="2 12 12 17 22 12"></polyline></svg>
+          다음 단계 안내
+        </div>
+        <h1 class="slide-title">축하합니다! 통신을 정복했습니다.<br>이제 진짜 핀(GPIO)을 꽂아볼까요?</h1>
+        <p class="slide-desc">통신이 성공했다는 것은 시스템의 80%가 완성되었다는 뜻입니다. 이제 가상 print() 자리에 전선 제어 코드 2줄만 넣으면 끝납니다.</p>
+
+        <div class="grid-3">
+          <div class="card" style="background: var(--accent-green-light); border-color: #B4E3B4;">
+            <div class="card-icon green">
+              <svg class="icon-svg" viewBox="0 0 24 24"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
+            </div>
+            <div class="card-title" style="color: var(--accent-green);">1단계: 통신 성공 (완료!)</div>
+            <div class="card-text">회로 없이 <code>print()</code>로 백엔드와 REST API 폴링 및 상태 보고 성공 달성!</div>
+          </div>
+
+          <div class="card">
+            <div class="card-icon blue">2</div>
+            <div class="card-title">2단계: 회로 1개씩 연결</div>
+            <div class="card-text">
+              도어락 릴레이(GPIO 17번)부터 하나씩 브레드보드에 꽂고 <code>gpiozero</code> 코드로 교체하기
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-icon purple">3</div>
+            <div class="card-title">3단계: 부스 최종 합체</div>
+            <div class="card-text">
+              키패드, 조명 LED, 스피커 안내 방송까지 연동하여 무인 자동화 학교 노래방 완성!
+            </div>
+          </div>
+        </div>
+
+        <div class="card" style="margin-top: 1.5rem; background: var(--bg-tertiary);">
+          <div class="card-title">💡 코드가 어떻게 바뀌나요? (미리보기)</div>
+          <div class="code-box" style="margin-bottom: 0;">
+<span class="code-cmt"># [현재 1단계] 모의 출력</span>
+<span class="code-kw">if</span> desired == <span class="code-str">"unlocked"</span>:
+    print(<span class="code-str">"🚪 도어락이 열렸습니다!"</span>)
+
+<span class="code-cmt"># [다음 2단계] 실제 하드웨어 핀 제어로 교체 (단 2줄 추가!)</span>
+<span class="code-kw">from</span> gpiozero <span class="code-kw">import</span> OutputDevice
+door_lock = OutputDevice(<span class="code-num">17</span>)  <span class="code-cmt"># GPIO 17번에 도어락 릴레이 연결</span>
+
+<span class="code-kw">if</span> desired == <span class="code-str">"unlocked"</span>:
+    door_lock.on()  <span class="code-cmt"># ⚡ 실제 솔레노이드 도어락 해제!</span>
+          </div>
+        </div>
+
+        <div style="margin-top: 1.5rem; text-align: center; color: var(--text-secondary); font-size: 0.95rem;">
+          👏 <strong>학생A 조장님</strong> & <strong>학생B 님</strong>, 여러분의 손끝에서 학교 최고의 노래방 부스가 탄생합니다!
+        </div>
+      </article>
+
+    </div>
+  </main>
+
+  <div id="toast">코드가 클립보드에 복사되었습니다!</div>
+
+  <script>
+    // ==========================================================================
+    // Slide Navigation Controller
+    // ==========================================================================
+    const slideCards = document.querySelectorAll('.slide-card');
+    const totalSlides = slideCards.length;
+    let currentSlide = 0;
+
+    function showSlide(index) {
+      if (index < 0 || index >= totalSlides) return;
+      currentSlide = index;
+
+      slideCards.forEach((card, i) => {
+        if (i === currentSlide) {
+          card.classList.add('active');
+        } else {
+          card.classList.remove('active');
+        }
+      });
+
+      // Update Navigation & Counter
+      document.getElementById("slideIndicator").textContent = 
+        String(currentSlide + 1).padStart(2, '0') + " / " + String(totalSlides).padStart(2, '0');
+      
+      document.getElementById("btnPrev").disabled = (currentSlide === 0);
+      document.getElementById("btnNext").disabled = (currentSlide === totalSlides - 1);
+
+      // Update Progress Bar
+      const pct = ((currentSlide + 1) / totalSlides) * 100;
+      document.getElementById("progressFill").style.width = pct + "%";
+
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    function nextSlide() {
+      if (currentSlide < totalSlides - 1) {
+        showSlide(currentSlide + 1);
+      }
+    }
+
+    function prevSlide() {
+      if (currentSlide > 0) {
+        showSlide(currentSlide - 1);
+      }
+    }
+
+    // Keyboard Shortcuts
+    window.addEventListener("keydown", (e) => {
+      if (e.key === "ArrowRight" || e.key === "PageDown" || e.key === " ") {
+        e.preventDefault();
+        nextSlide();
+      } else if (e.key === "ArrowLeft" || e.key === "PageUp") {
+        e.preventDefault();
+        prevSlide();
+      }
+    });
+
+    // Fullscreen Toggle
+    function toggleFullscreen() {
+      if (!document.fullscreenElement) {
+        document.documentElement.requestFullscreen().catch(() => {});
+      } else {
+        if (document.exitFullscreen) {
+          document.exitFullscreen();
+        }
+      }
+    }
+
+    // Copy Code Helper
+    function copyCode(button, targetId) {
+      const codeEl = document.getElementById(targetId);
+      if (!codeEl) return;
+      const text = codeEl.innerText;
+      navigator.clipboard.writeText(text).then(() => {
+        showToast("코드가 클립보드에 복사되었습니다!");
+        const originalText = button.innerHTML;
+        button.innerHTML = "✅ 복사 완료";
+        setTimeout(() => {
+          button.innerHTML = originalText;
+        }, 2000);
+      }).catch(() => {
+        showToast("복사에 실패했습니다. 직접 복사해 주세요.");
+      });
+    }
+
+    function showToast(msg) {
+      const toast = document.getElementById("toast");
+      toast.textContent = msg;
+      toast.classList.add("show");
+      setTimeout(() => {
+        toast.classList.remove("show");
+      }, 2500);
+    }
+
+    // Interactive Simulator on Slide 4
+    function runSimCycle() {
+      const consoleEl = document.getElementById("simConsole");
+      if (!consoleEl) return;
+
+      const now = new Date().toLocaleTimeString();
+      consoleEl.innerHTML = `
+<span style="color: #65676B;">[` + now + `]</span> 🌐 <strong>[웹 대시보드]</strong> 학생 예약 인증 성공! 카운터가 지시서 갱신:
+   ➡️ <span style="color: #FFD700;">door_lock_1: desired_state = 'unlocked'</span>
+   ➡️ <span style="color: #FFD700;">relay_1: desired_state = 'on' (반주기 전원)</span>
+<br>
+<span style="color: #65676B;">[` + now + `]</span> 🍓 <strong>[라즈베리파이 5]</strong> GET /api/v1/devices/door_lock_1/desired-state 폴링 수신!
+   📬 "카운터의 새로운 지시서 도착: unlocked"
+<br>
+<span style="color: #00FF66;">[` + now + `]</span> 🚪 <strong>[터미널 출력 print]</strong> "철컥! 솔레노이드 도어락이 해제되었습니다! (부스 입장 가능)"
+<span style="color: #00FF66;">[` + now + `]</span> ⚡ <strong>[터미널 출력 print]</strong> "딸깍! 기기 전원 릴레이 ON! 노래방 반주기에 불이 들어옵니다!"
+<br>
+<span style="color: #00D8FF;">[` + now + `]</span> 📤 <strong>[완료 보고 POST]</strong> /api/v1/devices/door_lock_1/state
+   {"state": "unlocked", "actor": "device"}
+   🎉 카운터에 보고 완료! 웹 대시보드 화면에 도어락 '열림' 상태 실시간 동기화 완료!
+      `;
+    }
+
+    // Initialize First Slide
+    showSlide(0);
+  </script>
+</body>
+</html>
