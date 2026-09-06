@@ -21,6 +21,11 @@ import time
 import requests
 from dotenv import load_dotenv
 
+if sys.platform == "win32":
+    import io
+    sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8", errors="replace")
+    sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding="utf-8", errors="replace")
+
 # 1. 환경변수 불러오기
 load_dotenv()
 BACKEND_URL = os.getenv("BACKEND_URL", "http://127.0.0.1:8000")

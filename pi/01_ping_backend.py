@@ -15,6 +15,11 @@ import sys
 import requests
 from dotenv import load_dotenv
 
+if sys.platform == "win32":
+    import io
+    sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8", errors="replace")
+    sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding="utf-8", errors="replace")
+
 # 1. pi/.env 파일에서 백엔드 주소를 읽어옵니다.
 load_dotenv()
 BACKEND_URL = os.getenv("BACKEND_URL", "http://127.0.0.1:8000")
