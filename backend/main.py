@@ -20,6 +20,7 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
+from routers.admin import admin_router
 from routers.devices import user_router, device_router
 from routers.reservations import reservations_router, booth_router, songs_router
 from websocket_manager import ws_manager
@@ -99,6 +100,7 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
 # ==============================================================================
 # 라우터 등록
 # ==============================================================================
+app.include_router(admin_router)
 app.include_router(user_router)
 app.include_router(device_router)
 app.include_router(reservations_router)

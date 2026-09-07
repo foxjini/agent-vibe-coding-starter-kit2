@@ -4,7 +4,7 @@ from typing import Any, Dict, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 
-from auth import verify_device_api_key, verify_user_auth
+from auth import verify_admin_token, verify_device_api_key, verify_user_auth
 from db import database as db
 from iot.provider_factory import get_device_provider
 from schemas.device import (
@@ -57,10 +57,14 @@ async def get_device_detail(
 async def control_device(
     device_id: str,
     request: DeviceControlRequest,
-    _user: Dict[str, Any] = Depends(verify_user_auth)
+    _admin: str = Depends(verify_admin_token)
 ) -> Dict[str, Any]:
     """
     액추에이터 목표 상태 제어 (도어락 해제, 전원 릴레이 on/off, LED 점등 등)
+
+    ⚠️ 관리자 전용이다. 관람객이 도어락을 열거나 남이 노래하는 중에 전원을
+    끄지 못하도록 X-Admin-Token 헤더를 요구한다 (부록G §3-4).
+    학생용 정상 경로는 /api/booth/verify-keypad(키패드 인증)이다.
     성공 시 WebSocket으로 낙관적 상태를 즉시 브로드캐스트합니다.
     """
     provider = get_device_provider()

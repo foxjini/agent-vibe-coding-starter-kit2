@@ -3,8 +3,9 @@ import logging
 import random
 from typing import Any, Dict
 
-from fastapi import APIRouter, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 
+from auth import verify_admin_token
 from db import database as db
 from schemas.reservation import (
     KeypadVerifyRequest,
@@ -143,21 +144,21 @@ async def verify_keypad(req: KeypadVerifyRequest) -> Dict[str, Any]:
 
 
 @booth_router.post("/simulate-entry")
-async def simulate_entry() -> Dict[str, Any]:
+async def simulate_entry(_admin: str = Depends(verify_admin_token)) -> Dict[str, Any]:
     """입장 감지 센서(PIR) 또는 비전 사람 감지 트리거 시뮬레이션"""
     result = await BoothService.trigger_entry()
     return {"data": result}
 
 
 @booth_router.post("/simulate-10min-warning")
-async def simulate_10min_warning() -> Dict[str, Any]:
+async def simulate_10min_warning(_admin: str = Depends(verify_admin_token)) -> Dict[str, Any]:
     """종료 10분 전 LED 깜빡임 및 사전 알림 트리거 시뮬레이션"""
     result = await BoothService.trigger_10min_warning()
     return {"data": result}
 
 
 @booth_router.post("/simulate-end")
-async def simulate_end() -> Dict[str, Any]:
+async def simulate_end(_admin: str = Depends(verify_admin_token)) -> Dict[str, Any]:
     """이용 종료 및 퇴실곡 재생 + 전원/도어락 차단 트리거 시뮬레이션"""
     result = await BoothService.trigger_session_end()
     return {"data": result}

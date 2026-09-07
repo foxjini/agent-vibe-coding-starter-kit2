@@ -15,6 +15,21 @@ logger = logging.getLogger("backend.db")
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 load_dotenv(os.path.join(BASE_DIR, ".env"))
 
+# ==============================================================================
+# 접속 대상 결정 — 로컬 MariaDB vs Supabase(PostgreSQL)
+#
+# DATABASE_URL이 채워져 있으면 Supabase(PostgreSQL)로 붙고, 없으면 기존처럼
+# 로컬 MySQL/MariaDB로 붙는다. 학생 PC에서는 아무것도 안 바꿔도 그대로 돌아가고,
+# Render/Vercel 배포 시에는 DATABASE_URL 하나만 넣으면 전환된다.
+#
+# 두 드라이버(pymysql / psycopg) 모두 %s 자리표시자를 쓰기 때문에 쿼리 본문은
+# 대부분 그대로 쓸 수 있다. 방언이 갈리는 곳은 UPSERT와 DDL뿐이라 아래에서
+# _upsert_clause() 와 init_db()가 나눠 처리한다.
+# ==============================================================================
+
+DATABASE_URL = os.getenv("DATABASE_URL", "").strip()
+IS_POSTGRES = bool(DATABASE_URL)
+
 DB_HOST = os.getenv("DB_HOST", "127.0.0.1")
 DB_PORT = int(os.getenv("DB_PORT", "3306"))
 DB_USER = os.getenv("DB_USER", "root")
@@ -22,10 +37,47 @@ DB_PASSWORD = os.getenv("DB_PASSWORD", "")
 DB_NAME = os.getenv("DB_NAME", "smart_control")
 
 
-def get_db_connection(include_database: bool = True) -> pymysql.Connection:
+def _upsert_clause(conflict_columns: str, assignments: Dict[str, str]) -> str:
     """
-    MySQL/MariaDB 데이터베이스 커넥션을 생성하여 반환합니다.
+    INSERT 뒤에 붙일 UPSERT 절을 현재 DB 방언에 맞춰 만듭니다.
+
+    assignments의 값에는 `EXCLUDED`(새로 넣으려던 값)를 대문자 그대로 쓴다.
+    MySQL에서는 VALUES(컬럼) 형태로, PostgreSQL에서는 EXCLUDED.컬럼 형태로
+    자동 변환된다.
+
+        _upsert_clause("id", {"name": "EXCLUDED.name"})
+        MySQL      -> ON DUPLICATE KEY UPDATE name = VALUES(name)
+        PostgreSQL -> ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name
     """
+    if IS_POSTGRES:
+        sets = ", ".join(f"{col} = {expr}" for col, expr in assignments.items())
+        return f"ON CONFLICT ({conflict_columns}) DO UPDATE SET {sets}"
+
+    mysql_sets = []
+    for col, expr in assignments.items():
+        # EXCLUDED.name -> VALUES(name)
+        converted = expr
+        if expr.startswith("EXCLUDED."):
+            converted = f"VALUES({expr.split('.', 1)[1]})"
+        mysql_sets.append(f"{col} = {converted}")
+    return "ON DUPLICATE KEY UPDATE " + ", ".join(mysql_sets)
+
+
+def get_db_connection(include_database: bool = True):
+    """
+    데이터베이스 커넥션을 생성하여 반환합니다.
+    DATABASE_URL이 있으면 PostgreSQL(Supabase), 없으면 MySQL/MariaDB.
+    """
+    if IS_POSTGRES:
+        import psycopg
+        from psycopg.rows import dict_row
+
+        # Supabase는 항상 TLS를 요구한다. URL에 sslmode가 없으면 붙여 준다.
+        dsn = DATABASE_URL
+        if "sslmode=" not in dsn:
+            dsn += ("&" if "?" in dsn else "?") + "sslmode=require"
+        return psycopg.connect(dsn, row_factory=dict_row, autocommit=True)
+
     return pymysql.connect(
         host=DB_HOST,
         port=DB_PORT,
@@ -39,9 +91,10 @@ def get_db_connection(include_database: bool = True) -> pymysql.Connection:
 
 
 @contextmanager
-def get_db_cursor(include_database: bool = True) -> Generator[DictCursor, None, None]:
+def get_db_cursor(include_database: bool = True) -> Generator[Any, None, None]:
     """
     자동 리소스 관리를 위한 커서 컨텍스트 매니저.
+    두 드라이버 모두 dict 형태의 행을 돌려주도록 맞춰져 있다.
     """
     conn = get_db_connection(include_database=include_database)
     try:
@@ -87,12 +140,61 @@ def _format_row(row: Optional[Dict[str, Any]]) -> Optional[Dict[str, Any]]:
     return formatted
 
 
+def _seed_initial_rows() -> None:
+    """
+    디바이스·기본 애창곡 시드 데이터를 보장합니다 (MySQL / PostgreSQL 공용).
+    UPSERT라 여러 번 실행해도 안전합니다.
+    """
+    seed_devices = [
+        ("door_lock_1", "솔레노이드 도어락", "door_lock"),
+        ("relay_1", "기기 전원 릴레이", "relay"),
+        ("led_1", "부스 조명 LED", "led"),
+        ("speaker_1", "스피커/오디오 모듈", "speaker"),
+        ("keypad_1", "4x4 비밀번호 키패드", "keypad"),
+        ("pir_1", "입장 감지 센서", "pir"),
+    ]
+    device_query = """
+        INSERT INTO devices (id, name, kind)
+        VALUES (%s, %s, %s)
+    """ + _upsert_clause("id", {"name": "EXCLUDED.name", "kind": "EXCLUDED.kind"})
+
+    seed_songs = [
+        ("다시 만나", "더윈드", 5),
+        ("첫 만남은 계획대로 되지 않아", "TWS", 4),
+        ("Supernova", "aespa", 3),
+        ("Love wins all", "아이유", 2),
+        ("Hype Boy", "NewJeans", 1),
+    ]
+    song_query = """
+        INSERT INTO song_history (title, singer, sing_count)
+        VALUES (%s, %s, %s)
+    """ + _upsert_clause("title, singer", {"sing_count": "EXCLUDED.sing_count"})
+
+    with get_db_cursor() as cursor:
+        for dev in seed_devices:
+            cursor.execute(device_query, dev)
+        for song in seed_songs:
+            cursor.execute(song_query, song)
+
+
 def init_db() -> None:
     """
     서버 시작 시 데이터베이스 및 필수 테이블 존재 여부를 확인하고 생성합니다.
     시드 디바이스 데이터도 함께 보장합니다.
+
+    PostgreSQL(Supabase)에서는 DB·테이블을 코드가 만들지 않는다.
+    Supabase 대시보드의 SQL Editor에서 `backend/db/init_supabase.sql`을
+    한 번 실행해 스키마를 만들어 두고, 여기서는 시드 데이터만 보장한다.
+    (Supabase는 CREATE DATABASE 권한을 주지 않고, 스키마 변경은 대시보드에서
+     이력이 남게 관리하는 편이 안전하다)
     """
     try:
+        if IS_POSTGRES:
+            logger.info("PostgreSQL(Supabase) 모드 — DDL은 건너뛰고 시드만 확인합니다.")
+            _seed_initial_rows()
+            logger.info("Supabase seed data verified.")
+            return
+
         # 1. DB 생성 확인
         with get_db_cursor(include_database=False) as cursor:
             cursor.execute(
@@ -181,42 +283,8 @@ def init_db() -> None:
                 );
             """)
 
-            # 6. 디바이스 시드 데이터 등록 (ON DUPLICATE KEY UPDATE)
-            seed_devices = [
-                ("door_lock_1", "솔레노이드 도어락", "door_lock"),
-                ("relay_1", "기기 전원 릴레이", "relay"),
-                ("led_1", "부스 조명 LED", "led"),
-                ("speaker_1", "스피커/오디오 모듈", "speaker"),
-                ("keypad_1", "4x4 비밀번호 키패드", "keypad"),
-                ("pir_1", "입장 감지 센서", "pir"),
-            ]
-
-            insert_query = """
-                INSERT INTO devices (id, name, kind)
-                VALUES (%s, %s, %s)
-                ON DUPLICATE KEY UPDATE
-                  name = VALUES(name),
-                  kind = VALUES(kind);
-            """
-            for dev in seed_devices:
-                cursor.execute(insert_query, dev)
-
-            # 7. 기본 노래 시드 데이터 등록
-            seed_songs = [
-                ("다시 만나", "더윈드", 5),
-                ("첫 만남은 계획대로 되지 않아", "TWS", 4),
-                ("Supernova", "aespa", 3),
-                ("Love wins all", "아이유", 2),
-                ("Hype Boy", "NewJeans", 1)
-            ]
-            song_insert_query = """
-                INSERT INTO song_history (title, singer, sing_count)
-                VALUES (%s, %s, %s)
-                ON DUPLICATE KEY UPDATE
-                  sing_count = VALUES(sing_count);
-            """
-            for song in seed_songs:
-                cursor.execute(song_insert_query, song)
+        # 6~7. 시드 데이터 등록 (MySQL/PostgreSQL 공용)
+        _seed_initial_rows()
 
         logger.info(f"Database '{DB_NAME}' initialized successfully with devices, reservations, and songs.")
     except Exception as exc:
@@ -429,10 +497,11 @@ def create_reservation(
               grade, department, student_name, user_count,
               reservation_date, time_slot, pin_code, status
             ) VALUES (%s, %s, %s, %s, %s, %s, %s, 'reserved')
-            """,
+            """ + (" RETURNING id" if IS_POSTGRES else ""),
             (grade, department, student_name, user_count, reservation_date, time_slot, pin_code)
         )
-        new_id = cursor.lastrowid
+        # cursor.lastrowid는 MySQL 전용이라 PostgreSQL에서는 RETURNING으로 받는다
+        new_id = cursor.fetchone()["id"] if IS_POSTGRES else cursor.lastrowid
         cursor.execute("SELECT * FROM reservations WHERE id = %s", (new_id,))
         row = cursor.fetchone()
         return _format_row(row) or {}
@@ -454,12 +523,18 @@ def get_reservations(limit: int = 50) -> List[Dict[str, Any]]:
 
 
 def get_reservation_by_pin(pin_code: str) -> Optional[Dict[str, Any]]:
-    """4자리 PIN 코드로 유효한 예약을 조회합니다."""
+    """
+    4자리 PIN 코드로 **아직 사용하지 않은** 예약을 조회합니다.
+
+    PIN은 일회성이므로 status='reserved'인 예약만 찾는다.
+    인증에 성공하면 곧바로 'active'로 바뀌므로 같은 PIN을 다시 넣어도
+    여기서 걸리지 않아 재사용이 차단된다.
+    """
     with get_db_cursor() as cursor:
         cursor.execute(
             """
             SELECT * FROM reservations
-            WHERE pin_code = %s AND status IN ('reserved', 'active')
+            WHERE pin_code = %s AND status = 'reserved'
             ORDER BY id DESC LIMIT 1
             """,
             (pin_code,)
@@ -512,9 +587,10 @@ def record_song(title: str, singer: str) -> Dict[str, Any]:
             """
             INSERT INTO song_history (title, singer, sing_count)
             VALUES (%s, %s, 1)
-            ON DUPLICATE KEY UPDATE
-              sing_count = sing_count + 1
-            """,
+            """ + _upsert_clause(
+                "title, singer",
+                {"sing_count": "song_history.sing_count + 1"}
+            ),
             (title, singer)
         )
         cursor.execute(

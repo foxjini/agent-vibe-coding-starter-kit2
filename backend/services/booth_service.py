@@ -1,15 +1,23 @@
 import logging
+import os
 from datetime import datetime, timezone
 from typing import Any, Dict, Optional
 
+from auth import is_admin_pin
 from db import database as db
 from iot.provider_factory import get_device_provider
 from websocket_manager import ws_manager
 
 logger = logging.getLogger("backend.services.booth")
 
-# PRD 요구사항: 관리자 고정 비밀번호
-MASTER_PIN = "9179"
+# 예약 없이 인증 흐름만 확인하고 싶을 때 쓰는 개발용 만능 PIN.
+# 이 값이 열려 있으면 예약하지 않은 사람도 부스에 들어올 수 있으므로
+# 기본은 꺼 두고, 로컬 개발에서만 .env로 켠다 (전시 환경에서는 절대 켜지 않는다).
+TEST_PIN = "1234"
+
+
+def _test_pin_allowed() -> bool:
+    return os.getenv("ALLOW_TEST_PIN", "false").strip().lower() == "true"
 
 
 class BoothService:
@@ -21,15 +29,15 @@ class BoothService:
     async def verify_and_trigger(pin_code: str) -> Dict[str, Any]:
         """
         4자리 키패드 비밀번호 검증 및 도어락/전원/LED/스피커 자동 제어
-        - 관리자 비번(9179): 도어락 해제 + LED 점등 (노래방 전원 릴레이는 차단 유지)
+        - 관리자 비번(.env의 ADMIN_PIN): 도어락 해제 + LED 점등 (노래방 전원 릴레이는 차단 유지)
         - 예약자 OTP 비번: 도어락 해제 + 릴레이 전원 공급 + LED 점등 + 환영 음성
         """
         provider = get_device_provider()
         now_str = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
 
-        # 1. 관리자 고정 비밀번호(9179) 처리
-        if pin_code == MASTER_PIN:
-            logger.info("Master PIN (9179) authenticated. Unlocking door and LED only.")
+        # 1. 관리자 고정 비밀번호 처리 (.env의 ADMIN_PIN)
+        if is_admin_pin(pin_code):
+            logger.info("Admin PIN authenticated. Unlocking door and LED only.")
             await provider.set_actuator_state("door_lock_1", "unlocked", operator="admin")
             await provider.set_actuator_state("led_1", "on", {"mode": "admin", "brightness_pct": 100}, operator="admin")
             await provider.set_actuator_state("relay_1", "off", operator="admin")
@@ -43,7 +51,7 @@ class BoothService:
                 "type": "booth_auth",
                 "mode": "admin",
                 "success": True,
-                "message": "관리자 비번(9179) 인증 성공 — 도어락 해제 및 LED 점등 (기기 전원 제외)",
+                "message": "관리자 인증 성공 — 도어락 해제 및 LED 점등 (기기 전원 제외)",
                 "timestamp": now_str
             }
             await ws_manager.broadcast(event_msg)
@@ -60,8 +68,8 @@ class BoothService:
         except Exception as exc:
             logger.warning(f"DB lookup failed for PIN: {exc}")
 
-        # DB에 예약이 없는 경우 Mock 테스트를 위해 임시 핀(예: 1234)도 지원
-        if not reservation and pin_code != "1234":
+        # 예약이 없을 때만 개발용 만능 PIN을 인정한다 (기본은 차단)
+        if not reservation and not (_test_pin_allowed() and pin_code == TEST_PIN):
             event_msg = {
                 "type": "booth_auth",
                 "success": False,
@@ -72,7 +80,7 @@ class BoothService:
             return {
                 "success": False,
                 "mode": "none",
-                "message": "등록되지 않았거나 만료된 비밀번호입니다."
+                "message": "등록되지 않았거나 이미 사용한 비밀번호입니다. (PIN은 1회만 사용할 수 있습니다)"
             }
 
         user_name = reservation.get("student_name", "학생") if reservation else "테스트 학생"

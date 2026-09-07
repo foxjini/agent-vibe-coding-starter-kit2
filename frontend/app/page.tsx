@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useSyncExternalStore } from "react";
 import {
   Mic2,
   Sliders,
@@ -15,8 +15,16 @@ import { VirtualBoothSimulator } from "@/components/booth/VirtualBoothSimulator"
 import { ReservationSection } from "@/components/booth/ReservationSection";
 import { KaraokeRoomSection } from "@/components/booth/KaraokeRoomSection";
 import { apiUrl } from "@/utils/apiConfig";
+import {
+  adminFetch,
+  clearAdminSession,
+  subscribeAdminSession,
+  getAdminSnapshot,
+  getAdminServerSnapshot,
+} from "@/utils/adminSession";
 import { SongHistorySection } from "@/components/booth/SongHistorySection";
 import { MiniGameSection } from "@/components/booth/MiniGameSection";
+import { AdminGate } from "@/components/booth/AdminGate";
 import { useKaraokeSocket } from "@/hooks/useKaraokeSocket";
 import { Device, Reservation, Song, WebSocketMessage } from "@/types";
 
@@ -28,6 +36,14 @@ export default function HomePage() {
   const [favoriteSongs, setFavoriteSongs] = useState<Song[]>([]);
   const [lastEventMsg, setLastEventMsg] = useState<string>("부스 시스템이 정상 대기 중입니다.");
   const [currentTimeStr, setCurrentTimeStr] = useState<string>("");
+  // 관리자 인증 여부 (부록G §3-4)
+  // sessionStorage를 단일 출처로 구독한다. useState + useEffect 복원 방식은
+  // 저장소와 화면이 어긋날 수 있고, effect 안 setState가 되어 린트에도 걸린다.
+  const adminAuthed = useSyncExternalStore(
+    subscribeAdminSession,
+    getAdminSnapshot,
+    getAdminServerSnapshot
+  );
 
   // Update Clock every second (Client-side)
   useEffect(() => {
@@ -109,15 +125,19 @@ export default function HomePage() {
 
   const { isConnected } = useKaraokeSocket(handleWsMessage);
 
-  // Device Manual Control Handler
+  // Device Manual Control Handler (관리자 전용 — 부록G §3-4)
   const handleDeviceControl = async (deviceId: string, state: string, value?: unknown) => {
-
     try {
-      await fetch(apiUrl(`/api/devices/${deviceId}/control`), {
+      const res = await adminFetch(`/api/devices/${deviceId}/control`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ desired_state: state, value }),
       });
+      if (res.status === 401) {
+        clearAdminSession();
+        alert("관리자 인증이 만료되었습니다. 관리자 PIN으로 다시 인증해 주세요.");
+        return;
+      }
       fetchDevices();
     } catch (e) {
       console.error(e);
@@ -147,7 +167,12 @@ export default function HomePage() {
   // Quick Trigger Handlers
   const handleSimulateEntry = async () => {
     try {
-      await fetch(apiUrl("/api/booth/simulate-entry"), { method: "POST" });
+      const res = await adminFetch("/api/booth/simulate-entry", { method: "POST" });
+      if (res.status === 401) {
+        clearAdminSession();
+        alert("관리자 인증이 만료되었습니다. 관리자 PIN으로 다시 인증해 주세요.");
+        return;
+      }
       fetchDevices();
     } catch (e) {
       console.error(e);
@@ -156,7 +181,12 @@ export default function HomePage() {
 
   const handleSimulateWarning = async () => {
     try {
-      await fetch(apiUrl("/api/booth/simulate-10min-warning"), { method: "POST" });
+      const res = await adminFetch("/api/booth/simulate-10min-warning", { method: "POST" });
+      if (res.status === 401) {
+        clearAdminSession();
+        alert("관리자 인증이 만료되었습니다. 관리자 PIN으로 다시 인증해 주세요.");
+        return;
+      }
       fetchDevices();
     } catch (e) {
       console.error(e);
@@ -165,7 +195,12 @@ export default function HomePage() {
 
   const handleSimulateEnd = async () => {
     try {
-      await fetch(apiUrl("/api/booth/simulate-end"), { method: "POST" });
+      const res = await adminFetch("/api/booth/simulate-end", { method: "POST" });
+      if (res.status === 401) {
+        clearAdminSession();
+        alert("관리자 인증이 만료되었습니다. 관리자 PIN으로 다시 인증해 주세요.");
+        return;
+      }
       fetchDevices();
     } catch (e) {
       console.error(e);
@@ -312,16 +347,20 @@ export default function HomePage() {
 
         {/* Tab Content Display */}
         {activeTab === "simulator" && (
-          <VirtualBoothSimulator
-            devices={devices}
-            onDeviceControl={handleDeviceControl}
-            onVerifyPin={handleVerifyPin}
-            onSimulateEntry={handleSimulateEntry}
-            onSimulateWarning={handleSimulateWarning}
-            onSimulateEnd={handleSimulateEnd}
-            lastEventMessage={lastEventMsg}
-            onOpenKaraoke={() => setActiveTab("karaoke")}
-          />
+          <div className="space-y-5">
+            <AdminGate isAuthed={adminAuthed} />
+            <VirtualBoothSimulator
+              devices={devices}
+              onDeviceControl={handleDeviceControl}
+              onVerifyPin={handleVerifyPin}
+              onSimulateEntry={handleSimulateEntry}
+              onSimulateWarning={handleSimulateWarning}
+              onSimulateEnd={handleSimulateEnd}
+              lastEventMessage={lastEventMsg}
+              onOpenKaraoke={() => setActiveTab("karaoke")}
+              isAdmin={adminAuthed}
+            />
+          </div>
         )}
 
         {activeTab === "reservation" && (

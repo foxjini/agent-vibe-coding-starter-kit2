@@ -33,6 +33,8 @@ interface VirtualBoothSimulatorProps {
   onSimulateEnd: () => Promise<void>;
   lastEventMessage?: string;
   onOpenKaraoke?: () => void;
+  /** 관리자 인증 여부 — false면 기기 제어·시나리오 강제 실행을 막는다 (부록G §3-4) */
+  isAdmin?: boolean;
 }
 
 
@@ -45,6 +47,7 @@ export function VirtualBoothSimulator({
   onSimulateEnd,
   lastEventMessage,
   onOpenKaraoke,
+  isAdmin = false,
 }: VirtualBoothSimulatorProps) {
   // Keypad State
   const [pinInput, setPinInput] = useState<string>("");
@@ -222,7 +225,7 @@ export function VirtualBoothSimulator({
     if (res.success) {
       if (res.mode === "admin") {
         playMelody([440, 554, 659], 0.15);
-        setDisplayMessage("관리자 인증 성공 (9179)");
+        setDisplayMessage("관리자 인증 성공");
         setDisplayStatus("admin");
         speakVoice("관리자 모드로 인증되었습니다. 도어락을 해제합니다.");
       } else {
@@ -436,6 +439,7 @@ export function VirtualBoothSimulator({
               </div>
               <button
                 onClick={handleTriggerEntryWithVoice}
+                disabled={!isAdmin}
                 className="px-3 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 text-[11px] transition-colors flex items-center gap-1.5 cursor-pointer"
               >
                 <UserCheck className="w-3.5 h-3.5 text-cyan-400" />
@@ -450,6 +454,7 @@ export function VirtualBoothSimulator({
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
               <button
                 onClick={handleTriggerWarningWithVoice}
+                disabled={!isAdmin}
                 className="px-3 py-2 rounded-lg bg-slate-800/80 hover:bg-slate-800 border border-slate-700 text-xs font-medium text-amber-300 flex items-center justify-center gap-2 transition-colors cursor-pointer"
               >
                 <AlertTriangle className="w-4 h-4 text-amber-400" />
@@ -457,20 +462,11 @@ export function VirtualBoothSimulator({
               </button>
               <button
                 onClick={handleTriggerEndWithVoice}
+                disabled={!isAdmin}
                 className="px-3 py-2 rounded-lg bg-slate-800/80 hover:bg-slate-800 border border-slate-700 text-xs font-medium text-rose-300 flex items-center justify-center gap-2 transition-colors cursor-pointer"
               >
                 <PlayCircle className="w-4 h-4 text-rose-400" />
                 이용 종료 (퇴실곡+전원차단)
-              </button>
-              <button
-                onClick={() => {
-                  setPinInput("9179");
-                  setDisplayMessage("관리자 마스터 키: 9179");
-                }}
-                className="px-3 py-2 rounded-lg bg-slate-800/80 hover:bg-slate-800 border border-slate-700 text-xs font-medium text-indigo-300 flex items-center justify-center gap-2 transition-colors cursor-pointer"
-              >
-                <ShieldCheck className="w-4 h-4 text-indigo-400" />
-                관리자 비번(9179) 채우기
               </button>
             </div>
           </div>
@@ -519,6 +515,7 @@ export function VirtualBoothSimulator({
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-2">
             <button
               onClick={() => onDeviceControl("door_lock_1", isDoorUnlocked ? "locked" : "unlocked")}
+              disabled={!isAdmin}
               className={`p-3 rounded-xl border text-xs font-medium flex flex-col items-center gap-1.5 transition-all cursor-pointer ${
                 isDoorUnlocked
                   ? "bg-emerald-950/30 border-emerald-500/50 text-emerald-300"
@@ -531,6 +528,7 @@ export function VirtualBoothSimulator({
 
             <button
               onClick={() => onDeviceControl("relay_1", isPowerOn ? "off" : "on")}
+              disabled={!isAdmin}
               className={`p-3 rounded-xl border text-xs font-medium flex flex-col items-center gap-1.5 transition-all cursor-pointer ${
                 isPowerOn
                   ? "bg-indigo-950/30 border-indigo-500/50 text-indigo-300"
@@ -543,6 +541,7 @@ export function VirtualBoothSimulator({
 
             <button
               onClick={() => onDeviceControl("led_1", isLedOn ? "off" : "on")}
+              disabled={!isAdmin}
               className={`p-3 rounded-xl border text-xs font-medium flex flex-col items-center gap-1.5 transition-all cursor-pointer ${
                 isLedOn
                   ? "bg-yellow-950/30 border-yellow-500/50 text-yellow-300"
@@ -555,6 +554,7 @@ export function VirtualBoothSimulator({
 
             <button
               onClick={() => onDeviceControl("speaker_1", isSpeakerPlaying ? "idle" : "playing", { message: "테스트 음성" })}
+              disabled={!isAdmin}
               className={`p-3 rounded-xl border text-xs font-medium flex flex-col items-center gap-1.5 transition-all cursor-pointer ${
                 isSpeakerPlaying
                   ? "bg-amber-950/30 border-amber-500/50 text-amber-300"
@@ -598,7 +598,7 @@ export function VirtualBoothSimulator({
               </div>
               <div className="text-xl font-bold tracking-wider py-1">{displayMessage}</div>
               <div className="text-xs text-slate-500 mt-1">
-                {displayStatus === "idle" && "예약자 4자리 또는 관리자 고정(9179)"}
+                {displayStatus === "idle" && "예약자 4자리 PIN 또는 관리자 PIN"}
               </div>
             </div>
 
@@ -647,7 +647,7 @@ export function VirtualBoothSimulator({
             </p>
             <p className="flex items-center gap-1.5">
               <span className="w-1.5 h-1.5 rounded-full bg-indigo-400" />
-              <strong>관리자(9179) 입력 시:</strong> 도어락 해제 + 조명 ON (기기 전원 OFF 유지)
+              <strong>관리자 PIN 입력 시:</strong> 도어락 해제 + 조명 ON (기기 전원 OFF 유지)
             </p>
           </div>
         </div>
