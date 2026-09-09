@@ -40,7 +40,7 @@ import {
   loadVideoOverrides,
   registerVideoId,
   hasNextAttempt,
-  hasPlayableVideo,
+  videoBadge,
   ResolvedMedia,
 } from "@/utils/karaokeMedia";
 import { KARAOKE_SONGS, KaraokeSong, youtubeSearchUrl } from "@/data/karaokeSongs";
@@ -1017,7 +1017,7 @@ export function KaraokeRoomSection({ devices, onSongCompleted }: KaraokeRoomSect
           <div className="space-y-2 overflow-y-auto pr-1 flex-1 max-h-[520px]">
             {filteredSongs.map((song) => {
               const isCurrent = selectedSong.id === song.id;
-              const hasVideo = hasPlayableVideo(song);
+              const badge = videoBadge(song);
               return (
                 <button
                   key={song.id}
@@ -1049,13 +1049,13 @@ export function KaraokeRoomSection({ devices, onSongCompleted }: KaraokeRoomSect
                     </div>
                     <span
                       className={`text-[9px] px-1.5 py-0.5 rounded shrink-0 border ${
-                        hasVideo
+                        badge.registered
                           ? "bg-emerald-950/60 text-emerald-300 border-emerald-700/60"
-                          : "bg-slate-800/60 text-slate-500 border-slate-700"
+                          : "bg-slate-800/60 text-slate-400 border-slate-700"
                       }`}
-                      title={hasVideo ? "노래방 영상이 등록된 곡" : "영상 미등록 — 내장 반주로 재생"}
+                      title={badge.title}
                     >
-                      {hasVideo ? "영상 ✓" : "미등록"}
+                      {badge.label}
                     </span>
                   </div>
                   {isCurrent && (

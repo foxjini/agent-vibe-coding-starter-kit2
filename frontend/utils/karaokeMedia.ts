@@ -56,11 +56,14 @@ export async function loadVideoOverrides(): Promise<VideoIdMap> {
       if (res.ok) {
         const json = await res.json();
         overrides = (json?.data as VideoIdMap) ?? {};
+        // 성공했을 때만 "받아 왔다"고 기록한다.
+        // 실패했는데도 기록해 버리면, 전시장에서 부스 화면이 백엔드보다 먼저 떴을 때
+        // 관리자가 등록한 영상이 새로고침 전까지 영영 보이지 않는다.
+        overridesLoaded = true;
       }
     } catch {
-      // 백엔드가 꺼져 있어도 기본 후보로 재생된다
+      // 백엔드가 꺼져 있어도 곡의 기본 후보로 재생된다. 다음 호출에서 다시 시도한다.
     }
-    overridesLoaded = true;
     inflight = null;
     return overrides;
   })();
@@ -119,9 +122,26 @@ export async function unregisterVideoId(songId: string): Promise<boolean> {
   return false;
 }
 
-/** 영상이 준비된 곡 수 — 목록 배지에 쓴다 */
-export function hasPlayableVideo(song: KaraokeSong): boolean {
-  return Boolean(overrides[song.id]) || song.youtubeCandidates.length > 0;
+/**
+ * 목록 배지에 쓸 영상 상태.
+ *
+ * 모든 곡이 기본 후보를 갖고 있으므로 "있다/없다"로는 정보가 되지 않는다.
+ * 관리자가 직접 지정한 곡인지, 아니면 코드에 적힌 후보로 도는지를 구분해 준다.
+ */
+export function videoBadge(song: KaraokeSong): { label: string; title: string; registered: boolean } {
+  if (overrides[song.id]) {
+    return {
+      label: "등록됨",
+      title: "관리자가 직접 지정한 노래방 영상으로 재생합니다",
+      registered: true,
+    };
+  }
+  const n = song.youtubeCandidates.length;
+  return {
+    label: `후보 ${n}`,
+    title: `기본 후보 영상 ${n}개를 순서대로 시도합니다. 모두 막히면 내장 반주로 재생합니다`,
+    registered: false,
+  };
 }
 
 /* ── 로컬 파일 존재 확인 ───────────────────────────────────────── */
