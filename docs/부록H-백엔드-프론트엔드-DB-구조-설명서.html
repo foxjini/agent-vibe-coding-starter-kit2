@@ -522,6 +522,35 @@ footer p { max-width: var(--measure); }
       </li>
     </ol>
 
+    <h3>노래방 영상은 어떤 순서로 정해지나</h3>
+    <p>
+      곡을 고르면 <code>utils/karaokeMedia.ts</code>가 재생할 것을 위에서부터 찾습니다.
+      앞의 것이 실패하면 자동으로 다음으로 내려갑니다.
+    </p>
+    <div class="scroller">
+      <table>
+        <thead><tr><th>순위</th><th>무엇</th><th>어디서 오나</th></tr></thead>
+        <tbody>
+          <tr><td>1</td><td>로컬 반주 파일</td><td><code>public/media/karaoke/&lt;곡id&gt;.mp3</code> — 인터넷이 끊겨도 재생됨</td></tr>
+          <tr><td>2</td><td>관리자가 등록한 영상</td><td><code>song_videos</code> 테이블 — 모든 기기가 같은 것을 봄</td></tr>
+          <tr><td>3</td><td>곡의 기본 후보 영상</td><td><code>data/karaokeSongs.ts</code>의 <code>youtubeCandidates</code> 배열, 앞에서부터</td></tr>
+          <tr><td>4</td><td>내장 자동 반주</td><td>위가 전부 막혔을 때. 원곡이 아닌 장르 스타일 반주</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="note warn">
+      <span class="lbl">여기가 헷갈리기 쉽습니다</span>
+      <p>
+        <strong>브라우저는 사용자가 버튼을 눌러야 소리를 낼 수 있습니다.</strong>
+        예전에는 [반주 시작]을 누른 뒤 마이크 권한을 물었는데, 권한 창이 뜨는 사이
+        «사용자가 눌렀다»는 사실이 사라져 영상 재생까지 막혔습니다.
+      </p>
+      <p>
+        그래서 <strong>[🎤 노래방 입장하기]</strong> 에서 마이크 권한과 주변 소음 측정을 먼저 끝냅니다.
+        새 기능을 만들 때도 <strong>클릭과 재생 사이에 <code>await</code>를 넣지 마세요.</strong>
+      </p>
+    </div>
+
     <div class="note ok">
       <span class="lbl">기억할 한 문장</span>
       <p><strong>라우터는 받고, 서비스는 판단하고, DB는 저장하고, WebSocket은 알린다.</strong>
@@ -542,7 +571,7 @@ footer p { max-width: var(--measure); }
 ├── <b>routers/</b>           <i>① 받는다 — URL과 함수를 연결</i>
 │   ├── admin.py         <i>/api/admin/login · logout · session</i>
 │   ├── devices.py       <i>/api/devices/* (화면용), /api/v1/* (파이용)</i>
-│   └── reservations.py  <i>/api/reservations · /api/booth · /api/songs</i>
+│   └── reservations.py  <i>/api/reservations · /api/booth · /api/songs · /api/song-videos</i>
 │
 ├── <b>schemas/</b>           <i>② 검사한다 — 요청 형식 정의 (Pydantic)</i>
 │
@@ -551,7 +580,7 @@ footer p { max-width: var(--measure); }
 │
 ├── <b>db/</b>                <i>④ 저장한다</i>
 │   ├── database.py      <i>연결 + SQL 함수 23개</i>
-│   ├── init.sql         <i>MariaDB용 스키마</i>
+│   ├── init.sql         <i>MariaDB용 스키마 (테이블 7개)</i>
 │   └── init_supabase.sql <i>Supabase(PostgreSQL)용 스키마</i>
 │
 └── <b>iot/</b>               <i>⑤ 기기를 다룬다</i>
@@ -567,6 +596,7 @@ footer p { max-width: var(--measure); }
           <tr><td><code>/api/devices</code>, <code>/api/booth</code>, <code>/api/reservations</code>, <code>/api/songs</code></td><td><span class="tag t-view">브라우저</span></td><td>대부분 없음</td><td>예약 신청, 키패드 인증</td></tr>
           <tr><td><code>/api/v1/devices</code>, <code>/api/v1/vision</code></td><td>파이 · 비전</td><td><code>X-Device-Api-Key</code></td><td>폴링, 상태 보고</td></tr>
           <tr><td><code>/api/admin</code></td><td>선생님</td><td>PIN → 토큰</td><td>관리자 로그인</td></tr>
+          <tr><td><code>/api/song-videos</code></td><td>모두 / 선생님</td><td>조회는 없음 · 등록은 관리자</td><td>노래방 영상 등록 (모든 기기 공유)</td></tr>
         </tbody>
       </table>
     </div>
@@ -610,7 +640,7 @@ footer p { max-width: var(--measure); }
   <!-- ================================================================= -->
   <section id="s5">
     <div class="sec-head"><span class="sec-num">05</span><h2>데이터베이스</h2></div>
-    <p class="sec-lede">표 여섯 개뿐입니다. 그중 <code>devices</code>가 중심입니다.</p>
+    <p class="sec-lede">표 일곱 개뿐입니다. 그중 <code>devices</code>가 중심입니다.</p>
 
     <div class="scroller">
       <table>
@@ -619,6 +649,7 @@ footer p { max-width: var(--measure); }
           <tr><td><code>devices</code></td><td>기기 1대의 현재/목표 상태</td><td><strong>늘지 않음</strong> — 6줄 고정, 값만 바뀜</td></tr>
           <tr><td><code>reservations</code></td><td>예약 1건 + 발급된 PIN</td><td>학생이 예약할 때마다</td></tr>
           <tr><td><code>song_history</code></td><td>곡 1개 + 부른 횟수</td><td>노래를 마칠 때마다 (횟수 +1)</td></tr>
+          <tr><td><code>song_videos</code></td><td>곡 1개 + 관리자가 지정한 유튜브 영상</td><td>관리자가 영상을 등록할 때만</td></tr>
           <tr><td><code>control_log</code></td><td>“누가 언제 무엇을 시켰나”</td><td>제어할 때마다</td></tr>
           <tr><td><code>sensor_readings</code></td><td>센서 측정값</td><td>파이가 보고할 때마다</td></tr>
           <tr><td><code>vision_events</code></td><td>웹캠 감지 기록</td><td>사람이 감지될 때마다</td></tr>
@@ -693,11 +724,11 @@ footer p { max-width: var(--measure); }
 │   ├── apiConfig.ts       <i>백엔드 주소를 한 곳에서 관리</i>
 │   ├── adminSession.ts    <i>관리자 토큰 보관·자동 첨부</i>
 │   ├── audioScorer.ts     <i>마이크 음정 분석 · 점수 계산</i>
-│   ├── karaokeMedia.ts    <i>로컬 파일 → 유튜브 → 내장 반주 순서 결정</i>
+│   ├── karaokeMedia.ts    <i>로컬 파일 → 유튜브 후보들 → 내장 반주 순서 결정</i>
 │   ├── youtubePlayer.ts   <i>유튜브 플레이어 제어</i>
 │   └── karaokeAccompaniment.ts <i>내장 반주 합성</i>
 │
-├── <b>data/karaokeSongs.ts</b> <i>애창곡 10곡 목록 (여기만 고치면 곡 교체 완료)</i>
+├── <b>data/karaokeSongs.ts</b> <i>애창곡 10곡 + 곡별 유튜브 후보 영상 목록</i>
 └── <b>types/index.ts</b>       <i>백엔드와 주고받는 데이터 모양</i></div>
 
     <h3>데이터가 흐르는 방향</h3>
@@ -806,6 +837,44 @@ footer p { max-width: var(--measure); }
           노래 목록은 전부 DB에서 옵니다.</p>
           <p>XAMPP에서 MySQL이 <strong>Running</strong>인지 확인하고, 백엔드 터미널에
           <code>Failed to fetch songs</code> 로그가 있는지 보세요.</p>
+        </div>
+      </details>
+      <details>
+        <summary>노래방 탭에서 [반주 시작]이 눌리지 않습니다</summary>
+        <div class="ans">
+          <p>둘 중 하나입니다.</p>
+          <p>① <strong>아직 입장하지 않았습니다.</strong> 맨 위 <strong>[🎤 노래방 입장하기]</strong> 를 먼저 누르세요.
+          브라우저는 사용자가 버튼을 눌러야 소리를 낼 수 있어서, 여기서 마이크 권한과 주변 소음 측정을 미리 끝냅니다.</p>
+          <p>② 버튼이 <strong>「영상 불러오는 중」</strong> 이면 유튜브 플레이어가 준비되는 중입니다. 몇 초 기다리세요.</p>
+        </div>
+      </details>
+      <details>
+        <summary>유튜브 영상이 안 나오고 «영상 등록하기» 화면이 뜹니다</summary>
+        <div class="ans">
+          <p>곡마다 후보 영상이 2~3개 들어 있고, 재생에 실패하면 <strong>자동으로 다음 후보</strong>로 넘어갑니다.
+          이 화면이 떴다는 것은 <strong>후보를 모두 시도했지만 다 막혔다</strong>는 뜻입니다
+          (영상 삭제 또는 외부 재생 차단).</p>
+          <p>화면의 검색 버튼으로 다른 노래방 영상을 찾아 링크를 붙여넣으세요.
+          <strong>등록에는 관리자 인증이 필요</strong>하며, 등록한 영상은 서버에 저장되어
+          <strong>부스 화면·관람객 폰·선생님 노트북 모두에 적용</strong>됩니다.</p>
+        </div>
+      </details>
+      <details>
+        <summary>곡이 끝났는데 점수 화면이 안 뜹니다</summary>
+        <div class="ans">
+          <p>종료 감지는 두 갈래로 되어 있습니다. 유튜브가 알려주는 <code>ENDED</code> 이벤트와,
+          1초마다 재생 위치를 확인해 끝에 닿았는지 보는 방식입니다. 둘 중 하나만 걸려도 채점이 돌고,
+          동시에 걸려도 <strong>한 번만</strong> 실행됩니다.</p>
+          <p>그래도 안 뜨면 <strong>[노래 완료 &amp; 점수 채점]</strong> 버튼으로 직접 채점할 수 있습니다.</p>
+        </div>
+      </details>
+      <details>
+        <summary>노래를 불렀는데 점수가 낮게 나옵니다</summary>
+        <div class="ans">
+          <p>입장할 때 잰 <strong>주변 소음</strong>보다 목소리가 커야 «부르는 중»으로 인정됩니다.
+          입장 시 표시된 「발성 인식 기준」 숫자가 너무 높으면, 측정할 때 주변이 시끄러웠던 것입니다.
+          조용할 때 새로고침해서 다시 입장해 보세요.</p>
+          <p>일시정지한 구간은 채점에서 <strong>제외</strong>되므로 점수에 영향을 주지 않습니다.</p>
         </div>
       </details>
       <details>
