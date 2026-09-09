@@ -40,6 +40,7 @@ import {
   loadVideoOverrides,
   registerVideoId,
   hasNextAttempt,
+  getRegisteredVideoId,
   videoBadge,
   ResolvedMedia,
 } from "@/utils/karaokeMedia";
@@ -68,6 +69,12 @@ export function KaraokeRoomSection({ devices, onSongCompleted }: KaraokeRoomSect
   const [elapsed, setElapsed] = useState(0);
   const [duration, setDuration] = useState(0);
   const [playerError, setPlayerError] = useState<string | null>(null);
+  /**
+   * 이 곡에서 재생에 실패한 영상들 — 영상 ID와 유튜브 오류 코드를 그대로 남긴다.
+   * "모두 안 된다"는 말만으로는 원인을 못 찾는다. ID가 틀린 것(코드 2·100)인지,
+   * 영상 주인이 임베드를 막은 것(코드 101·150)인지 코드로 갈린다.
+   */
+  const [failedAttempts, setFailedAttempts] = useState<{ videoId: string; code: number }[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
 
   /** 유튜브 시도 목록에서 몇 번째를 쓰는 중인지 — 실패하면 +1 해서 다음 후보로 */
@@ -115,6 +122,9 @@ export function KaraokeRoomSection({ devices, onSongCompleted }: KaraokeRoomSect
   const scoredRef = useRef(false);
   /** ticker가 항상 최신 채점 함수를 부르도록 담아 두는 상자 */
   const finishAndScoreRef = useRef<(() => void) | null>(null);
+  /** 유튜브 콜백이 항상 최신 곡·후보 번호를 보도록 담아 두는 상자 */
+  const selectedSongRef = useRef(selectedSong);
+  const attemptIndexRef = useRef(attemptIndex);
 
   /* ─────────────────────────────────────────────────────────
    * 엔진 초기화 / 정리
@@ -236,12 +246,16 @@ export function KaraokeRoomSection({ devices, onSongCompleted }: KaraokeRoomSect
     }, 40);
   }, [recordSongToDB, selectedSong, stopAllPlayback]);
 
-  // ticker(setInterval)는 만들어질 때의 함수를 붙잡고 있으므로,
-  // 곡이 바뀌어 finishAndScore가 새로 만들어져도 최신 것을 부르도록 ref에 담는다.
+  // ticker(setInterval)와 유튜브 콜백은 만들어질 때의 값을 붙잡고 있으므로,
+  // 곡이 바뀌어도 최신 값을 보도록 ref에 담아 둔다.
+  // 이렇게 해 두면 아래 플레이어 effect가 "영상 ID가 실제로 바뀔 때"만 다시 돌아서
+  // 유튜브 위젯이 불필요하게 재생성되지 않는다.
   // (렌더 중에 ref를 쓰면 안 되므로 effect에서 갱신한다)
   useEffect(() => {
     finishAndScoreRef.current = finishAndScore;
-  }, [finishAndScore]);
+    selectedSongRef.current = selectedSong;
+    attemptIndexRef.current = attemptIndex;
+  }, [finishAndScore, selectedSong, attemptIndex]);
 
   /* ─────────────────────────────────────────────────────────
    * 유튜브 플레이어 생성 — media가 youtube로 정해졌을 때만
@@ -258,7 +272,6 @@ export function KaraokeRoomSection({ devices, onSongCompleted }: KaraokeRoomSect
     mount.className = "w-full h-full";
     host.appendChild(mount);
 
-    const songId = selectedSong.id;
     const videoId = media.youtubeId;
 
     createYouTubePlayer(mount, {
@@ -283,24 +296,37 @@ export function KaraokeRoomSection({ devices, onSongCompleted }: KaraokeRoomSect
           setIsPlaying(false);
         } else if (state === YT_STATE.ENDED) {
           // 노래가 끝나면 자동으로 점수 화면을 띄운다
-          finishAndScore();
+          finishAndScoreRef.current?.();
         }
       },
-      onError: (_code, message) => {
+      onError: (code, message) => {
         if (disposed) return;
         setPlayerReady(false);
 
+        // 어떤 영상이 몇 번 코드로 실패했는지 콘솔과 화면에 모두 남긴다
+        console.warn(
+          `[노래방] 재생 실패 — 곡=${selectedSongRef.current.id} 영상=${videoId} 코드=${code} (${message})`
+        );
+        setFailedAttempts((prev) =>
+          prev.some((f) => f.videoId === videoId) ? prev : [...prev, { videoId, code }]
+        );
+
+        const prefix =
+          getRegisteredVideoId(selectedSongRef.current.id) === videoId
+            ? "직접 등록하신 영상이 재생되지 않습니다. "
+            : "";
+
         // 임베드가 막혔거나 삭제된 영상 — 같은 곡의 다음 후보로 자동 전환한다.
         // 후보를 다 쓴 뒤에야 내장 반주로 떨어진다.
-        if (hasNextAttempt(selectedSong, attemptIndex)) {
-          setPlayerError(`${message} 다음 후보 영상으로 넘어갑니다.`);
+        if (hasNextAttempt(selectedSongRef.current, attemptIndexRef.current)) {
+          setPlayerError(`${prefix}${message} (코드 ${code}) 다음 후보 영상으로 넘어갑니다.`);
           setAttemptIndex((prev) => prev + 1);
           return;
         }
 
-        setPlayerError(message);
+        setPlayerError(`${prefix}${message} (코드 ${code})`);
         setResolved({
-          songId,
+          songId: selectedSongRef.current.id,
           media: {
             source: "synth",
             reason: "유튜브 영상을 모두 재생할 수 없어 내장 자동 반주로 전환했습니다",
@@ -312,7 +338,7 @@ export function KaraokeRoomSection({ devices, onSongCompleted }: KaraokeRoomSect
       setPlayerReady(false);
       setPlayerError(err.message);
       setResolved({
-        songId,
+        songId: selectedSongRef.current.id,
         media: {
           source: "synth",
           reason: "유튜브에 연결하지 못해 내장 자동 반주로 전환했습니다",
@@ -327,9 +353,14 @@ export function KaraokeRoomSection({ devices, onSongCompleted }: KaraokeRoomSect
       ytHandleRef.current = null;
       host.innerHTML = "";
     };
-    // mrVolume은 아래 별도 effect에서 반영한다 (여기서 재생성되면 영상이 끊긴다)
+    // 의존성은 "재생할 영상 자체"로만 좁혔다.
+    // 곡/후보/채점 함수는 위에서 ref에 담아 두고 콜백에서 최신 값을 읽는다.
+    // 여기에 이것들을 넣으면 곡 정보가 조금만 바뀌어도 플레이어가 통째로 다시
+    // 만들어지고, 그때마다 유튜브 위젯이 새 iframe에 postMessage를 쏘면서
+    // 콘솔에 target origin 경고가 쌓인다.
+    // mrVolume도 아래 별도 effect에서 반영한다 (여기서 재생성되면 영상이 끊긴다)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [media?.source, media?.youtubeId, selectedSong, attemptIndex, finishAndScore]);
+  }, [media?.source, media?.youtubeId]);
 
   /** MR 볼륨 변경을 각 재생 소스에 반영 */
   useEffect(() => {
@@ -540,6 +571,7 @@ export function KaraokeRoomSection({ devices, onSongCompleted }: KaraokeRoomSect
       setSelectedSong(song);
       setPlayerError(null);
       setAttemptIndex(0);
+      setFailedAttempts([]);
       setPlayerReady(false);
       setElapsed(0);
       setDuration(song.approxDurationSec);
@@ -571,6 +603,7 @@ export function KaraokeRoomSection({ devices, onSongCompleted }: KaraokeRoomSect
       setRegisterInput("");
       setRegisterNotice(`'${selectedSong.title}' 영상이 등록되었습니다. 모든 기기에 적용됩니다.`);
       setAttemptIndex(0);
+      setFailedAttempts([]);
       setResolved({
         songId: selectedSong.id,
         media: {
@@ -776,6 +809,48 @@ export function KaraokeRoomSection({ devices, onSongCompleted }: KaraokeRoomSect
                   <div className="mb-3 flex items-start gap-2 p-2.5 rounded-xl bg-rose-950/50 border border-rose-500/40 text-rose-200 text-xs">
                     <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
                     <span>{playerError}</span>
+                  </div>
+                )}
+
+                {/*
+                  어떤 후보가 왜 실패했는지 그대로 보여 준다.
+                  링크를 눌러 유튜브에서 직접 열어 보면 "영상이 없는 것"인지
+                  "영상은 있는데 퍼가기가 막힌 것"인지 바로 구분할 수 있다.
+                */}
+                {failedAttempts.length > 0 && (
+                  <div className="mb-3 p-2.5 rounded-xl bg-slate-900/70 border border-slate-700 text-[11px] text-slate-300">
+                    <p className="font-bold text-slate-200 mb-1.5">
+                      재생하지 못한 영상 {failedAttempts.length}개 (직접 열어서 확인해 보세요)
+                    </p>
+                    <ul className="space-y-1">
+                      {failedAttempts.map((f) => (
+                        <li key={f.videoId} className="flex items-center gap-1.5">
+                          <a
+                            href={youtubeWatchUrl(f.videoId)}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="font-mono text-indigo-300 hover:text-indigo-200 underline underline-offset-2"
+                          >
+                            {f.videoId}
+                          </a>
+                          <span className="text-slate-500">
+                            코드 {f.code} ·{" "}
+                            {f.code === 101 || f.code === 150
+                              ? "영상은 있지만 퍼가기(임베드) 금지"
+                              : f.code === 100
+                              ? "삭제되었거나 비공개"
+                              : f.code === 2
+                              ? "영상 ID가 잘못됨"
+                              : "재생 불가"}
+                          </span>
+                        </li>
+                      ))}
+                    </ul>
+                    <p className="mt-1.5 text-slate-500 leading-relaxed">
+                      코드 101·150이면 영상 자체는 정상입니다. 유튜브에서 그 영상의{" "}
+                      <span className="text-slate-300">공유 → 퍼가기</span> 버튼이 보이는
+                      노래방 영상을 찾아 아래에 링크를 붙여넣어 주세요.
+                    </p>
                   </div>
                 )}
 
