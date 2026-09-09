@@ -283,7 +283,17 @@ def init_db() -> None:
                 );
             """)
 
-        # 6~7. 시드 데이터 등록 (MySQL/PostgreSQL 공용)
+            # 6. 노래방 영상 등록 테이블 (F-06)
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS song_videos (
+                  song_id    VARCHAR(64) PRIMARY KEY,
+                  video_id   VARCHAR(32) NOT NULL,
+                  updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                  created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+                );
+            """)
+
+        # 7~8. 시드 데이터 등록 (MySQL/PostgreSQL 공용)
         _seed_initial_rows()
 
         logger.info(f"Database '{DB_NAME}' initialized successfully with devices, reservations, and songs.")
@@ -600,3 +610,38 @@ def record_song(title: str, singer: str) -> Dict[str, Any]:
         row = cursor.fetchone()
         return _format_row(row) or {}
 
+
+# ==============================================================================
+# 노래방 영상 등록 (F-06)
+#
+# 곡별 기본 후보 목록은 프론트엔드 코드(data/karaokeSongs.ts)에 있다.
+# 이 테이블은 그 위에 덮어쓰는 "관리자가 직접 지정한 영상"만 담는다.
+# 브라우저 localStorage가 아니라 서버에 두는 이유는, 부스 화면·관람객 폰·
+# 관리자 노트북이 모두 같은 영상을 보게 하기 위해서다.
+# ==============================================================================
+
+def get_song_videos() -> Dict[str, str]:
+    """등록된 곡별 영상 ID를 {song_id: video_id} 형태로 반환합니다."""
+    with get_db_cursor() as cursor:
+        cursor.execute("SELECT song_id, video_id FROM song_videos")
+        rows = cursor.fetchall() or []
+        return {row["song_id"]: row["video_id"] for row in rows}
+
+
+def set_song_video(song_id: str, video_id: str) -> Dict[str, Any]:
+    """곡의 영상 ID를 등록하거나 갱신합니다."""
+    query = """
+        INSERT INTO song_videos (song_id, video_id)
+        VALUES (%s, %s)
+    """ + _upsert_clause("song_id", {"video_id": "EXCLUDED.video_id"})
+
+    with get_db_cursor() as cursor:
+        cursor.execute(query, (song_id, video_id))
+    return {"song_id": song_id, "video_id": video_id}
+
+
+def delete_song_video(song_id: str) -> bool:
+    """등록된 영상을 지웁니다 (곡의 기본 후보 목록으로 되돌아간다)."""
+    with get_db_cursor() as cursor:
+        cursor.execute("DELETE FROM song_videos WHERE song_id = %s", (song_id,))
+    return True

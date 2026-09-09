@@ -41,6 +41,19 @@ export interface FinalScore {
 
 const NOTE_NAMES = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
 
+/** 주변 소음을 재기 전에 쓰는 기본 임계값 */
+const DEFAULT_VOICE_THRESHOLD = 12;
+
+/**
+ * 측정한 배경 소음 위에 얹는 여유값.
+ * 이 값이 너무 작으면 소음을 노래로 세고, 너무 크면 작게 부른 소리를 놓친다.
+ * 교실·전시장에서 직접 불러 보며 조정할 것 (부록G의 리허설 항목).
+ */
+const NOISE_MARGIN = 8;
+
+/** 소음 측정 기본 시간 (ms) */
+const BASELINE_DURATION_MS = 1500;
+
 export class KaraokeAudioScorer {
   private audioCtx: AudioContext | null = null;
   private analyser: AnalyserNode | null = null;
@@ -65,6 +78,17 @@ export class KaraokeAudioScorer {
   // 프레임 수로 재면 같은 시간을 불러도 결과가 달라지기 때문이다.
   private startedAt = 0;
   private lastSampleAt = 0;
+
+  // 발성으로 인정할 최소 음량. 교실·전시장은 조용한 방보다 배경 소음이 커서
+  // 고정값을 쓰면 소음을 노래로 잘못 세거나(오탐) 작게 부른 소리를 놓친다(미탐).
+  // 노래 시작 전 주변 소음을 재서 이 값을 환경에 맞게 올린다.
+  private voiceThreshold = DEFAULT_VOICE_THRESHOLD;
+  private baselineNoise = 0;
+  private isMeasuringBaseline = false;
+  private baselineSamples: number[] = [];
+
+  // 일시정지 동안은 통계를 쌓지 않는다 (안 부른 시간으로 집계되면 박자 점수가 깎인다)
+  private paused = false;
 
   /* ── 마이크 ─────────────────────────────────────────────── */
 
@@ -123,6 +147,66 @@ export class KaraokeAudioScorer {
     return this.animFrameId !== null;
   }
 
+  /** 현재 적용 중인 발성 인식 임계값 (화면 표시용) */
+  get threshold() {
+    return { voice: this.voiceThreshold, baseline: this.baselineNoise };
+  }
+
+  /* ── 일시정지 / 재개 ────────────────────────────────────────
+   * 영상이 멈춘 동안 분석을 세면 그 시간이 "안 부른 시간"이 되어
+   * 박자 점수가 부당하게 깎인다. 마이크 스트림은 그대로 두고
+   * 통계 집계만 멈춘다 (다시 권한을 묻지 않기 위해).
+   * ──────────────────────────────────────────────────────── */
+
+  pauseAnalysis() {
+    this.paused = true;
+    // AudioContext까지 재우면 CPU도 아낄 수 있다
+    if (this.audioCtx?.state === "running") void this.audioCtx.suspend();
+  }
+
+  resumeAnalysis() {
+    this.paused = false;
+    if (this.audioCtx?.state === "suspended") void this.audioCtx.resume();
+  }
+
+  /**
+   * 노래 시작 전 주변 소음을 재서 발성 인식 임계값을 환경에 맞게 정한다.
+   *
+   * 교실이나 전시장은 조용한 방보다 배경 소음이 커서, 고정 임계값을 쓰면
+   * 에어컨 소리를 노래로 세거나(오탐) 작게 부른 소리를 놓친다(미탐).
+   *
+   * @returns 측정한 배경 소음과 결정된 임계값
+   */
+  async measureBaseline(durationMs = BASELINE_DURATION_MS): Promise<{ baseline: number; threshold: number }> {
+    if (!this.isRunning) {
+      // 마이크가 없으면 기본값을 그대로 쓴다
+      return { baseline: 0, threshold: this.voiceThreshold };
+    }
+
+    this.baselineSamples = [];
+    this.isMeasuringBaseline = true;
+
+    await new Promise((resolve) => setTimeout(resolve, durationMs));
+
+    this.isMeasuringBaseline = false;
+
+    const samples = this.baselineSamples;
+    this.baselineSamples = [];
+
+    if (samples.length === 0) {
+      return { baseline: 0, threshold: this.voiceThreshold };
+    }
+
+    // 평균보다 상위값을 봐야 간헐적인 소음(문 여닫는 소리)에 덜 휘둘린다
+    const sorted = [...samples].sort((a, b) => a - b);
+    const p80 = sorted[Math.floor(sorted.length * 0.8)] ?? sorted[sorted.length - 1];
+
+    this.baselineNoise = Math.round(p80);
+    this.voiceThreshold = Math.max(DEFAULT_VOICE_THRESHOLD, this.baselineNoise + NOISE_MARGIN);
+
+    return { baseline: this.baselineNoise, threshold: this.voiceThreshold };
+  }
+
   /* ── 분석 루프 ──────────────────────────────────────────── */
 
   private analyzeLoop = () => {
@@ -137,6 +221,21 @@ export class KaraokeAudioScorer {
     for (let i = 0; i < size; i++) sum += timeData[i] * timeData[i];
     const rms = Math.sqrt(sum / size);
     const volume = Math.min(100, Math.round(rms * 400));
+
+    // 주변 소음 측정 구간 — 통계를 쌓지 않고 소음 크기만 모은다
+    if (this.isMeasuringBaseline) {
+      this.baselineSamples.push(volume);
+      this.onDataCallback?.({ volume, pitch: 0, note: "-", cents: 0 });
+      this.animFrameId = requestAnimationFrame(this.analyzeLoop);
+      return;
+    }
+
+    // 일시정지 중에는 화면 미터만 갱신하고 채점 통계는 건드리지 않는다
+    if (this.paused) {
+      this.onDataCallback?.({ volume, pitch: 0, note: "-", cents: 0 });
+      this.animFrameId = requestAnimationFrame(this.analyzeLoop);
+      return;
+    }
 
     const pitch = this.detectPitch(timeData, this.audioCtx?.sampleRate ?? 44100);
 
@@ -154,7 +253,7 @@ export class KaraokeAudioScorer {
     this.markSample();
     this.volumeSum += volume;
 
-    const voiced = volume > 12 && pitch > 70 && pitch < 1400;
+    const voiced = volume > this.voiceThreshold && pitch > 70 && pitch < 1400;
     if (voiced) {
       this.voicedFrames++;
       this.voicedVolumeSum += volume;
@@ -257,6 +356,9 @@ export class KaraokeAudioScorer {
   }
 
   resetScore() {
+    // voiceThreshold는 일부러 초기화하지 않는다.
+    // 곡이 바뀌어도 주변 환경은 그대로이므로 측정값을 재사용한다.
+    this.paused = false;
     this.startedAt = 0;
     this.lastSampleAt = 0;
     this.sampleCount = 0;
@@ -275,7 +377,7 @@ export class KaraokeAudioScorer {
   feedSimulatedFrame(volume: number, pitch: number) {
     this.markSample();
     this.volumeSum += volume;
-    if (volume > 12 && pitch > 70) {
+    if (volume > this.voiceThreshold && pitch > 70) {
       this.voicedFrames++;
       this.voicedVolumeSum += volume;
       this.centsAbsSum += 8 + Math.random() * 14; // 사람이 부른 정도의 편차

@@ -107,6 +107,21 @@ CREATE TRIGGER trg_song_last_sung_at
   BEFORE UPDATE ON song_history
   FOR EACH ROW EXECUTE FUNCTION touch_last_sung_at();
 
+-- 7. 노래방 영상 등록 (F-06)
+--    곡별 기본 후보는 프론트엔드 코드에 있고, 이 테이블은 관리자가 직접 지정한
+--    영상만 담는다. 모든 기기가 같은 영상을 보게 하려고 서버에 저장한다.
+CREATE TABLE IF NOT EXISTS song_videos (
+  song_id    VARCHAR(64) PRIMARY KEY,
+  video_id   VARCHAR(32) NOT NULL,
+  updated_at TIMESTAMPTZ DEFAULT NOW(),
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+DROP TRIGGER IF EXISTS trg_song_videos_updated_at ON song_videos;
+CREATE TRIGGER trg_song_videos_updated_at
+  BEFORE UPDATE ON song_videos
+  FOR EACH ROW EXECUTE FUNCTION touch_updated_at();
+
 -- ==============================================================================
 -- 시드 데이터
 -- 백엔드가 시작할 때도 같은 내용을 UPSERT하므로 여기서 빠뜨려도 채워진다.
@@ -148,3 +163,4 @@ ALTER TABLE control_log    ENABLE ROW LEVEL SECURITY;
 ALTER TABLE vision_events  ENABLE ROW LEVEL SECURITY;
 ALTER TABLE reservations   ENABLE ROW LEVEL SECURITY;
 ALTER TABLE song_history   ENABLE ROW LEVEL SECURITY;
+ALTER TABLE song_videos    ENABLE ROW LEVEL SECURITY;

@@ -87,6 +87,18 @@ CREATE TABLE IF NOT EXISTS song_history (
 -- ==============================================================================
 -- 시드 데이터 (AGENTS.md 팀 정보 기준 디바이스 등록)
 -- 재실행해도 기존 상태값을 덮어쓰지 않도록 desired_state/current_state는 제외
+
+-- 7. 노래방 영상 등록 (F-06)
+--    곡마다 기본 후보 목록은 프론트엔드 코드에 있고, 이 테이블은 그 위에 덮어쓰는
+--    "관리자가 직접 지정한 영상"만 담는다. 부스 화면·관람객 폰·관리자 노트북이
+--    같은 영상을 보게 하려고 브라우저가 아닌 서버에 저장한다.
+CREATE TABLE IF NOT EXISTS song_videos (
+  song_id    VARCHAR(64) PRIMARY KEY,
+  video_id   VARCHAR(32) NOT NULL,
+  updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
 -- ==============================================================================
 INSERT INTO devices (id, name, kind) VALUES
   -- 액추에이터 목록

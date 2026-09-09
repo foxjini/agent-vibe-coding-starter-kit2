@@ -51,14 +51,16 @@ export interface KaraokeSong {
   pickReason: string;
 
   /**
-   * 유튜브 노래방 영상 ID.
-   * null이면 화면에 "영상 등록" 카드가 뜬다. 잘못된 ID를 박아두고
-   * 깨진 플레이어를 보여주는 것보다 낫기 때문에 기본값을 null로 둔다.
-   * 등록 방법: 앱 화면의 [노래방 영상 등록] 버튼 또는
-   *            `node scripts/resolve-karaoke-videos.mjs` (YouTube Data API)
+   * 노래방 영상 후보 목록 — **앞에서부터 순서대로 시도**한다.
+   *
+   * 하나만 박아 두면 그 영상이 삭제되거나 임베드가 막힌 순간 곡이 죽는다.
+   * 그래서 같은 곡의 다른 버전(표준 / 멜로디제거 / 키 변경)을 함께 넣어 두고,
+   * 재생에 실패하면 앱이 자동으로 다음 후보로 넘어간다.
+   *
+   * 목록이 모두 실패하면 화면에 "영상 등록" 카드가 떠서 직접 링크를 넣을 수 있다.
    */
-  youtubeId: string | null;
-  /** 위 ID를 찾을 때 쓸 유튜브 검색어 */
+  youtubeCandidates: string[];
+  /** 후보가 모두 막혔을 때 직접 찾아 등록하기 위한 유튜브 검색어 */
   youtubeSearchQuery: string;
 
   /**
@@ -116,7 +118,11 @@ export const KARAOKE_SONGS: KaraokeSong[] = [
     tag: "떼창 1순위 🔥",
     year: 2024,
     pickReason: "발매 2년이 지난 2026년에도 노래방 차트 상위권을 지키는 10대 대표 떼창곡. 음역이 좁아 남녀 모두 부르기 쉽다.",
-    youtubeId: null,
+    youtubeCandidates: [
+      "CP2tLzx79vM", // TJ 표준,
+      "XrTISKbGa2U", // TJ 남자키,
+      "FYKuwoJzz1U", // TJ MR Live
+    ],
     youtubeSearchQuery: "TJ노래방 고민중독 QWER",
     localMediaExt: null,
     license: "youtube-embed",
@@ -132,7 +138,11 @@ export const KARAOKE_SONGS: KaraokeSong[] = [
     tag: "졸업식 떼창 ✨",
     year: 2019,
     pickReason: "학교 행사·수학여행 단골 합창곡. 노래방 연간 차트 붙박이로 남아 있는 장수 인기곡.",
-    youtubeId: null,
+    youtubeCandidates: [
+      "J15TV9vUXmI", // TJ 표준,
+      "cNYluBVMwIM", // TJ 멜로디제거,
+      "iSbVfZXiXMw", // TJ 여자키
+    ],
     youtubeSearchQuery: "TJ노래방 한 페이지가 될 수 있게 DAY6",
     localMediaExt: null,
     license: "youtube-embed",
@@ -148,7 +158,11 @@ export const KARAOKE_SONGS: KaraokeSong[] = [
     tag: "고음 챌린지 🚀",
     year: 2022,
     pickReason: "수능·졸업 시즌마다 역주행하는 곡. 고음 도전곡으로 중고생 사이 인지도가 매우 높다.",
-    youtubeId: null,
+    youtubeCandidates: [
+      "2VZK_K1Hf1c", // TJ 멜로디제거,
+      "GBrom4oHoGE", // TJ 남자키,
+      "vWotdvObDzs", // TJ 남자키 대체
+    ],
     youtubeSearchQuery: "TJ노래방 사건의 지평선 윤하",
     localMediaExt: null,
     license: "youtube-embed",
@@ -164,7 +178,11 @@ export const KARAOKE_SONGS: KaraokeSong[] = [
     tag: "챈트 떼창 👏",
     year: 2024,
     pickReason: "'아파트' 챈트 구간 덕분에 노래를 잘 못해도 다 같이 즐길 수 있어 부스 단체 이용에 가장 잘 맞는다.",
-    youtubeId: null,
+    youtubeCandidates: [
+      "mY8uE2YlVGs", // TJ 표준,
+      "DK02Bd_ct7w", // TJ 멜로디제거,
+      "mvugZggMJug", // TJ MR Live
+    ],
     youtubeSearchQuery: "TJ노래방 APT 로제 브루노마스",
     localMediaExt: null,
     license: "youtube-embed",
@@ -180,7 +198,9 @@ export const KARAOKE_SONGS: KaraokeSong[] = [
     tag: "초고음 도전 ⭐",
     year: 2025,
     pickReason: "애니메이션 인기와 함께 전 연령이 아는 곡이 됐고, 고음 구간이 명확해 '점수 도전곡'으로 선호도가 높다.",
-    youtubeId: null,
+    youtubeCandidates: [
+      "vRMPQ94-IdU", // TJ 표준
+    ],
     youtubeSearchQuery: "TJ노래방 Golden 헌트릭스 케이팝 데몬 헌터스",
     localMediaExt: null,
     license: "youtube-embed",
@@ -196,7 +216,9 @@ export const KARAOKE_SONGS: KaraokeSong[] = [
     tag: "2026 상반기 1위 🏆",
     year: 2026,
     pickReason: "2026년 발매곡 중 가장 먼저 멜론 TOP100 1위에 올랐고 빌보드 상반기 K-POP 25선 1위. 현재 10대 인지도 최상위.",
-    youtubeId: null,
+    youtubeCandidates: [
+      "ZM8nBgHqu_M", // 노래방 반주+가사
+    ],
     youtubeSearchQuery: "TJ노래방 404 New Era 키키 KiiiKiii",
     localMediaExt: null,
     license: "youtube-embed",
@@ -212,7 +234,11 @@ export const KARAOKE_SONGS: KaraokeSong[] = [
     tag: "최장기 1위 👑",
     year: 2026,
     pickReason: "2026년 발매곡 중 멜론 일간 1위를 40일로 가장 오래 지킨 곡. 여학생 선곡 1순위.",
-    youtubeId: null,
+    youtubeCandidates: [
+      "zouLuPtm6jw", // TJ 남자키,
+      "3DQ0L57grh8", // 금영 노래방,
+      "t8dqvbGoH3I", // 노래방 반주+가사
+    ],
     youtubeSearchQuery: "TJ노래방 BANG BANG 아이브 IVE",
     localMediaExt: null,
     license: "youtube-embed",
@@ -228,7 +254,10 @@ export const KARAOKE_SONGS: KaraokeSong[] = [
     tag: "장기 흥행 💫",
     year: 2026,
     pickReason: "2월 발매 후 6월까지 일간 TOP10을 유지한 롱런 히트. 빌보드 상반기 K-POP 25선 2위.",
-    youtubeId: null,
+    youtubeCandidates: [
+      "-gWo4wuSRVk", // TJ 표준,
+      "JO54Y4jFaWo", // 노래방 반주+가사
+    ],
     youtubeSearchQuery: "TJ노래방 RUDE 하츠투하츠 Hearts2Hearts",
     localMediaExt: null,
     license: "youtube-embed",
@@ -244,7 +273,9 @@ export const KARAOKE_SONGS: KaraokeSong[] = [
     tag: "음정 안정 🎯",
     year: 2026,
     pickReason: "빌보드 상반기 K-POP 25선 3위. 멜로디가 또렷하고 음역이 넓지 않아 노래방 점수가 잘 나오는 곡.",
-    youtubeId: null,
+    youtubeCandidates: [
+      "2P1eeynKgAc", // TJ 표준(미검증)
+    ],
     youtubeSearchQuery: "TJ노래방 소문의 낙원 악뮤 AKMU",
     localMediaExt: null,
     license: "youtube-embed",
@@ -260,7 +291,10 @@ export const KARAOKE_SONGS: KaraokeSong[] = [
     tag: "남학생 애창곡 🎸",
     year: 2021,
     pickReason: "남학생 선곡 스테디셀러. 셔플 리듬이라 박자를 타기 쉽고 음역이 낮아 변성기에도 부담이 적다.",
-    youtubeId: null,
+    youtubeCandidates: [
+      "4DANKXYStwI", // TJ 표준,
+      "s47FHLipNNM", // TJ 멜로디제거
+    ],
     youtubeSearchQuery: "TJ노래방 신호등 이무진",
     localMediaExt: null,
     license: "youtube-embed",
@@ -269,6 +303,11 @@ export const KARAOKE_SONGS: KaraokeSong[] = [
     guideCues: standardCues(210, "셔플(스윙) 박자 — 뒤로 살짝 끌면서 부르기"),
   },
 ];
+
+/** 이 곡의 기본 후보 중 첫 번째 (등록본이 없을 때의 시작점) */
+export function firstCandidate(song: KaraokeSong): string | null {
+  return song.youtubeCandidates[0] ?? null;
+}
 
 /** id로 곡 찾기 */
 export function findSongById(id: string): KaraokeSong | undefined {

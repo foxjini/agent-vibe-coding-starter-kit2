@@ -11,6 +11,7 @@ from schemas.reservation import (
     KeypadVerifyRequest,
     ReservationCreateRequest,
     SongRecordRequest,
+    SongVideoRequest,
 )
 from services.booth_service import BoothService
 from websocket_manager import ws_manager
@@ -20,6 +21,7 @@ logger = logging.getLogger("backend.routers.reservations")
 reservations_router = APIRouter(prefix="/api/reservations", tags=["reservations"])
 booth_router = APIRouter(prefix="/api/booth", tags=["booth-automation"])
 songs_router = APIRouter(prefix="/api/songs", tags=["songs"])
+videos_router = APIRouter(prefix="/api/song-videos", tags=["song-videos"])
 
 
 # ==============================================================================
@@ -203,3 +205,42 @@ async def add_song(req: SongRecordRequest) -> Dict[str, Any]:
         "timestamp": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
     })
     return {"data": recorded}
+
+
+# ==============================================================================
+# 노래방 영상 등록 (F-06)
+#
+# 조회는 누구나 할 수 있다 — 부스 화면과 관람객 폰이 같은 영상을 봐야 하므로.
+# 등록·삭제는 관리자만 할 수 있다 — 모든 사람이 보는 화면을 바꾸는 일이므로.
+# ==============================================================================
+
+@videos_router.get("")
+async def list_song_videos() -> Dict[str, Any]:
+    """등록된 곡별 영상 ID 목록. DB가 없어도 빈 목록으로 degrade한다."""
+    try:
+        return {"data": db.get_song_videos()}
+    except Exception as exc:
+        logger.error(f"Failed to fetch song videos: {exc}")
+        return {"data": {}}
+
+
+@videos_router.put("/{song_id}")
+async def register_song_video(
+    song_id: str,
+    req: SongVideoRequest,
+    _admin: str = Depends(verify_admin_token),
+) -> Dict[str, Any]:
+    """곡의 노래방 영상을 등록합니다 (관리자 전용)."""
+    saved = db.set_song_video(song_id, req.video_id)
+    logger.info(f"Song video registered: {song_id} -> {req.video_id}")
+    return {"data": saved}
+
+
+@videos_router.delete("/{song_id}")
+async def unregister_song_video(
+    song_id: str,
+    _admin: str = Depends(verify_admin_token),
+) -> Dict[str, Any]:
+    """등록을 지우고 기본 후보 목록으로 되돌립니다 (관리자 전용)."""
+    db.delete_song_video(song_id)
+    return {"data": {"song_id": song_id, "removed": True}}

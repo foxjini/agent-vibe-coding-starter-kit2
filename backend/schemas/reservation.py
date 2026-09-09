@@ -21,3 +21,11 @@ class SongRecordRequest(BaseModel):
     """노래 이력 등록 요청"""
     title: str = Field(..., min_length=1, description="곡 제목")
     singer: str = Field(..., min_length=1, description="가수 이름")
+
+
+class SongVideoRequest(BaseModel):
+    """곡에 노래방 영상을 등록하는 요청 (F-06)"""
+    video_id: str = Field(
+        ..., min_length=11, max_length=11,
+        description="유튜브 영상 ID (11자). 링크가 아니라 ID만 보낸다."
+    )

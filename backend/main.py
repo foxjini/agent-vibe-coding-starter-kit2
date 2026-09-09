@@ -22,7 +22,7 @@ from fastapi.responses import JSONResponse
 
 from routers.admin import admin_router
 from routers.devices import user_router, device_router
-from routers.reservations import reservations_router, booth_router, songs_router
+from routers.reservations import reservations_router, booth_router, songs_router, videos_router
 from websocket_manager import ws_manager
 
 logging.basicConfig(level=logging.INFO)
@@ -106,6 +106,7 @@ app.include_router(device_router)
 app.include_router(reservations_router)
 app.include_router(booth_router)
 app.include_router(songs_router)
+app.include_router(videos_router)
 
 
 

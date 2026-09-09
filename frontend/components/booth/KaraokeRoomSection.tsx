@@ -23,6 +23,8 @@ import {
   HardDrive,
   Radio,
   ShieldCheck,
+  Loader2,
+  Mic2,
 } from "lucide-react";
 import { KaraokeAudioScorer, AudioAnalysisResult, FinalScore } from "@/utils/audioScorer";
 import { KaraokeAccompanimentEngine } from "@/utils/karaokeAccompaniment";
@@ -35,9 +37,10 @@ import {
 } from "@/utils/youtubePlayer";
 import {
   resolveMedia,
-  saveVideoId,
-  clearVideoId,
-  getVideoId,
+  loadVideoOverrides,
+  registerVideoId,
+  hasNextAttempt,
+  hasPlayableVideo,
   ResolvedMedia,
 } from "@/utils/karaokeMedia";
 import { KARAOKE_SONGS, KaraokeSong, youtubeSearchUrl } from "@/data/karaokeSongs";
@@ -66,6 +69,20 @@ export function KaraokeRoomSection({ devices, onSongCompleted }: KaraokeRoomSect
   const [duration, setDuration] = useState(0);
   const [playerError, setPlayerError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
+
+  /** 유튜브 시도 목록에서 몇 번째를 쓰는 중인지 — 실패하면 +1 해서 다음 후보로 */
+  const [attemptIndex, setAttemptIndex] = useState(0);
+  /** 플레이어가 실제로 재생 명령을 받을 준비가 됐는가 */
+  const [playerReady, setPlayerReady] = useState(false);
+  /**
+   * 노래방에 "입장"했는가.
+   * 브라우저는 사용자 제스처 없이 소리를 내지 못하고, 마이크 권한 창이 뜨는
+   * 동안 제스처가 소실되면 영상 재생까지 막힌다. 그래서 입장 버튼에서
+   * 권한과 오디오를 먼저 확보해 두고, 이후 [반주 시작]은 곧바로 재생만 한다.
+   */
+  const [hasEntered, setHasEntered] = useState(false);
+  const [isEntering, setIsEntering] = useState(false);
+  const [enterNotice, setEnterNotice] = useState<string | null>(null);
 
   // ── 영상 등록 ────────────────────────────────────────────
   const [registerInput, setRegisterInput] = useState("");
@@ -96,6 +113,8 @@ export function KaraokeRoomSection({ devices, onSongCompleted }: KaraokeRoomSect
   const tickTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   /** 곡이 끝났을 때 채점을 한 번만 실행하기 위한 플래그 */
   const scoredRef = useRef(false);
+  /** ticker가 항상 최신 채점 함수를 부르도록 담아 두는 상자 */
+  const finishAndScoreRef = useRef<(() => void) | null>(null);
 
   /* ─────────────────────────────────────────────────────────
    * 엔진 초기화 / 정리
@@ -119,13 +138,17 @@ export function KaraokeRoomSection({ devices, onSongCompleted }: KaraokeRoomSect
    * ──────────────────────────────────────────────────────── */
   useEffect(() => {
     let cancelled = false;
-    void resolveMedia(selectedSong).then((m) => {
-      if (!cancelled) setResolved({ songId: selectedSong.id, media: m });
-    });
+    // 관리자 등록본을 먼저 받아 온 뒤 재생 소스를 정한다.
+    // 서버가 꺼져 있어도 loadVideoOverrides가 조용히 넘어가고 기본 후보로 재생된다.
+    void loadVideoOverrides()
+      .then(() => resolveMedia(selectedSong, attemptIndex))
+      .then((m) => {
+        if (!cancelled) setResolved({ songId: selectedSong.id, media: m });
+      });
     return () => {
       cancelled = true;
     };
-  }, [selectedSong]);
+  }, [selectedSong, attemptIndex]);
 
   /* ─────────────────────────────────────────────────────────
    * 모든 재생 중지 (곡 전환·정지·언마운트 공통)
@@ -213,6 +236,13 @@ export function KaraokeRoomSection({ devices, onSongCompleted }: KaraokeRoomSect
     }, 40);
   }, [recordSongToDB, selectedSong, stopAllPlayback]);
 
+  // ticker(setInterval)는 만들어질 때의 함수를 붙잡고 있으므로,
+  // 곡이 바뀌어 finishAndScore가 새로 만들어져도 최신 것을 부르도록 ref에 담는다.
+  // (렌더 중에 ref를 쓰면 안 되므로 effect에서 갱신한다)
+  useEffect(() => {
+    finishAndScoreRef.current = finishAndScore;
+  }, [finishAndScore]);
+
   /* ─────────────────────────────────────────────────────────
    * 유튜브 플레이어 생성 — media가 youtube로 정해졌을 때만
    * ──────────────────────────────────────────────────────── */
@@ -242,8 +272,7 @@ export function KaraokeRoomSection({ devices, onSongCompleted }: KaraokeRoomSect
         ytHandleRef.current = handle;
         handle.setVolume(mrVolume * 100);
         setDuration(handle.getDuration());
-        // 실제로 재생되는 것이 확인된 ID만 저장한다
-        saveVideoId(songId, videoId);
+        setPlayerReady(true);
       },
       onStateChange: (state) => {
         if (disposed) return;
@@ -259,19 +288,28 @@ export function KaraokeRoomSection({ devices, onSongCompleted }: KaraokeRoomSect
       },
       onError: (_code, message) => {
         if (disposed) return;
-        // 임베드가 막혔거나 삭제된 영상 — 저장된 ID를 지워 다시 등록받는다
-        clearVideoId(songId);
+        setPlayerReady(false);
+
+        // 임베드가 막혔거나 삭제된 영상 — 같은 곡의 다음 후보로 자동 전환한다.
+        // 후보를 다 쓴 뒤에야 내장 반주로 떨어진다.
+        if (hasNextAttempt(selectedSong, attemptIndex)) {
+          setPlayerError(`${message} 다음 후보 영상으로 넘어갑니다.`);
+          setAttemptIndex((prev) => prev + 1);
+          return;
+        }
+
         setPlayerError(message);
         setResolved({
           songId,
           media: {
             source: "synth",
-            reason: "유튜브 재생에 실패해 내장 자동 반주로 전환했습니다",
+            reason: "유튜브 영상을 모두 재생할 수 없어 내장 자동 반주로 전환했습니다",
           },
         });
       },
     }).catch((err: Error) => {
       if (disposed) return;
+      setPlayerReady(false);
       setPlayerError(err.message);
       setResolved({
         songId,
@@ -284,13 +322,14 @@ export function KaraokeRoomSection({ devices, onSongCompleted }: KaraokeRoomSect
 
     return () => {
       disposed = true;
+      setPlayerReady(false);
       ytHandleRef.current?.destroy();
       ytHandleRef.current = null;
       host.innerHTML = "";
     };
     // mrVolume은 아래 별도 effect에서 반영한다 (여기서 재생성되면 영상이 끊긴다)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [media?.source, media?.youtubeId, selectedSong.id, finishAndScore]);
+  }, [media?.source, media?.youtubeId, selectedSong, attemptIndex, finishAndScore]);
 
   /** MR 볼륨 변경을 각 재생 소스에 반영 */
   useEffect(() => {
@@ -305,8 +344,19 @@ export function KaraokeRoomSection({ devices, onSongCompleted }: KaraokeRoomSect
   const startTicker = useCallback(() => {
     if (tickTimerRef.current) clearInterval(tickTimerRef.current);
     tickTimerRef.current = setInterval(() => {
-      if (ytHandleRef.current) {
-        setElapsed(Math.floor(ytHandleRef.current.getCurrentTime()));
+      const yt = ytHandleRef.current;
+      if (yt) {
+        const at = yt.getCurrentTime();
+        const total = yt.getDuration();
+        setElapsed(Math.floor(at));
+
+        // 곡 종료 이중 감지.
+        // 유튜브의 ENDED 이벤트는 네트워크가 불안정할 때 누락되는 일이 있어,
+        // 재생 위치가 끝에 닿았는지도 함께 본다. 실제 채점은 finishAndScore
+        // 안의 scoredRef가 막아 주므로 두 경로가 동시에 걸려도 한 번만 돈다.
+        if (total > 0 && total - at <= 1) {
+          finishAndScoreRef.current?.();
+        }
       } else if (localAudioRef.current) {
         setElapsed(Math.floor(localAudioRef.current.currentTime));
       } else {
@@ -385,16 +435,22 @@ export function KaraokeRoomSection({ devices, onSongCompleted }: KaraokeRoomSect
     setShowScoreModal(false);
     setElapsed(0);
     scorerRef.current?.resetScore();
+    scorerRef.current?.resumeAnalysis();
 
-    // 마이크가 꺼져 있으면 채점을 위해 자동으로 켠다
-    if (!isMicActive && !isVirtualMic) {
-      await startMicrophone();
-    }
-
-    if (media.source === "youtube" && ytHandleRef.current) {
-      ytHandleRef.current.seekTo(0);
-      ytHandleRef.current.setVolume(mrVolume * 100);
-      ytHandleRef.current.play();
+    if (media.source === "youtube") {
+      const yt = ytHandleRef.current;
+      if (!yt) {
+        // 플레이어가 아직 준비되지 않았다. 예전에는 여기서 아래 else로 떨어져
+        // 유튜브 모드인데 내장 신스 반주가 울렸다. 이제는 기다리라고 알린다.
+        setPlayerError("영상을 불러오는 중입니다. 잠시 후 다시 눌러 주세요.");
+        return;
+      }
+      // ⚠️ 이 지점까지 await가 하나도 없어야 한다.
+      //    사용자 클릭과 play() 사이에 await가 끼면 제스처가 소실되어
+      //    브라우저가 재생을 막는다 (마이크 권한은 입장 게이트에서 미리 받는다).
+      yt.seekTo(0);
+      yt.setVolume(mrVolume * 100);
+      yt.play();
       // 유튜브 영상이 반주 역할을 하므로 내장 반주는 확실히 끈다 (소리 겹침 방지)
       accompanimentRef.current?.stop();
     } else if (media.source === "local" && media.localUrl) {
@@ -435,20 +491,46 @@ export function KaraokeRoomSection({ devices, onSongCompleted }: KaraokeRoomSect
 
     setIsPlaying(true);
     startTicker();
-  }, [
-    media,
-    isMicActive,
-    isVirtualMic,
-    startMicrophone,
-    mrVolume,
-    selectedSong,
-    startTicker,
-    finishAndScore,
-  ]);
+  }, [media, mrVolume, selectedSong, startTicker, finishAndScore]);
 
   const handlePause = useCallback(() => {
     stopAllPlayback();
+    // 멈춰 있는 동안을 "안 부른 시간"으로 세면 박자 점수가 부당하게 깎인다
+    scorerRef.current?.pauseAnalysis();
   }, [stopAllPlayback]);
+
+  /**
+   * 노래방 입장 — 여기서 마이크 권한과 주변 소음 측정을 한 번에 끝낸다.
+   *
+   * 예전에는 [반주 시작]을 누른 뒤에 마이크 권한을 물었다. 그런데 권한 창이
+   * 뜨는 동안 사용자 제스처가 소실되어, 브라우저가 뒤이은 영상 재생까지
+   * 막아 버렸다. 입장 시점으로 옮기면 재생 버튼은 곧바로 재생만 하면 된다.
+   */
+  const handleEnter = useCallback(async () => {
+    if (isEntering) return;
+    setIsEntering(true);
+    setEnterNotice("마이크 권한을 확인하는 중...");
+
+    const micOk = await startMicrophone();
+
+    if (micOk) {
+      setEnterNotice("주변 소음을 측정하는 중입니다. 잠시 조용히 해 주세요...");
+      const { baseline, threshold } = (await scorerRef.current?.measureBaseline()) ?? {
+        baseline: 0,
+        threshold: 0,
+      };
+      setEnterNotice(
+        `준비 완료! (주변 소음 ${baseline} · 발성 인식 기준 ${threshold})`
+      );
+    } else {
+      setEnterNotice(
+        "마이크를 쓸 수 없어 채점 없이 진행합니다. 채점을 원하면 브라우저 주소창의 사이트 권한에서 마이크를 허용한 뒤 새로고침해 주세요."
+      );
+    }
+
+    setIsEntering(false);
+    setHasEntered(true);
+  }, [isEntering, startMicrophone]);
 
   /** 목록에서 곡을 고르면 재생 중이던 것을 정리하고 새 곡을 준비한다 */
   const handleSelectSong = useCallback(
@@ -457,6 +539,8 @@ export function KaraokeRoomSection({ devices, onSongCompleted }: KaraokeRoomSect
       scoredRef.current = false;
       setSelectedSong(song);
       setPlayerError(null);
+      setAttemptIndex(0);
+      setPlayerReady(false);
       setElapsed(0);
       setDuration(song.approxDurationSec);
       setRegisterInput("");
@@ -468,23 +552,32 @@ export function KaraokeRoomSection({ devices, onSongCompleted }: KaraokeRoomSect
 
   /** 유튜브 노래방 영상 등록 */
   const handleRegisterVideo = useCallback(
-    (e: React.FormEvent) => {
+    async (e: React.FormEvent) => {
       e.preventDefault();
       const id = parseYouTubeId(registerInput);
       if (!id) {
         setRegisterNotice("유튜브 링크 형식이 아닙니다. 주소창의 링크를 그대로 붙여넣어 주세요.");
         return;
       }
-      saveVideoId(selectedSong.id, id);
+
+      // 서버에 저장해 부스 화면·관람객 폰·관리자 노트북이 같은 영상을 보게 한다
+      const result = await registerVideoId(selectedSong.id, id);
+      if (!result.ok) {
+        setRegisterNotice(result.message);
+        return;
+      }
+
       setPlayerError(null);
       setRegisterInput("");
-      setRegisterNotice(`'${selectedSong.title}' 영상이 등록되었습니다.`);
+      setRegisterNotice(`'${selectedSong.title}' 영상이 등록되었습니다. 모든 기기에 적용됩니다.`);
+      setAttemptIndex(0);
       setResolved({
         songId: selectedSong.id,
         media: {
           source: "youtube",
           youtubeId: id,
-          reason: "유튜브 공식 임베드 플레이어로 스트리밍 중 (복제 없음)",
+          attemptIndex: 0,
+          reason: "유튜브 공식 임베드 플레이어로 스트리밍 중 · 관리자 등록 영상",
         },
       });
     },
@@ -511,6 +604,9 @@ export function KaraokeRoomSection({ devices, onSongCompleted }: KaraokeRoomSect
   };
 
   const progressPct = duration > 0 ? Math.min(100, (elapsed / duration) * 100) : 0;
+
+  /** 유튜브 모드인데 플레이어가 아직 준비되지 않은 상태 */
+  const waitingForPlayer = media?.source === "youtube" && !playerReady;
 
   // Tailwind는 클래스 문자열을 정적으로 훑기 때문에 `bg-${color}-950` 같은 조합은
   // 빌드에서 제거된다. 완성된 클래스 문자열을 그대로 적어 둔다.
@@ -551,6 +647,59 @@ export function KaraokeRoomSection({ devices, onSongCompleted }: KaraokeRoomSect
             Relay Power: OFF
           </span>
         </div>
+      )}
+
+      {/* 입장 게이트 — 브라우저 자동재생 정책 대응 (마이크 권한·소음 측정을 여기서 끝낸다) */}
+      {!hasEntered && (
+        <div className="p-6 rounded-2xl bg-gradient-to-br from-indigo-950/70 to-purple-950/50 border border-indigo-500/40 shadow-xl text-center space-y-4">
+          <div className="w-14 h-14 rounded-2xl bg-indigo-600/30 border border-indigo-500/50 flex items-center justify-center text-indigo-200 mx-auto">
+            <Mic2 className="w-7 h-7" />
+          </div>
+          <div className="space-y-1.5">
+            <h3 className="text-lg font-black text-white">노래방에 입장하세요</h3>
+            <p className="text-xs text-slate-300 leading-relaxed max-w-md mx-auto">
+              브라우저는 사용자가 버튼을 눌러야 소리를 낼 수 있습니다.
+              <br />
+              입장할 때 <strong className="text-indigo-200">마이크 권한</strong>과{" "}
+              <strong className="text-indigo-200">주변 소음</strong>을 한 번에 확인해 두면,
+              이후에는 [반주 시작]만 눌러도 영상이 바로 재생됩니다.
+            </p>
+          </div>
+
+          <button
+            onClick={() => void handleEnter()}
+            disabled={isEntering}
+            className="px-7 py-3 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 disabled:opacity-60 disabled:cursor-not-allowed text-white font-black text-sm shadow-lg shadow-indigo-600/30 transition-all cursor-pointer inline-flex items-center gap-2"
+          >
+            {isEntering ? (
+              <>
+                <Loader2 className="w-4 h-4 animate-spin" />
+                준비 중...
+              </>
+            ) : (
+              <>
+                <Mic2 className="w-4 h-4" />
+                🎤 노래방 입장하기
+              </>
+            )}
+          </button>
+
+          {enterNotice && <p className="text-[11px] text-indigo-200/90">{enterNotice}</p>}
+
+          <button
+            onClick={() => setHasEntered(true)}
+            className="block mx-auto text-[11px] text-slate-500 hover:text-slate-300 underline underline-offset-2 cursor-pointer"
+          >
+            마이크 없이 둘러보기
+          </button>
+        </div>
+      )}
+
+      {hasEntered && enterNotice && (
+        <p className="text-[11px] text-slate-500 flex items-center gap-1.5">
+          <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500/70 shrink-0" />
+          {enterNotice}
+        </p>
       )}
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
@@ -715,11 +864,24 @@ export function KaraokeRoomSection({ devices, onSongCompleted }: KaraokeRoomSect
             <div className="flex flex-wrap items-center gap-2">
               <button
                 onClick={() => (isPlaying ? handlePause() : void handlePlay())}
-                disabled={!media}
+                disabled={!media || !hasEntered || waitingForPlayer}
+                title={
+                  !hasEntered
+                    ? "먼저 노래방에 입장해 주세요"
+                    : waitingForPlayer
+                    ? "영상을 불러오는 중입니다"
+                    : undefined
+                }
                 className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 disabled:opacity-40 disabled:cursor-not-allowed text-slate-200 border border-slate-700 text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer"
               >
-                {isPlaying ? <Pause className="w-3.5 h-3.5" /> : <Play className="w-3.5 h-3.5 fill-current" />}
-                {isPlaying ? "일시정지" : "반주 시작"}
+                {waitingForPlayer ? (
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                ) : isPlaying ? (
+                  <Pause className="w-3.5 h-3.5" />
+                ) : (
+                  <Play className="w-3.5 h-3.5 fill-current" />
+                )}
+                {waitingForPlayer ? "영상 불러오는 중" : isPlaying ? "일시정지" : "반주 시작"}
               </button>
 
               <button
@@ -855,7 +1017,7 @@ export function KaraokeRoomSection({ devices, onSongCompleted }: KaraokeRoomSect
           <div className="space-y-2 overflow-y-auto pr-1 flex-1 max-h-[520px]">
             {filteredSongs.map((song) => {
               const isCurrent = selectedSong.id === song.id;
-              const hasVideo = Boolean(getVideoId(song));
+              const hasVideo = hasPlayableVideo(song);
               return (
                 <button
                   key={song.id}
