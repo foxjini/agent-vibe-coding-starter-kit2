@@ -45,6 +45,7 @@ import {
   ResolvedMedia,
 } from "@/utils/karaokeMedia";
 import { KARAOKE_SONGS, KaraokeSong, youtubeSearchUrl } from "@/data/karaokeSongs";
+import { VideoCheckPanel } from "@/components/booth/VideoCheckPanel";
 import { Device } from "@/types";
 import { apiUrl } from "@/utils/apiConfig";
 
@@ -1155,6 +1156,30 @@ export function KaraokeRoomSection({ devices, onSongCompleted }: KaraokeRoomSect
           </div>
         </div>
       </div>
+
+      {/*
+        영상 점검 패널 — 후보 영상이 우리 화면에서 실제로 재생되는지 확인한다.
+        한국 가요 노래방 영상은 [다른 사이트에서 재생 금지](코드 150)가 걸린 경우가
+        많아서, 손으로 하나씩 눌러 보는 대신 여기서 한 번에 가려낸다.
+      */}
+      <VideoCheckPanel
+        onRegistered={(songId, videoId) => {
+          if (songId !== selectedSong.id) return;
+          // 지금 보고 있는 곡이면 곧바로 그 영상으로 갈아 끼운다
+          setPlayerError(null);
+          setFailedAttempts([]);
+          setAttemptIndex(0);
+          setResolved({
+            songId,
+            media: {
+              source: "youtube",
+              youtubeId: videoId,
+              attemptIndex: 0,
+              reason: "유튜브 공식 임베드 플레이어로 스트리밍 중 · 관리자 등록 영상",
+            },
+          });
+        }}
+      />
 
       {/* ── 점수 결과 모달 ─────────────────────────────────── */}
       {showScoreModal && (

@@ -186,6 +186,153 @@ export async function createYouTubePlayer(
   });
 }
 
+/* ── 임베드 가능 여부 점검 ──────────────────────────────────────
+ *
+ * 유튜브 영상이 "우리 페이지 안에서 재생되는가"는 겉으로 봐서는 알 수 없다.
+ * 영상 주인이 [다른 사이트에서 재생 금지]를 걸어 두면 유튜브에서는 잘 보이지만
+ * 우리 화면에서는 오류 코드 150으로 막힌다.
+ *
+ * 확실한 확인 방법은 하나뿐이다 — 실제로 플레이어를 만들어 보는 것.
+ * 그래서 화면 밖(off-screen)에 아주 작은 플레이어를 잠깐 띄웠다가 지운다.
+ * 소리는 나지 않는다 (재생 명령을 내리지 않는다).
+ */
+
+export type ProbeStatus =
+  | "ok"        // 우리 화면에서 재생 가능
+  | "blocked"   // 영상은 있으나 퍼가기 금지 (101·150)
+  | "missing"   // 삭제·비공개 (100)
+  | "invalid"   // ID 형식 오류 (2)
+  | "unplayable" // 브라우저 재생 불가 (5)
+  | "timeout"   // 응답 없음 (네트워크·방화벽)
+  | "error";    // 그 밖의 실패
+
+export interface ProbeResult {
+  videoId: string;
+  status: ProbeStatus;
+  code?: number;
+  message: string;
+}
+
+function classifyProbe(videoId: string, code: number): ProbeResult {
+  const message = YT_ERROR_MESSAGE[code] ?? `재생할 수 없는 영상입니다 (코드 ${code})`;
+  const status: ProbeStatus =
+    code === 101 || code === 150
+      ? "blocked"
+      : code === 100
+      ? "missing"
+      : code === 2
+      ? "invalid"
+      : code === 5
+      ? "unplayable"
+      : "error";
+  return { videoId, status, code, message };
+}
+
+/**
+ * 영상 하나가 우리 페이지에서 재생 가능한지 실제로 확인한다.
+ *
+ * 임베드가 막힌 영상은 onReady가 먼저 오고 곧이어 onError가 오는 경우가 있어,
+ * onReady를 받아도 바로 "가능"이라고 단정하지 않고 잠시(graceMs) 기다린다.
+ */
+export async function probeVideoId(
+  videoId: string,
+  { timeoutMs = 9000, graceMs = 1800 }: { timeoutMs?: number; graceMs?: number } = {}
+): Promise<ProbeResult> {
+  if (!/^[A-Za-z0-9_-]{11}$/.test(videoId)) {
+    return { videoId, status: "invalid", code: 2, message: YT_ERROR_MESSAGE[2] };
+  }
+
+  let YT: YTNamespace;
+  try {
+    YT = await loadYouTubeApi();
+  } catch (err) {
+    return { videoId, status: "error", message: (err as Error).message };
+  }
+
+  return new Promise<ProbeResult>((resolve) => {
+    const host = document.createElement("div");
+    // 화면 밖에 두되 display:none은 쓰지 않는다 — 숨기면 플레이어가 초기화되지 않는다
+    host.style.cssText =
+      "position:fixed;left:-10000px;top:0;width:200px;height:120px;opacity:0;pointer-events:none;";
+    document.body.appendChild(host);
+    const mount = document.createElement("div");
+    host.appendChild(mount);
+
+    let done = false;
+    let player: YTPlayerInstance | null = null;
+    let graceTimer: ReturnType<typeof setTimeout> | null = null;
+
+    const finish = (result: ProbeResult) => {
+      if (done) return;
+      done = true;
+      if (graceTimer) clearTimeout(graceTimer);
+      clearTimeout(hardTimer);
+      try {
+        player?.destroy();
+      } catch {
+        /* 이미 정리된 경우 무시 */
+      }
+      host.remove();
+      resolve(result);
+    };
+
+    const hardTimer = setTimeout(
+      () =>
+        finish({
+          videoId,
+          status: "timeout",
+          message: "유튜브가 응답하지 않습니다 (네트워크·방화벽 확인)",
+        }),
+      timeoutMs
+    );
+
+    try {
+      player = new YT.Player(mount, {
+        videoId,
+        playerVars: {
+          autoplay: 0,
+          origin: window.location.origin,
+          enablejsapi: 1,
+          playsinline: 1,
+        },
+        events: {
+          onReady: () => {
+            graceTimer = setTimeout(
+              () => finish({ videoId, status: "ok", message: "이 화면에서 재생 가능합니다" }),
+              graceMs
+            );
+          },
+          onError: (e: { data: number }) => finish(classifyProbe(videoId, e.data)),
+        },
+      });
+    } catch (err) {
+      finish({ videoId, status: "error", message: (err as Error).message });
+    }
+  });
+}
+
+/**
+ * 여러 영상을 한꺼번에 점검한다.
+ * 유튜브가 한 번에 많은 플레이어를 만들면 느려지므로 동시 실행 수를 제한한다.
+ * 결과가 하나 나올 때마다 onResult로 알려 주므로 화면을 즉시 갱신할 수 있다.
+ */
+export async function probeVideoIds(
+  videoIds: string[],
+  onResult: (result: ProbeResult) => void,
+  concurrency = 3
+): Promise<void> {
+  let cursor = 0;
+  const worker = async () => {
+    while (cursor < videoIds.length) {
+      const id = videoIds[cursor++];
+      onResult(await probeVideoId(id));
+    }
+  };
+  await Promise.all(
+    Array.from({ length: Math.min(concurrency, videoIds.length) }, () => worker())
+  );
+}
+
 /**
  * 사용자가 붙여넣은 문자열에서 유튜브 영상 ID만 뽑아낸다.
  * watch?v=, youtu.be/, /embed/, /shorts/, /live/ 형식과 순수 ID를 모두 받는다.
