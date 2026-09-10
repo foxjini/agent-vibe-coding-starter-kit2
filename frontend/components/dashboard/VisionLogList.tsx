@@ -5,6 +5,7 @@ import { Activity, CheckCircle2, XCircle } from "lucide-react";
 export interface VisionEventItem {
   id?: number | string;
   event_type: string;
+  label?: string | null;
   detected: boolean;
   count: number;
   confidence?: number | null;

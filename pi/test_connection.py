@@ -30,7 +30,8 @@ load_dotenv()
 # 백엔드 주소 (라즈베리파이에서 실행할 때는 백엔드가 켜진 PC의 IP를 적어주세요!)
 # 예: BACKEND_URL = "http://192.168.35.71:8000"
 BACKEND_URL = os.getenv("BACKEND_URL", "http://localhost:8000").rstrip("/")
-DEVICE_API_KEY = os.getenv("DEVICE_API_KEY", "wake_up_2026_09_05_v1_0_0")
+# 비밀 키는 코드에 적지 않는다 — pi/.env 에 백엔드와 똑같은 값을 넣어 주세요
+DEVICE_API_KEY = os.getenv("DEVICE_API_KEY", "")
 
 HEADERS = {
     "X-Device-Api-Key": DEVICE_API_KEY,
@@ -41,7 +42,7 @@ print("=" * 65)
 print("🚀 [ELI5] 라즈베리파이 5 ↔ 백엔드 통신 첫걸음 테스트기")
 print("=" * 65)
 print(f"📍 연결할 백엔드 주소: {BACKEND_URL}")
-print(f"🔑 우리 팀 비밀 암호: {DEVICE_API_KEY[:6]}****")
+print(f"🔑 우리 팀 비밀 암호: {DEVICE_API_KEY[:4] + '****' if DEVICE_API_KEY else '(미설정 — pi/.env 확인)'}")
 print("=" * 65)
 
 # 리눅스(라즈베리파이)에서 localhost 사용 시 주의 안내

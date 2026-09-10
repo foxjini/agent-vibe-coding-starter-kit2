@@ -14,7 +14,9 @@ export const ConnectionBadge: React.FC<ConnectionBadgeProps> = ({
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
-    setMounted(true);
+    // 이펙트 본문에서 곧바로 setState하지 않도록 한 프레임 미룬다 (cascading render 방지)
+    const id = requestAnimationFrame(() => setMounted(true));
+    return () => cancelAnimationFrame(id);
   }, []);
 
   // SSR Hydration Mismatch 방지: 마운트 전에는 로딩/대기 기본 상태 표시

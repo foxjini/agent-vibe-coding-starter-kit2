@@ -17,7 +17,9 @@ numpy>=2.0.0; python_version >= "3.13"
 pillow>=10.0.0
 scipy>=1.12.0
 
-# 제스처(가위바위보) 및 얼굴/눈 분석
+# 제스처(가위바위보) 손동작 인식
+# 손 인식 모델(hand_landmarker.task)은 vision 폴더에 함께 들어 있습니다.
+# MediaPipe가 설치되지 않아도 비전 클라이언트는 사물 감지 미션으로 정상 동작합니다.
 mediapipe; python_version < "3.13"
 
 # 백엔드 REST API 통신 및 환경설정

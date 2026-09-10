@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
-import { AlertTriangle, BellOff, ShieldAlert } from "lucide-react";
+import { BellOff, ShieldAlert } from "lucide-react";
 
 interface AlertCardProps {
   active: boolean;

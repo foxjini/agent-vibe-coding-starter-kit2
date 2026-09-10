@@ -1,3 +1,4 @@
+import asyncio
 import logging
 from typing import Any, Dict, List, Optional
 
@@ -23,5 +24,5 @@ async def list_control_logs(
     user=Depends(verify_user_auth),
 ):
     """대시보드에서 액추에이터 제어 이력 로그를 조회합니다."""
-    logs = get_control_log(device_id=device_id, limit=limit)
+    logs = await asyncio.to_thread(get_control_log, device_id, limit)
     return {"data": logs}

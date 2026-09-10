@@ -1,8 +1,9 @@
 "use client";
 
 import React from "react";
-import { Camera, Eye, Fingerprint, Hand, Radio } from "lucide-react";
+import { Camera, Fingerprint, Radio } from "lucide-react";
 import { getStatusBadgeClass } from "@/components/dashboard/statusColor";
+import { parseJsonValue } from "@/lib/api";
 
 interface SensorCardProps {
   device: {
@@ -10,38 +11,70 @@ interface SensorCardProps {
     name: string;
     kind: string;
     current_state?: string | null;
-    current_value?: any;
+    current_value?: unknown;
     updated_at?: string | null;
   };
 }
+
+interface TouchValue {
+  pressed?: boolean;
+  touch_x?: number;
+  touch_y?: number;
+  gesture?: string;
+}
+
+interface CameraValue {
+  person_detected?: boolean;
+  confidence?: number;
+  gesture?: string;
+  motion_detected?: boolean;
+}
+
+/** 값이 아직 들어오지 않았을 때 쓰는 표시 (그럴듯한 가짜 숫자를 만들지 않는다) */
+const NO_DATA = "—";
 
 export const SensorCard: React.FC<SensorCardProps> = ({ device }) => {
   const isTouchPad = device.kind === "touch_pad" || device.id.includes("touch");
   const isCamera = device.kind === "camera" || device.id.includes("camera");
 
-  // 터치패드 데이터 파싱
-  const touchData = isTouchPad ? device.current_value || {} : null;
+  // MySQL JSON 컬럼이 문자열로 와도 안전하게 객체로 되돌린다
+  const value = parseJsonValue<Record<string, unknown>>(device.current_value);
+  const hasReading = value !== null;
+
+  const touchData = isTouchPad ? (value as TouchValue | null) : null;
+  const cameraData = isCamera ? (value as CameraValue | null) : null;
+
   const isTouched =
     Boolean(touchData?.pressed) || device.current_state === "touched";
 
-  // 카메라 데이터 파싱
-  const cameraData = isCamera ? device.current_value || {} : null;
-  const personDetected = Boolean(cameraData?.person_detected ?? true);
-  const confidence = cameraData?.confidence
-    ? Math.round(Number(cameraData.confidence) * 100)
-    : 92;
-  const detectedGesture = cameraData?.gesture || "none";
+  // 카메라: 실제로 보고된 값이 있을 때만 표시한다 (없으면 '미수신')
+  const personDetected = cameraData?.person_detected;
+  const confidence =
+    typeof cameraData?.confidence === "number"
+      ? Math.round(cameraData.confidence * 100)
+      : null;
+  const detectedGesture = cameraData?.gesture ?? null;
 
   // 상태 배지 레이블 및 클래스
   let badgeStatus = "off";
   let badgeLabel = "대기 중";
 
   if (isTouchPad) {
-    badgeStatus = isTouched ? "alert" : "info";
-    badgeLabel = isTouched ? "터치 감지됨" : "입력 대기 중";
+    if (!hasReading && !device.current_state) {
+      badgeStatus = "disconnected";
+      badgeLabel = "보고 없음";
+    } else {
+      badgeStatus = isTouched ? "alert" : "info";
+      badgeLabel = isTouched ? "터치 감지됨" : "입력 대기 중";
+    }
   } else if (isCamera) {
-    badgeStatus = personDetected ? "on" : "off";
-    badgeLabel = personDetected ? "기상 모니터링 중" : "미감지";
+    if (personDetected === undefined) {
+      badgeStatus = "disconnected";
+      badgeLabel = "보고 없음";
+    } else {
+      badgeStatus = personDetected ? "on" : "off";
+      badgeLabel = personDetected ? "기상 모니터링 중" : "미감지";
+    }
   }
 
   return (
@@ -80,23 +113,33 @@ export const SensorCard: React.FC<SensorCardProps> = ({ device }) => {
                   isTouched ? "text-rose-600" : "text-slate-800"
                 }`}
               >
-                {isTouched ? "TOUCHED" : "IDLE"}
+                {hasReading || device.current_state
+                  ? isTouched
+                    ? "TOUCHED"
+                    : "IDLE"
+                  : NO_DATA}
               </span>
               <span className="text-sm font-medium text-slate-500">
-                {isTouched ? "입력 발생" : "터치 없음"}
+                {hasReading || device.current_state
+                  ? isTouched
+                    ? "입력 발생"
+                    : "터치 없음"
+                  : "아직 보고 없음"}
               </span>
             </div>
             <div className="mt-2 grid grid-cols-2 gap-2 text-xs bg-slate-50 rounded-lg p-2.5 border border-slate-100">
               <div>
                 <span className="text-slate-400">좌표: </span>
                 <span className="font-mono font-medium text-slate-700">
-                  {touchData?.touch_x || 0}px, {touchData?.touch_y || 0}px
+                  {touchData
+                    ? `${touchData.touch_x ?? 0}px, ${touchData.touch_y ?? 0}px`
+                    : NO_DATA}
                 </span>
               </div>
               <div>
                 <span className="text-slate-400">제스처: </span>
                 <span className="font-semibold text-slate-700 uppercase">
-                  {touchData?.gesture || "none"}
+                  {touchData?.gesture ?? NO_DATA}
                 </span>
               </div>
             </div>
@@ -106,24 +149,36 @@ export const SensorCard: React.FC<SensorCardProps> = ({ device }) => {
         {isCamera && (
           <div>
             <div className="flex items-baseline gap-2">
-              <span className="text-3xl font-bold tracking-tight text-emerald-600">
-                {confidence}%
+              <span
+                className={`text-3xl font-bold tracking-tight ${
+                  confidence === null ? "text-slate-400" : "text-emerald-600"
+                }`}
+              >
+                {confidence === null ? NO_DATA : `${confidence}%`}
               </span>
               <span className="text-sm font-medium text-slate-500">
-                인물 감지 신뢰도
+                {confidence === null
+                  ? "비전 클라이언트 보고 대기"
+                  : "인물 감지 신뢰도"}
               </span>
             </div>
             <div className="mt-2 grid grid-cols-2 gap-2 text-xs bg-slate-50 rounded-lg p-2.5 border border-slate-100">
               <div>
-                <span className="text-slate-400">인식 대상: </span>
+                <span className="text-slate-400">인식 상태: </span>
                 <span className="font-semibold text-slate-700">
-                  사용자 (기상 중)
+                  {personDetected === undefined
+                    ? NO_DATA
+                    : personDetected
+                      ? "사람 감지됨"
+                      : "감지 없음"}
                 </span>
               </div>
               <div>
                 <span className="text-slate-400">손동작 미션: </span>
                 <span className="font-semibold text-sky-700 uppercase">
-                  {detectedGesture !== "none" ? detectedGesture : "대기 중"}
+                  {detectedGesture && detectedGesture !== "none"
+                    ? detectedGesture
+                    : "대기 중"}
                 </span>
               </div>
             </div>
@@ -133,7 +188,7 @@ export const SensorCard: React.FC<SensorCardProps> = ({ device }) => {
         {!isTouchPad && !isCamera && (
           <div className="flex items-baseline gap-2">
             <span className="text-3xl font-bold tracking-tight text-slate-800">
-              {String(device.current_value ?? "ACTIVE")}
+              {device.current_state ?? NO_DATA}
             </span>
             <span className="text-sm font-medium text-slate-500">상태</span>
           </div>
