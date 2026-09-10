@@ -5,24 +5,21 @@ import {
   AlertCircle,
   CheckCircle2,
   Clock,
+  Database,
   HelpCircle,
   RefreshCw,
   Sparkles,
   Zap,
 } from "lucide-react";
 
-
 import ActuatorCard from "@/components/dashboard/ActuatorCard";
 import AlarmScheduleCard from "@/components/dashboard/AlarmScheduleCard";
 import AlertCard from "@/components/dashboard/AlertCard";
 import ConnectionBadge from "@/components/dashboard/ConnectionBadge";
+import MissionCard, { MissionState } from "@/components/dashboard/MissionCard";
 import SensorCard from "@/components/dashboard/SensorCard";
 import VisionLogList, { VisionEventItem } from "@/components/dashboard/VisionLogList";
-
-
-const API_BASE_URL =
-  process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000";
-const WS_URL = process.env.NEXT_PUBLIC_WS_URL || "ws://localhost:8000/ws";
+import { API_BASE_URL, WS_URL, apiFetch } from "@/lib/api";
 
 interface DeviceItem {
   id: string;
@@ -36,12 +33,24 @@ interface DeviceItem {
   updated_at?: string | null;
 }
 
+interface AlarmStatus {
+  is_ringing?: boolean;
+  mission?: MissionState;
+  database?: { connected?: boolean };
+}
+
+const IDLE_MISSION: MissionState = { active: false };
+
 export default function DashboardPage() {
   const [devices, setDevices] = useState<DeviceItem[]>([]);
   const [visionEvents, setVisionEvents] = useState<VisionEventItem[]>([]);
   const [connected, setConnected] = useState<boolean>(false);
   const [currentTime, setCurrentTime] = useState<string>("");
   const [isRefreshing, setIsRefreshing] = useState<boolean>(false);
+  const [dbConnected, setDbConnected] = useState<boolean | null>(null);
+
+  // 기상 미션(가위바위보) 상태
+  const [mission, setMission] = useState<MissionState>(IDLE_MISSION);
 
   // 2차 수면 방지 기상 확인 팝업 상태
   const [wakeupModal, setWakeupModal] = useState<{
@@ -76,37 +85,31 @@ export default function DashboardPage() {
     return () => clearInterval(timer);
   }, []);
 
-  // 2. 초기 디바이스 목록 및 비전 로그 로드
+  // 2. 초기 데이터 로드 (디바이스 · 비전 로그 · 알람/미션 상태)
   const fetchInitialData = useCallback(async () => {
     setIsRefreshing(true);
     try {
-      // 디바이스 목록
-      const devRes = await fetch(`${API_BASE_URL}/api/devices`);
-      if (devRes.ok) {
-        const json = await devRes.json();
-        if (json.data && Array.isArray(json.data)) {
-          setDevices(json.data);
-        }
-      }
+      const devRes = await apiFetch<DeviceItem[]>("/api/devices");
+      if (devRes.ok && Array.isArray(devRes.data)) setDevices(devRes.data);
 
-      // 비전 이벤트 목록
-      const visRes = await fetch(`${API_BASE_URL}/api/events/vision?limit=15`);
-      if (visRes.ok) {
-        const json = await visRes.json();
-        if (json.data && Array.isArray(json.data)) {
-          setVisionEvents(json.data);
-        }
+      const visRes = await apiFetch<VisionEventItem[]>("/api/events/vision?limit=15");
+      if (visRes.ok && Array.isArray(visRes.data)) setVisionEvents(visRes.data);
+
+      // 새로고침해도 진행 중인 미션이 화면에 그대로 이어지도록 서버 상태를 읽어온다
+      const alarmRes = await apiFetch<AlarmStatus>("/api/alarm/status");
+      if (alarmRes.ok && alarmRes.data) {
+        setDbConnected(Boolean(alarmRes.data.database?.connected));
+        setMission(alarmRes.data.mission?.active ? alarmRes.data.mission : IDLE_MISSION);
       }
-    } catch (err) {
-      console.warn("초기 데이터 로드 중 오류 발생:", err);
     } finally {
       setIsRefreshing(false);
     }
   }, []);
 
   useEffect(() => {
-    // eslint-disable-next-line @typescript-eslint/no-floating-promises
-    fetchInitialData();
+    // 이펙트 본문에서 곧바로 setState하지 않도록 다음 틱으로 미룬다 (cascading render 방지)
+    const timer = setTimeout(() => void fetchInitialData(), 0);
+    return () => clearTimeout(timer);
   }, [fetchInitialData]);
 
   // 3. 팝업 카운트다운 타이머 관리
@@ -131,7 +134,19 @@ export default function DashboardPage() {
     };
   }, [wakeupModal?.open]);
 
-  // 4. WebSocket 자동 재연결 및 실시간 이벤트 핸들러
+  // 4. 미션 라운드 남은 시간 카운트다운 (표시용)
+  useEffect(() => {
+    if (!mission.active) return;
+    const timer = setInterval(() => {
+      setMission((prev) => {
+        if (!prev.active || typeof prev.remaining_seconds !== "number") return prev;
+        return { ...prev, remaining_seconds: Math.max(0, prev.remaining_seconds - 1) };
+      });
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [mission.active]);
+
+  // 5. WebSocket 자동 재연결 및 실시간 이벤트 핸들러
   useEffect(() => {
     let unmounted = false;
 
@@ -154,15 +169,23 @@ export default function DashboardPage() {
             const msg = JSON.parse(event.data);
 
             // A. 디바이스 상태 업데이트 수신
+            // 부록A 계약: desired(명령)와 current(하드웨어 반영)를 따로 유지한다
             if (msg.type === "device_state") {
               setDevices((prev) =>
                 prev.map((d) =>
                   d.id === msg.device_id
                     ? {
                         ...d,
-                        desired_state: msg.state,
-                        current_state: msg.state,
-                        current_value: msg.value ?? d.current_value,
+                        desired_state: msg.desired_state ?? d.desired_state,
+                        current_state:
+                          msg.current_state !== undefined
+                            ? msg.current_state
+                            : d.current_state,
+                        desired_value: msg.desired_value ?? d.desired_value,
+                        current_value:
+                          msg.current_value !== undefined
+                            ? msg.current_value
+                            : d.current_value,
                         actor: msg.actor ?? d.actor,
                         updated_at: msg.updated_at,
                       }
@@ -178,6 +201,7 @@ export default function DashboardPage() {
                   d.id === msg.device_id
                     ? {
                         ...d,
+                        current_state: msg.current_state ?? d.current_state,
                         current_value: msg.value,
                         updated_at: msg.updated_at,
                       }
@@ -189,8 +213,11 @@ export default function DashboardPage() {
             // C. 비전 감지 이벤트 수신
             else if (msg.type === "vision_event") {
               const newEvt: VisionEventItem = {
-                id: msg.id ?? `ws-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
+                id:
+                  msg.id ??
+                  `ws-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
                 event_type: msg.event_type,
+                label: msg.label,
                 detected: msg.detected,
                 count: msg.count,
                 confidence: msg.confidence,
@@ -202,15 +229,60 @@ export default function DashboardPage() {
               });
             }
 
-            // D. 기상 미션 성공 알림
+            // D. 기상 미션 개시
+            else if (msg.type === "mission_started") {
+              setMission({
+                active: true,
+                mode: msg.mode,
+                required_wins: msg.required_wins,
+                wins: 0,
+                round: 0,
+                lastResult: null,
+                lastResultMessage: null,
+              });
+              setStatusNotice(null);
+            }
+
+            // E. 미션 라운드 제시 (AI 손패)
+            else if (msg.type === "mission_round") {
+              setMission((prev) => ({
+                ...prev,
+                active: true,
+                mode: msg.mode ?? prev.mode,
+                round: msg.round,
+                ai_hand: msg.ai_hand,
+                expected_hand: msg.expected_hand,
+                wins: msg.wins,
+                required_wins: msg.required_wins,
+                remaining_seconds: msg.timeout,
+              }));
+            }
+
+            // F. 라운드 판정 결과 (승/패/무/시간초과)
+            else if (msg.type === "mission_result") {
+              setMission((prev) => ({
+                ...prev,
+                wins: msg.wins ?? prev.wins,
+                lastResult: msg.result,
+                lastResultMessage: msg.message,
+              }));
+            }
+
+            // G. 기상 미션 성공 알림
             else if (msg.type === "mission_success") {
+              setMission(IDLE_MISSION);
               setStatusNotice({
                 type: "success",
                 message: msg.message || "기상 미션 성공! 알람이 해제되었습니다.",
               });
             }
 
-            // E. 2차 수면 방지 확인 팝업 오픈
+            // H. 미션 취소 (알람 수동 정지 등)
+            else if (msg.type === "mission_cancelled") {
+              setMission(IDLE_MISSION);
+            }
+
+            // I. 2차 수면 방지 확인 팝업 오픈
             else if (msg.type === "wakeup_check_popup") {
               setWakeupModal({
                 open: true,
@@ -219,7 +291,7 @@ export default function DashboardPage() {
               });
             }
 
-            // F. 2차 수면 감지로 인한 재알람 발생
+            // J. 2차 수면 감지로 인한 재알람 발생
             else if (msg.type === "re_alarm") {
               setWakeupModal(null);
               setStatusNotice({
@@ -228,7 +300,7 @@ export default function DashboardPage() {
               });
             }
 
-            // G. 기상 확인 완료 수신
+            // K. 기상 확인 완료 수신
             else if (msg.type === "wakeup_confirmed") {
               setWakeupModal(null);
               setStatusNotice({
@@ -271,57 +343,42 @@ export default function DashboardPage() {
     };
   }, []);
 
-  // 5. 액추에이터 제어 핸들러 (API 호출)
+  // 6. 액추에이터 제어 핸들러 (API 호출)
   const handleControlActuator = async (
     deviceId: string,
     desiredState: string,
     value?: unknown
   ) => {
-    try {
-      const res = await fetch(`${API_BASE_URL}/api/devices/${deviceId}/control`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          desired_state: desiredState,
-          value: value ?? null,
-        }),
-      });
+    const res = await apiFetch<DeviceItem>(`/api/devices/${deviceId}/control`, {
+      method: "POST",
+      body: JSON.stringify({ desired_state: desiredState, value: value ?? null }),
+    });
 
-      if (!res.ok) {
-        const errorData = await res.json();
-        alert(`제어 실패: ${errorData?.error?.message || "알 수 없는 오류"}`);
-        return;
-      }
-
-      const resJson = await res.json();
-      if (resJson.data) {
-        setDevices((prev) =>
-          prev.map((d) => (d.id === deviceId ? { ...d, ...resJson.data } : d))
-        );
-      }
-    } catch (err) {
-      console.error("액추에이터 제어 중 에러:", err);
-      alert("백엔드 서버와 통신할 수 없습니다.");
+    if (!res.ok) {
+      setStatusNotice({ type: "alarm", message: `제어 실패: ${res.errorMessage}` });
+      return;
+    }
+    if (res.data) {
+      setDevices((prev) =>
+        prev.map((d) => (d.id === deviceId ? { ...d, ...res.data } : d))
+      );
     }
   };
 
-  // 6. 2차 수면 방지 팝업에서 "기상 완료" 확인 버튼 클릭
+  // 7. 2차 수면 방지 팝업에서 "기상 완료" 확인 버튼 클릭
   const handleConfirmWakeup = async () => {
-    try {
-      const res = await fetch(`${API_BASE_URL}/api/alarm/confirm-wakeup`, {
-        method: "POST",
+    const res = await apiFetch("/api/alarm/confirm-wakeup", { method: "POST" });
+    if (res.ok) {
+      setWakeupModal(null);
+      setStatusNotice({
+        type: "success",
+        message: "기상 확인이 완료되었습니다. 활기찬 하루 되세요!",
       });
-      if (res.ok) {
-        setWakeupModal(null);
-        setStatusNotice({
-          type: "success",
-          message: "기상 확인이 완료되었습니다. 활기찬 하루 되세요!",
-        });
-      }
-    } catch (err) {
-      console.error("기상 확인 전송 실패:", err);
+    } else {
+      setStatusNotice({
+        type: "alarm",
+        message: res.errorMessage || "기상 확인 전송에 실패했습니다.",
+      });
     }
   };
 
@@ -334,10 +391,8 @@ export default function DashboardPage() {
     buzzerDevice?.desired_state === "ringing" ||
     buzzerDevice?.current_state === "on";
 
-  // 센서 디바이스 목록 (읽기 전용)
-  const sensorDevices = devices.filter(
-    (d) => d.kind === "touch_pad" || d.kind === "camera" || d.id !== buzzerDevice?.id
-  );
+  // 센서 디바이스 목록 (부저를 제외한 나머지 — 읽기 전용)
+  const sensorDevices = devices.filter((d) => d.id !== buzzerDevice?.id);
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900 flex flex-col font-sans">
@@ -354,7 +409,7 @@ export default function DashboardPage() {
                   스마트 기상 시스템
                 </h1>
                 <span className="text-[11px] font-medium bg-slate-100 text-slate-600 px-2 py-0.5 rounded border border-slate-200">
-                  v1.0
+                  v1.1
                 </span>
               </div>
               <p className="text-xs text-slate-500">
@@ -364,6 +419,14 @@ export default function DashboardPage() {
           </div>
 
           <div className="flex items-center gap-3">
+            {/* DB 연결 상태 (꺼져 있으면 기록이 저장되지 않는다는 것을 즉시 알 수 있게) */}
+            {dbConnected === false && (
+              <span className="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-amber-50 border border-amber-200 text-xs font-medium text-amber-800">
+                <Database className="w-3.5 h-3.5" />
+                DB 미연결 (기록 저장 안 됨)
+              </span>
+            )}
+
             {/* 실시간 시계 (Hydration 안전) */}
             <div className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-100/70 border border-slate-200 text-xs font-mono font-medium text-slate-700">
               <Clock className="w-3.5 h-3.5 text-slate-400" />
@@ -395,11 +458,14 @@ export default function DashboardPage() {
         <AlertCard
           active={Boolean(isAlarmRinging)}
           title="기상 알람이 활성화되었습니다!"
-          description="현재 피에조 부저 알람이 울리고 있습니다. 카메라 앞에서 기상 미션(사물/인물)을 수행하거나 수동으로 해제하세요."
+          description="현재 피에조 부저 알람이 울리고 있습니다. 카메라 앞에서 기상 미션을 수행하거나 수동으로 해제하세요."
           onDismiss={() =>
             handleControlActuator(buzzerDevice?.id || "buzzer_1", "off")
           }
         />
+
+        {/* 진행 중인 기상 미션 (가위바위보 배틀) */}
+        <MissionCard mission={mission} />
 
         {/* 알람 시각 설정 및 기상 미션 예약 컨트롤러 */}
         <AlarmScheduleCard
@@ -407,7 +473,6 @@ export default function DashboardPage() {
           isAlarmRinging={Boolean(isAlarmRinging)}
           onAlarmStateChanged={fetchInitialData}
         />
-
 
         {/* 상태 알림 배너 (미션 성공 / 2차 수면 재알람) */}
         {statusNotice && (
@@ -441,7 +506,9 @@ export default function DashboardPage() {
           <div className="flex items-center gap-2.5">
             <Sparkles className="w-4 h-4 text-sky-600 shrink-0" />
             <span>
-              <strong>트리거 규칙:</strong> 알람 동작 시 카메라 앞에서 기상 미션을 수행하면 알람이 자동 종료되며, 약 25초 후 2차 수면 방지 확인 팝업이 나타납니다.
+              <strong>트리거 규칙:</strong> 알람이 울리면 AI와 가위바위보 미션이 시작되고,
+              이기면 알람이 해제됩니다. 오답이나 시간 초과 시 새 라운드로 재시도하며,
+              성공 후 잠시 뒤 2차 수면 방지 확인 팝업이 나타납니다.
             </span>
           </div>
           <span className="shrink-0 text-[11px] font-mono text-sky-700 bg-sky-100/60 px-2 py-0.5 rounded">

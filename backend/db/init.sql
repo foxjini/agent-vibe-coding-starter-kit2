@@ -46,7 +46,15 @@ CREATE TABLE IF NOT EXISTS vision_events (
   detected BOOLEAN NOT NULL,
   count INT DEFAULT 0,
   confidence FLOAT NULL,
+  label VARCHAR(50) NULL,           -- 감지된 클래스/제스처 이름 (예: 'person', 'rock')
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+-- 5. 앱 설정 테이블 (알람 예약처럼 서버 재시작 후에도 유지되어야 하는 값)
+CREATE TABLE IF NOT EXISTS app_settings (
+  setting_key VARCHAR(50) PRIMARY KEY,
+  setting_value JSON NULL,
+  updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 );
 
 -- ==============================================================================

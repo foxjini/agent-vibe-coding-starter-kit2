@@ -1,5 +1,6 @@
 from .database import (
     get_db_connection,
+    get_db_status,
     init_db,
     log_sensor_reading,
     log_control_action,
@@ -11,10 +12,13 @@ from .database import (
     update_current_state,
     get_control_log,
     get_recent_vision_events,
+    get_app_setting,
+    set_app_setting,
 )
 
 __all__ = [
     "get_db_connection",
+    "get_db_status",
     "init_db",
     "log_sensor_reading",
     "log_control_action",
@@ -26,4 +30,6 @@ __all__ = [
     "update_current_state",
     "get_control_log",
     "get_recent_vision_events",
+    "get_app_setting",
+    "set_app_setting",
 ]

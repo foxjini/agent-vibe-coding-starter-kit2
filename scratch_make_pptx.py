@@ -233,7 +233,7 @@ def create_deck():
     rules = [
         ("1. 친구네 집 주소 (BACKEND_URL)", "http://192.168.0.xxx:8000", 
          "\"친구네 집 문패 번호예요. localhost라고 쓰면 나 자신을 가리키므로, 반드시 백엔드가 켜진 친구 PC의 실제 Wi-Fi IP를 적어야 해요!\""),
-        ("2. 비밀 암호 도장 (DEVICE_API_KEY)", "wake_up_2026_09_05_v1_0_0", 
+        ("2. 비밀 암호 도장 (DEVICE_API_KEY)", "우리팀이_정한_비밀키", 
          "\"낯선 사람이 장난치지 못하도록, 쪽지 봉투 헤더(Header)에 찍는 우리 팀만의 특수 암호 스탬프예요. 철자가 1개만 틀려도 거절당해요!\""),
         ("3. 쪽지함 이름표 (device_id)", "buzzer_1 (부저) / touch_pad_1 (터치)", 
          "\"우체통 안의 칸막이 이름표예요. 백엔드 DB와 파이 코드가 똑같이 buzzer_1이라고 불러야 올바른 쪽지를 꺼내올 수 있어요!\""),
@@ -285,7 +285,7 @@ def create_deck():
     p.font.bold = True
     p.font.color.rgb = C_META_BLUE
     p2 = tf.add_paragraph()
-    p2.text = "\n[주소]\nGET /api/v1/devices/buzzer_1/desired-state\n\n[헤더 (비밀도장)]\nX-Device-Api-Key: wake_up_2026_09_05_v1_0_0"
+    p2.text = "\n[주소]\nGET /api/v1/devices/buzzer_1/desired-state\n\n[헤더 (비밀도장)]\nX-Device-Api-Key: 우리팀이_정한_비밀키"
     p2.font.name = "Consolas"
     p2.font.size = Pt(12)
     p2.font.color.rgb = C_TEXT_PRI
@@ -486,7 +486,7 @@ def create_deck():
         ("404 Not Found", RGBColor(217, 119, 6), "우체통에 적힌 이름표가 달라요.", 
          "1. 백엔드 DB의 devices 테이블에 'buzzer_1'이 등록되어 있는지 백엔드 친구에게 물어보세요!\n2. 대소문자나 철자를 비교해보세요."),
         ("401 / 403 Forbidden", RGBColor(99, 102, 241), "비밀 암호 도장이 틀렸어요.", 
-         "1. pi/.env의 DEVICE_API_KEY와 백엔드 .env의 DEVICE_API_KEY가 완전히 똑같은지 비교하세요!\n(예: wake_up_2026_09_05_v1_0_0)"),
+         "1. pi/.env의 DEVICE_API_KEY와 백엔드 .env의 DEVICE_API_KEY가 완전히 똑같은지 비교하세요!\n(예: 우리팀이_정한_비밀키)"),
     ]
 
     for i, (err_name, err_col, err_eli5, err_fix) in enumerate(errors):

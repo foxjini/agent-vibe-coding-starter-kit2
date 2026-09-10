@@ -2,16 +2,17 @@
 
 import React, { useState } from "react";
 import { AlarmClock, BellOff, CalendarClock, Play, Timer } from "lucide-react";
+import { apiFetch } from "@/lib/api";
 
 
 interface AlarmScheduleCardProps {
-  apiBaseUrl: string;
+  /** 통신은 lib/api의 apiFetch가 담당하므로 표시용으로만 남겨둔 값 */
+  apiBaseUrl?: string;
   isAlarmRinging: boolean;
   onAlarmStateChanged?: () => void;
 }
 
 export const AlarmScheduleCard: React.FC<AlarmScheduleCardProps> = ({
-  apiBaseUrl,
   isAlarmRinging,
   onAlarmStateChanged,
 }) => {
@@ -22,83 +23,54 @@ export const AlarmScheduleCard: React.FC<AlarmScheduleCardProps> = ({
   // 즉시 알람 시작
   const handleTriggerNow = async () => {
     setLoading(true);
-    try {
-      const res = await fetch(`${apiBaseUrl}/api/alarm/trigger`, {
-        method: "POST",
-      });
-      if (res.ok) {
-        setScheduledMsg("기상 알람이 즉시 시작되었습니다!");
-        onAlarmStateChanged?.();
-      }
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setLoading(false);
-    }
+    const res = await apiFetch("/api/alarm/trigger", { method: "POST" });
+    setScheduledMsg(
+      res.ok ? "기상 알람이 즉시 시작되었습니다!" : `실패: ${res.errorMessage}`
+    );
+    if (res.ok) onAlarmStateChanged?.();
+    setLoading(false);
   };
 
   // N초 후 테스트 알람
   const handleTriggerInSeconds = async (seconds: number) => {
     setLoading(true);
-    try {
-      const res = await fetch(`${apiBaseUrl}/api/alarm/schedule`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ in_seconds: seconds }),
-      });
-      if (res.ok) {
-        setScheduledMsg(`${seconds}초 후 알람이 시작됩니다. 웹캠 앞에서 대기하세요!`);
-        onAlarmStateChanged?.();
-      }
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setLoading(false);
-    }
+    const res = await apiFetch("/api/alarm/schedule", {
+      method: "POST",
+      body: JSON.stringify({ in_seconds: seconds }),
+    });
+    setScheduledMsg(
+      res.ok
+        ? `${seconds}초 후 알람이 시작됩니다. 웹캠 앞에서 대기하세요!`
+        : `실패: ${res.errorMessage}`
+    );
+    if (res.ok) onAlarmStateChanged?.();
+    setLoading(false);
   };
 
   // 시각(HH:MM) 예약
   const handleScheduleTime = async () => {
     if (!alarmTime) return;
     setLoading(true);
-    try {
-      const res = await fetch(`${apiBaseUrl}/api/alarm/schedule`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ alarm_time: alarmTime }),
-      });
-      if (res.ok) {
-        const json = await res.json();
-        setScheduledMsg(json.data?.message || `매일 ${alarmTime}에 기상 알람이 울립니다.`);
-        onAlarmStateChanged?.();
-      } else {
-        const errJson = await res.json();
-        setScheduledMsg(`설정 실패: ${errJson.detail?.error?.message || "입력값을 확인하세요."}`);
-      }
-    } catch (err) {
-      console.error(err);
-      setScheduledMsg("서버 통신 오류가 발생했습니다.");
-    } finally {
-      setLoading(false);
+    const res = await apiFetch<{ message?: string }>("/api/alarm/schedule", {
+      method: "POST",
+      body: JSON.stringify({ alarm_time: alarmTime }),
+    });
+    if (res.ok) {
+      setScheduledMsg(res.data?.message || `매일 ${alarmTime}에 기상 알람이 울립니다.`);
+      onAlarmStateChanged?.();
+    } else {
+      setScheduledMsg(`설정 실패: ${res.errorMessage}`);
     }
+    setLoading(false);
   };
 
   // 알람 강제 정지
   const handleStopAlarm = async () => {
     setLoading(true);
-    try {
-      const res = await fetch(`${apiBaseUrl}/api/alarm/stop`, {
-        method: "POST",
-      });
-      if (res.ok) {
-        setScheduledMsg("알람이 정지되었습니다.");
-        onAlarmStateChanged?.();
-      }
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setLoading(false);
-    }
+    const res = await apiFetch("/api/alarm/stop", { method: "POST" });
+    setScheduledMsg(res.ok ? "알람이 정지되었습니다." : `실패: ${res.errorMessage}`);
+    if (res.ok) onAlarmStateChanged?.();
+    setLoading(false);
   };
 
   return (

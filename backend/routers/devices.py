@@ -1,27 +1,21 @@
+import asyncio
 import logging
 from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 
 from auth import verify_device_api_key, verify_user_auth
 from db.database import (
-    get_all_devices,
-    get_device,
     get_sensor_history,
     log_control_action,
     log_sensor_reading,
     update_current_state,
-    update_desired_state,
 )
 from iot.provider_factory import get_device_provider
-from schemas.common import DataResponse, ErrorResponse
-from schemas.device import (
-    ActuatorControlRequest,
-    DesiredStateResponse,
-    DeviceResponse,
-    DeviceStateReportRequest,
-)
+from schemas.common import DataResponse
+from schemas.device import ActuatorControlRequest, DeviceStateReportRequest
+from services.device_control import BUZZER_ID, broadcast_device_state, set_actuator
 from services.trigger_service import trigger_service
 from websocket_manager import ws_manager
 
@@ -29,6 +23,20 @@ from websocket_manager import ws_manager
 logger = logging.getLogger("backend.routers.devices")
 
 router = APIRouter(tags=["Devices"])
+
+TOUCH_PAD_ID = "touch_pad_1"
+
+
+def _device_not_found(device_id: str) -> HTTPException:
+    return HTTPException(
+        status_code=status.HTTP_404_NOT_FOUND,
+        detail={
+            "error": {
+                "code": "DEVICE_NOT_FOUND",
+                "message": f"디바이스 ID '{device_id}'를 찾을 수 없습니다.",
+            }
+        },
+    )
 
 
 # ==============================================================================
@@ -57,15 +65,7 @@ async def get_device_detail(device_id: str, user=Depends(verify_user_auth)):
     provider = get_device_provider()
     dev = await provider.get_device_status(device_id)
     if not dev:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail={
-                "error": {
-                    "code": "DEVICE_NOT_FOUND",
-                    "message": f"디바이스 ID '{device_id}'를 찾을 수 없습니다.",
-                }
-            },
-        )
+        raise _device_not_found(device_id)
     return {"data": dev}
 
 
@@ -83,9 +83,8 @@ async def control_actuator(
     대시보드 또는 사용자가 액추에이터(예: 피에조 부저)의 목표 상태(desired_state)를 제어합니다.
     제어 후 WebSocket으로 실시간 상태가 브로드캐스트됩니다.
     """
-    provider = get_device_provider()
     try:
-        updated_dev = await provider.set_actuator_state(
+        updated_dev = await set_actuator(
             device_id=device_id,
             desired_state=payload.desired_state,
             value=payload.value,
@@ -97,17 +96,9 @@ async def control_actuator(
             detail={"error": {"code": "INVALID_DEVICE_OPERATION", "message": str(exc)}},
         )
 
-    # WebSocket 브로드캐스트 (대시보드 실시간 동기화)
-    now_iso = datetime.now(timezone.utc).isoformat()
-    await ws_manager.broadcast({
-        "type": "device_state",
-        "device_id": device_id,
-        "kind": updated_dev.get("kind"),
-        "state": updated_dev.get("desired_state"),
-        "value": updated_dev.get("desired_value"),
-        "actor": "user",
-        "updated_at": now_iso,
-    })
+    # 사용자가 부저를 직접 끄면 진행 중인 기상 미션도 함께 종료한다
+    if device_id == BUZZER_ID and payload.desired_state not in ("ringing", "on"):
+        await trigger_service.cancel_mission(reason="manual_stop")
 
     return {"data": updated_dev}
 
@@ -123,7 +114,7 @@ async def get_device_readings(
     user=Depends(verify_user_auth),
 ):
     """특정 센서의 과거 측정 기록 이력을 조회합니다."""
-    history = get_sensor_history(device_id=device_id, limit=limit)
+    history = await asyncio.to_thread(get_sensor_history, device_id, limit)
     return {"data": history}
 
 
@@ -142,18 +133,12 @@ async def poll_desired_state(
 ):
     """
     라즈베리파이가 주기적으로 호출하여 액추에이터의 목표 상태(desired_state)를 조회합니다.
+    (DB가 잠시 끊겨도 Provider의 메모리 캐시로 응답하므로 폴링이 500으로 끊기지 않습니다.)
     """
-    dev = get_device(device_id)
+    provider = get_device_provider()
+    dev = await provider.get_device_status(device_id)
     if not dev:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail={
-                "error": {
-                    "code": "DEVICE_NOT_FOUND",
-                    "message": f"디바이스 ID '{device_id}'를 찾을 수 없습니다.",
-                }
-            },
-        )
+        raise _device_not_found(device_id)
 
     return {
         "data": {
@@ -180,65 +165,58 @@ async def report_device_state(
     라즈베리파이가 액추에이터 실제 반영 결과(state) 또는 센서 측정값(value, unit)을 보고합니다.
     DB를 갱신하고 WebSocket으로 대시보드에 브로드캐스트합니다.
     """
-    dev = get_device(device_id)
+    provider = get_device_provider()
+    dev = await provider.get_device_status(device_id)
     if not dev:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail={
-                "error": {
-                    "code": "DEVICE_NOT_FOUND",
-                    "message": f"디바이스 ID '{device_id}'를 찾을 수 없습니다.",
-                }
-            },
-        )
+        raise _device_not_found(device_id)
 
     now_iso = payload.reported_at or datetime.now(timezone.utc).isoformat()
 
-    # 1. 액추에이터 상태 보고인 경우
+    # 1. 액추에이터 상태 보고인 경우 — current_state는 오직 여기서만 확정된다
     if payload.state is not None:
-        update_current_state(device_id, payload.state, payload.value)
-        log_control_action(
-            device_id=device_id,
-            action=payload.state,
-            value=payload.value,
-            actor="device",
+        await asyncio.to_thread(update_current_state, device_id, payload.state, payload.value)
+        await asyncio.to_thread(
+            log_control_action, device_id, payload.state, payload.value, "device"
         )
-        # WebSocket 브로드캐스트
-        await ws_manager.broadcast({
-            "type": "device_state",
-            "device_id": device_id,
-            "kind": dev["kind"],
-            "state": payload.state,
-            "value": payload.value,
-            "actor": "device",
-            "updated_at": now_iso,
-        })
+        provider.update_cached_state(device_id, state=payload.state, value=payload.value)
+
+        snapshot = await provider.get_device_status(device_id) or dev
+        await broadcast_device_state(snapshot, actor="device", updated_at=now_iso)
 
     # 2. 센서 측정값 보고인 경우
     if payload.value is not None and payload.state is None:
         val_float = float(payload.value) if isinstance(payload.value, (int, float)) else None
         val_json = payload.value if isinstance(payload.value, (dict, list)) else None
-        log_sensor_reading(
-            device_id=device_id,
-            value=val_float,
-            unit=payload.unit,
-            value_json=val_json,
+
+        # 센서 종류에 맞는 상태 문자열 (대시보드가 '터치됨'을 인식할 수 있도록)
+        if isinstance(payload.value, dict) and "pressed" in payload.value:
+            sensor_state = "touched" if payload.value.get("pressed") else "idle"
+        else:
+            sensor_state = "active"
+
+        await asyncio.to_thread(
+            log_sensor_reading, device_id, val_float, payload.unit, val_json
         )
-        update_current_state(device_id, "active", payload.value)
-        # WebSocket 브로드캐스트
+        await asyncio.to_thread(update_current_state, device_id, sensor_state, payload.value)
+        provider.update_cached_state(device_id, state=sensor_state, value=payload.value)
+
         await ws_manager.broadcast({
             "type": "sensor_reading",
             "device_id": device_id,
             "kind": dev["kind"],
+            "current_state": sensor_state,
             "value": payload.value,
             "unit": payload.unit,
             "updated_at": now_iso,
         })
 
         # 터치패드에서 터치가 감지된 경우 기상 확인 트리거 처리
-        if device_id == "touch_pad_1" and isinstance(payload.value, dict) and payload.value.get("pressed"):
+        if (
+            device_id == TOUCH_PAD_ID
+            and isinstance(payload.value, dict)
+            and payload.value.get("pressed")
+        ):
             await trigger_service.confirm_wakeup(actor="touch_pad")
-
 
     return {
         "data": {

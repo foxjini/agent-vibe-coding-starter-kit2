@@ -1,28 +1,261 @@
 import asyncio
 import logging
+import os
 from datetime import datetime, timedelta, timezone
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, Tuple
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, Field
 
 from auth import verify_user_auth
+from db.database import get_app_setting, get_db_status, set_app_setting
 from schemas.common import DataResponse
-from services.trigger_service import trigger_service
+from services.device_control import BUZZER_ID, set_actuator
+from services.trigger_service import RINGING_STATES, trigger_service
 from websocket_manager import ws_manager
-from db.database import get_device, log_control_action, update_current_state, update_desired_state
 
 logger = logging.getLogger("backend.routers.alarm")
 
 router = APIRouter(prefix="/api/alarm", tags=["Alarm"])
 
-# 전역 알람 스케줄러 상태
-_alarm_schedule: Dict[str, Any] = {
-    "scheduled_time": None,  # "HH:MM"
-    "is_active": False,
-    "last_triggered_at": None,
-}
-_schedule_task: Optional[asyncio.Task] = None
+# 알람 예약은 '사용자가 사는 지역 시간'으로 해석해야 한다.
+# Render 같은 클라우드 서버는 UTC로 동작하므로, 서버 로컬 시간을 쓰면 9시간이 밀린다.
+ALARM_TIMEZONE = os.getenv("ALARM_TIMEZONE", "Asia/Seoul")
+ALARM_SETTING_KEY = "alarm_schedule"
+
+_ALARM_VALUE = {"volume": 85, "frequency": 1000}
+
+
+def get_alarm_tzinfo() -> timezone:
+    """설정된 지역 시간대를 반환합니다. (시간대 DB가 없으면 서버 로컬 시간으로 폴백)"""
+    try:
+        from zoneinfo import ZoneInfo
+
+        return ZoneInfo(ALARM_TIMEZONE)  # type: ignore[return-value]
+    except Exception as exc:  # ZoneInfoNotFoundError 포함 (윈도우에서 tzdata 미설치 시)
+        logger.warning(
+            f"시간대 '{ALARM_TIMEZONE}'를 불러오지 못해 서버 로컬 시간을 사용합니다: {exc} "
+            "(해결: pip install tzdata)"
+        )
+        return datetime.now().astimezone().tzinfo  # type: ignore[return-value]
+
+
+def _now_local() -> datetime:
+    return datetime.now(get_alarm_tzinfo())
+
+
+def _now_iso() -> str:
+    return datetime.now(timezone.utc).isoformat()
+
+
+def _parse_hhmm(raw: str) -> Tuple[int, int, int]:
+    """'07:30' 또는 '07:30:05'를 (시, 분, 초)로 변환하고 범위를 검증합니다."""
+    parts = raw.strip().split(":")
+    if len(parts) < 2 or len(parts) > 3:
+        raise ValueError("알람 시각은 'HH:MM' 형식이어야 합니다.")
+    try:
+        hour = int(parts[0])
+        minute = int(parts[1])
+        second = int(parts[2]) if len(parts) > 2 else 0
+    except ValueError:
+        raise ValueError("알람 시각에는 숫자만 사용할 수 있습니다. (예: 07:30)")
+
+    if not (0 <= hour <= 23 and 0 <= minute <= 59 and 0 <= second <= 59):
+        raise ValueError("알람 시각 범위가 올바르지 않습니다. (00:00 ~ 23:59)")
+    return hour, minute, second
+
+
+def _next_occurrence(hour: int, minute: int, second: int) -> datetime:
+    """오늘(또는 내일)의 다음 알람 시각을 지역 시간 기준으로 계산합니다."""
+    now = _now_local()
+    target = now.replace(hour=hour, minute=minute, second=second, microsecond=0)
+    if target <= now:
+        target += timedelta(days=1)
+    return target
+
+
+def _describe_remaining(seconds: int) -> str:
+    hours_left = seconds // 3600
+    mins_left = (seconds % 3600) // 60
+    secs_left = seconds % 60
+    parts = []
+    if hours_left > 0:
+        parts.append(f"{hours_left}시간")
+    if mins_left > 0:
+        parts.append(f"{mins_left}분")
+    parts.append(f"{secs_left}초")
+    return " ".join(parts)
+
+
+class AlarmScheduler:
+    """
+    알람 예약 상태 관리자.
+
+    예약 내용은 DB(app_settings)에 저장되어 서버를 재시작해도 살아남습니다.
+    (메모리에만 두면 `uvicorn --reload` 한 번에 예약이 사라집니다 — 부록A 트러블슈팅 참고)
+    """
+
+    def __init__(self) -> None:
+        self.mode: Optional[str] = None          # "daily" | "once"
+        self.alarm_time: Optional[str] = None    # "HH:MM"
+        self.label: Optional[str] = None         # 대시보드 표시용 문자열
+        self.last_triggered_at: Optional[str] = None
+        self.next_fire_at: Optional[str] = None  # 지역 시간 ISO
+        self._task: Optional[asyncio.Task] = None
+
+    # -- 상태 -------------------------------------------------------------
+
+    @property
+    def is_active(self) -> bool:
+        return bool(self._task and not self._task.done())
+
+    def snapshot(self) -> Dict[str, Any]:
+        remaining = None
+        if self.next_fire_at:
+            try:
+                remaining = max(
+                    0,
+                    int((datetime.fromisoformat(self.next_fire_at) - _now_local()).total_seconds()),
+                )
+            except ValueError:
+                remaining = None
+        return {
+            "scheduled_time": self.label or self.alarm_time,
+            "alarm_time": self.alarm_time,
+            "mode": self.mode,
+            "is_scheduled": self.is_active,
+            "timezone": ALARM_TIMEZONE,
+            "next_fire_at": self.next_fire_at,
+            "remaining_seconds": remaining,
+            "last_triggered_at": self.last_triggered_at,
+        }
+
+    # -- 예약/취소 ---------------------------------------------------------
+
+    def cancel(self) -> None:
+        if self._task and not self._task.done():
+            self._task.cancel()
+        self._task = None
+        self.next_fire_at = None
+
+    async def schedule_daily(self, alarm_time: str, persist: bool = True) -> Dict[str, Any]:
+        hour, minute, second = _parse_hhmm(alarm_time)
+        self.cancel()
+        self.mode = "daily"
+        self.alarm_time = alarm_time
+        self.label = alarm_time
+        self._task = asyncio.create_task(self._daily_loop(hour, minute, second))
+
+        if persist:
+            await asyncio.to_thread(
+                set_app_setting,
+                ALARM_SETTING_KEY,
+                {"mode": "daily", "alarm_time": alarm_time, "timezone": ALARM_TIMEZONE},
+            )
+        return self.snapshot()
+
+    async def schedule_countdown(self, seconds: int) -> Dict[str, Any]:
+        self.cancel()
+        self.mode = "once"
+        self.alarm_time = None
+        self.label = f"{seconds}초 후"
+        self.next_fire_at = (_now_local() + timedelta(seconds=seconds)).isoformat()
+        self._task = asyncio.create_task(self._countdown(seconds))
+        return self.snapshot()
+
+    async def clear(self) -> None:
+        """예약을 해제하고 저장된 설정도 지웁니다."""
+        self.cancel()
+        self.mode = None
+        self.alarm_time = None
+        self.label = None
+        await asyncio.to_thread(set_app_setting, ALARM_SETTING_KEY, None)
+
+    async def restore(self) -> None:
+        """서버 시작 시 저장된 예약을 복원합니다."""
+        saved = await asyncio.to_thread(get_app_setting, ALARM_SETTING_KEY)
+        if not saved or not isinstance(saved, dict):
+            return
+        alarm_time = saved.get("alarm_time")
+        if saved.get("mode") == "daily" and alarm_time:
+            try:
+                await self.schedule_daily(alarm_time, persist=False)
+                logger.info(f"[알람 스케줄러] 저장된 예약을 복원했습니다: 매일 {alarm_time}")
+            except ValueError as exc:
+                logger.warning(f"[알람 스케줄러] 저장된 예약이 올바르지 않아 무시합니다: {exc}")
+
+    # -- 내부 태스크 -------------------------------------------------------
+
+    async def _sleep_until(self, target: datetime) -> None:
+        """
+        목표 시각까지 나눠서 대기합니다.
+        한 번에 몇 시간을 sleep하지 않으므로 노트북 절전/시간 변경 후에도 오차가 누적되지 않습니다.
+        """
+        while True:
+            remaining = (target - _now_local()).total_seconds()
+            if remaining <= 0:
+                return
+            await asyncio.sleep(min(remaining, 30))
+
+    async def _daily_loop(self, hour: int, minute: int, second: int) -> None:
+        try:
+            while True:
+                target = _next_occurrence(hour, minute, second)
+                self.next_fire_at = target.isoformat()
+                logger.info(
+                    f"[알람 스케줄러] 다음 알람: {target.isoformat()} ({ALARM_TIMEZONE}) "
+                    f"— 약 {int((target - _now_local()).total_seconds())}초 후"
+                )
+                await self._sleep_until(target)
+                await trigger_alarm_now(reason=f"scheduled_{self.alarm_time}")
+                # 같은 분 안에서 중복 발동하지 않도록 한 번 넘긴다
+                await asyncio.sleep(61)
+        except asyncio.CancelledError:
+            logger.info("[알람 스케줄러] 예약 태스크가 정상 취소되었습니다.")
+            raise
+        except Exception as exc:
+            logger.error(f"[알람 스케줄러] 예약 실행 중 오류: {exc}", exc_info=True)
+
+    async def _countdown(self, seconds: int) -> None:
+        try:
+            await asyncio.sleep(seconds)
+            await trigger_alarm_now(reason="timer_countdown")
+        except asyncio.CancelledError:
+            logger.info("[알람 스케줄러] 타이머가 취소되었습니다.")
+            raise
+        except Exception as exc:
+            logger.error(f"[알람 스케줄러] 타이머 실행 중 오류: {exc}", exc_info=True)
+
+
+alarm_scheduler = AlarmScheduler()
+
+
+async def trigger_alarm_now(reason: str = "scheduled_alarm") -> None:
+    """
+    피에조 부저를 울리고 기상 미션을 시작합니다.
+
+    desired_state만 갱신하고 current_state는 건드리지 않습니다 —
+    실기기 모드에서 부저가 실제로 울렸는지는 라즈베리파이의 보고로만 확정됩니다.
+    """
+    alarm_scheduler.last_triggered_at = _now_iso()
+
+    await set_actuator(
+        BUZZER_ID,
+        "ringing",
+        value=_ALARM_VALUE,
+        operator="system",
+    )
+
+    await ws_manager.broadcast({
+        "type": "alarm_triggered",
+        "reason": reason,
+        "message": "기상 알람이 시작되었습니다! 카메라 앞에서 기상 미션을 수행하세요.",
+        "updated_at": _now_iso(),
+    })
+    logger.info(f"[알람 시작] {reason}에 의해 알람({BUZZER_ID})이 울리기 시작했습니다.")
+
+    # 기상 미션 개시 (가위바위보 / 사물 미션)
+    await trigger_service.start_mission(reason=reason)
 
 
 class ScheduleAlarmRequest(BaseModel):
@@ -33,6 +266,8 @@ class ScheduleAlarmRequest(BaseModel):
     )
     in_seconds: Optional[int] = Field(
         default=None,
+        ge=1,
+        le=86400,
         description="테스트용: N초 후 즉시 알람 작동 (예: 5)",
         examples=[5]
     )
@@ -44,112 +279,19 @@ class ScheduleAlarmRequest(BaseModel):
     summary="현재 알람 설정 및 상태 조회",
 )
 async def get_alarm_status(user=Depends(verify_user_auth)):
-    """현재 설정된 알람 시각 및 피에조 부저의 동작 상태를 조회합니다."""
-    buzzer = get_device("buzzer_1")
-    is_ringing = buzzer and buzzer.get("current_state") in ("ringing", "on")
+    """현재 설정된 알람 시각, 부저 상태, 진행 중인 기상 미션 상태를 조회합니다."""
+    from services.device_control import get_device_snapshot
 
-    return {
-        "data": {
-            "scheduled_time": _alarm_schedule["scheduled_time"],
-            "is_scheduled": _alarm_schedule["is_active"],
-            "is_ringing": bool(is_ringing),
-            "last_triggered_at": _alarm_schedule["last_triggered_at"],
-            "second_sleep_guard_active": bool(
-                trigger_service._second_sleep_task
-                and not trigger_service._second_sleep_task.done()
-            ),
-        }
-    }
-
-
-async def _trigger_alarm_now(reason: str = "scheduled_alarm") -> None:
-    """피에조 부저를 울리고 기상 미션을 시작합니다."""
-    now_iso = datetime.now(timezone.utc).isoformat()
-    _alarm_schedule["last_triggered_at"] = now_iso
-
-    # 1. DB desired_state & current_state 갱신
-    update_desired_state("buzzer_1", "ringing", {"volume": 85, "frequency": 1000})
-    update_current_state("buzzer_1", "ringing", {"volume": 85, "frequency": 1000})
-    log_control_action(
-        device_id="buzzer_1",
-        action="ringing",
-        value={"volume": 85, "frequency": 1000, "reason": reason},
-        actor="system",
-    )
-
-
-    # 2. WebSocket 대시보드 브로드캐스트
-    await ws_manager.broadcast({
-        "type": "device_state",
-        "device_id": "buzzer_1",
-        "kind": "buzzer",
-        "state": "ringing",
-        "value": {"volume": 85, "frequency": 1000},
-        "actor": "system",
-        "updated_at": now_iso,
+    buzzer = await get_device_snapshot(BUZZER_ID)
+    data = alarm_scheduler.snapshot()
+    data.update({
+        "is_ringing": bool(buzzer and buzzer.get("current_state") in RINGING_STATES),
+        "is_commanded_ringing": bool(buzzer and buzzer.get("desired_state") in RINGING_STATES),
+        "second_sleep_guard_active": trigger_service.is_second_sleep_guard_active(),
+        "mission": trigger_service.get_mission_status(),
+        "database": get_db_status(),
     })
-
-    await ws_manager.broadcast({
-        "type": "alarm_triggered",
-        "reason": reason,
-        "message": "기상 알람이 시작되었습니다! 카메라 앞에서 기상 미션을 수행하세요.",
-        "updated_at": now_iso,
-    })
-    logger.info(f"[알람 시작] {reason}에 의해 알람(buzzer_1)이 울리기 시작했습니다.")
-
-
-async def _countdown_timer_task(seconds: int):
-    """N초 후 알람을 발동하는 비동기 태스크"""
-    try:
-        await asyncio.sleep(seconds)
-        await _trigger_alarm_now(reason="timer_countdown")
-    except asyncio.CancelledError:
-        logger.info("[알람 스케줄러] 타이머가 취소되었습니다.")
-
-
-async def _time_scheduler_task(alarm_time_str: str):
-    """
-    지정된 시각(HH:MM)에 도달하면 알람을 작동시키는 비동기 스케줄러 태스크.
-    매일 설정된 시각마다 반복 실행됩니다.
-    """
-    try:
-        parts = [int(p) for p in alarm_time_str.strip().split(":")]
-        target_hour = parts[0]
-        target_minute = parts[1]
-        target_second = parts[2] if len(parts) > 2 else 0
-
-        logger.info(f"[알람 스케줄러] 매일 {target_hour:02d}:{target_minute:02d}:{target_second:02d} 예약 모니터링을 시작합니다.")
-
-        while True:
-            now = datetime.now()
-            target_dt = now.replace(
-                hour=target_hour,
-                minute=target_minute,
-                second=target_second,
-                microsecond=0,
-            )
-            # 오늘 시각이 이미 지난 경우 내일 같은 시각으로 설정
-            if target_dt <= now:
-                target_dt += timedelta(days=1)
-
-            delay = (target_dt - now).total_seconds()
-            logger.info(f"[알람 스케줄러] 지정 시각({alarm_time_str})까지 {delay:.1f}초 대기합니다.")
-
-            # 남은 시간 동안 비동기 대기
-            if delay > 0:
-                await asyncio.sleep(delay)
-
-            # 알람 시각 도달!
-            logger.info(f"[알람 스케줄러] 설정된 알람 시각({alarm_time_str}) 도달! 알람을 시작합니다.")
-            await _trigger_alarm_now(reason=f"scheduled_time_{alarm_time_str}")
-
-            # 동일 분 내 중복 재발동 방지를 위해 60초 대기 후 다음날 루프 대기
-            await asyncio.sleep(60)
-
-    except asyncio.CancelledError:
-        logger.info(f"[알람 스케줄러] 알람 예약({alarm_time_str}) 태스크가 정상 취소되었습니다.")
-    except Exception as exc:
-        logger.error(f"[알람 스케줄러] 알람 태스크 실행 중 예외 발생: {exc}", exc_info=True)
+    return {"data": data}
 
 
 @router.post(
@@ -163,84 +305,46 @@ async def schedule_alarm(
 ):
     """
     설정한 알람 시간 또는 N초 후 알람을 동작시키고 기상 미션을 시작하도록 예약합니다.
+    (예약 내용은 DB에 저장되어 서버를 재시작해도 유지됩니다.)
     """
-    global _schedule_task
-
-    if _schedule_task and not _schedule_task.done():
-        _schedule_task.cancel()
-
-    now_iso = datetime.now(timezone.utc).isoformat()
-
     # N초 후 테스트 알람
-    if payload.in_seconds and payload.in_seconds > 0:
-        _alarm_schedule["is_active"] = True
-        _alarm_schedule["scheduled_time"] = f"{payload.in_seconds}초 후"
-        _schedule_task = asyncio.create_task(_countdown_timer_task(payload.in_seconds))
-
+    if payload.in_seconds:
+        snapshot = await alarm_scheduler.schedule_countdown(payload.in_seconds)
         await ws_manager.broadcast({
             "type": "alarm_scheduled",
-            "scheduled_time": _alarm_schedule["scheduled_time"],
-            "in_seconds": payload.in_seconds,
-            "updated_at": now_iso,
+            **snapshot,
+            "updated_at": _now_iso(),
         })
-
         return {
             "data": {
+                **snapshot,
                 "message": f"{payload.in_seconds}초 후 기상 알람이 작동합니다.",
-                "scheduled_time": _alarm_schedule["scheduled_time"],
-                "remaining_seconds": payload.in_seconds,
             }
         }
 
     # 시각(HH:MM) 지정 알람
     if payload.alarm_time:
-        parts = [int(p) for p in payload.alarm_time.strip().split(":")]
-        target_hour = parts[0]
-        target_minute = parts[1]
-        target_second = parts[2] if len(parts) > 2 else 0
+        try:
+            snapshot = await alarm_scheduler.schedule_daily(payload.alarm_time)
+        except ValueError as exc:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail={"error": {"code": "INVALID_ALARM_TIME", "message": str(exc)}},
+            )
 
-        now = datetime.now()
-        target_dt = now.replace(
-            hour=target_hour,
-            minute=target_minute,
-            second=target_second,
-            microsecond=0,
-        )
-        if target_dt <= now:
-            target_dt += timedelta(days=1)
-
-        delay_seconds = int((target_dt - now).total_seconds())
-        hours_left = delay_seconds // 3600
-        mins_left = (delay_seconds % 3600) // 60
-        secs_left = delay_seconds % 60
-
-        time_desc = []
-        if hours_left > 0:
-            time_desc.append(f"{hours_left}시간")
-        if mins_left > 0:
-            time_desc.append(f"{mins_left}분")
-        time_desc.append(f"{secs_left}초")
-        remaining_str = " ".join(time_desc)
-
-        _alarm_schedule["is_active"] = True
-        _alarm_schedule["scheduled_time"] = payload.alarm_time
-        _alarm_schedule["remaining_seconds"] = delay_seconds
-
-        # 비동기 스케줄러 태스크 구동
-        _schedule_task = asyncio.create_task(_time_scheduler_task(payload.alarm_time))
-
+        remaining = snapshot.get("remaining_seconds") or 0
         await ws_manager.broadcast({
             "type": "alarm_scheduled",
-            "scheduled_time": payload.alarm_time,
-            "remaining_seconds": delay_seconds,
-            "updated_at": now_iso,
+            **snapshot,
+            "updated_at": _now_iso(),
         })
-
         return {
             "data": {
-                "message": f"매일 {payload.alarm_time} 기상 알람이 설정되었습니다. (약 {remaining_str} 후 작동)",
-                "scheduled_time": payload.alarm_time,
-                "remaining_seconds": delay_seconds,
+                **snapshot,
+                "message": (
+                    f"매일 {payload.alarm_time} 기상 알람이 설정되었습니다. "
+                    f"(약 {_describe_remaining(int(remaining))} 후 작동 · {ALARM_TIMEZONE})"
+                ),
             }
         }
 
@@ -250,6 +354,22 @@ async def schedule_alarm(
     )
 
 
+@router.delete(
+    "/schedule",
+    response_model=DataResponse[Dict[str, Any]],
+    summary="알람 예약 해제",
+)
+async def cancel_schedule(user=Depends(verify_user_auth)):
+    """저장된 알람 예약을 해제합니다."""
+    await alarm_scheduler.clear()
+    await ws_manager.broadcast({
+        "type": "alarm_scheduled",
+        **alarm_scheduler.snapshot(),
+        "updated_at": _now_iso(),
+    })
+    return {"data": {"cleared": True, "message": "알람 예약이 해제되었습니다."}}
+
+
 @router.post(
     "/trigger",
     response_model=DataResponse[Dict[str, Any]],
@@ -257,8 +377,28 @@ async def schedule_alarm(
 )
 async def trigger_alarm_immediately(user=Depends(verify_user_auth)):
     """테스트 또는 즉시 기상 알람 및 미션을 시작합니다."""
-    await _trigger_alarm_now(reason="manual_trigger")
-    return {"data": {"triggered": True, "message": "기상 알람이 즉시 시작되었습니다."}}
+    await trigger_alarm_now(reason="manual_trigger")
+    return {
+        "data": {
+            "triggered": True,
+            "message": "기상 알람이 즉시 시작되었습니다.",
+            "mission": trigger_service.get_mission_status(),
+        }
+    }
+
+
+@router.post(
+    "/confirm-wakeup",
+    response_model=DataResponse[Dict[str, Any]],
+    summary="[기상 확인] 2차 수면 방지 팝업 확인",
+)
+async def confirm_user_wakeup(user=Depends(verify_user_auth)):
+    """
+    사용자가 대시보드의 기상 확인 팝업을 클릭하여 2차 수면 알람을 취소합니다.
+    (하드웨어 버튼/터치는 POST /api/v1/devices/touch_pad_1/state 로 보고하면 자동 처리됩니다 — 부록A)
+    """
+    await trigger_service.confirm_wakeup(actor="user_dashboard")
+    return {"data": {"confirmed": True, "message": "기상 확인이 정상 처리되었습니다."}}
 
 
 @router.post(
@@ -267,26 +407,7 @@ async def trigger_alarm_immediately(user=Depends(verify_user_auth)):
     summary="알람 강제 정지",
 )
 async def stop_alarm(user=Depends(verify_user_auth)):
-    """현재 울리고 있는 알람을 강제 정지합니다."""
-    now_iso = datetime.now(timezone.utc).isoformat()
-    update_desired_state("buzzer_1", "off", None)
-    update_current_state("buzzer_1", "off", None)
-    log_control_action(
-        device_id="buzzer_1",
-        action="off",
-        value=None,
-        actor="user",
-    )
-
-
-    await ws_manager.broadcast({
-        "type": "device_state",
-        "device_id": "buzzer_1",
-        "kind": "buzzer",
-        "state": "off",
-        "value": None,
-        "actor": "user",
-        "updated_at": now_iso,
-    })
-
+    """현재 울리고 있는 알람을 강제 정지하고 진행 중인 기상 미션을 취소합니다."""
+    await set_actuator(BUZZER_ID, "off", value=None, operator="user")
+    await trigger_service.cancel_mission(reason="manual_stop")
     return {"data": {"stopped": True, "message": "알람이 정지되었습니다."}}
