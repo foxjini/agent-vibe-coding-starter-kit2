@@ -119,10 +119,10 @@ PRD상 가위바위보·사물인식 모두 "학습 필요"로 되어 있지만,
 
 | 미션 | 권장 방법 | 이유 |
 |---|---|---|
-| 가위바위보 손동작 | `mediapipe.solutions.hands`로 손 랜드마크(21개 점) 추출 → 펴진 손가락 개수를 규칙 기반으로 세어 가위(2)/바위(0)/보(5) 판정 | mediapipe Hands는 사전학습된 모델이라 별도 데이터 수집·학습이 필요 없음. `vision-recognition-integration` 스킬에 이미 mediapipe 예시(얼굴 감지용)가 있어 같은 라이브러리를 다른 solution으로 확장하는 것뿐임 |
+| 가위바위보 손동작 | MediaPipe 손 랜드마크(21개 점) 추출 → 펴진 손가락 개수를 규칙 기반으로 세어 가위(2)/바위(0)/보(4개 이상) 판정 *(현재 `vision/gesture.py`에 구현되어 있으며, MediaPipe 버전에 따라 Tasks API와 레거시 solutions API를 모두 지원합니다)* | mediapipe Hands는 사전학습된 모델이라 별도 데이터 수집·학습이 필요 없음. `vision-recognition-integration` 스킬에 이미 mediapipe 예시(얼굴 감지용)가 있어 같은 라이브러리를 다른 solution으로 확장하는 것뿐임 |
 | 사물인식 | 미션에서 요청할 사물을 **COCO 80종 안에서** 선정(예: 컵, 책, 가위, 시계, 핸드폰, 칫솔, 숟가락 등) → 사전 탑재된 `vision/yolov8n.pt`로 바로 인식 | 학내망 다운로드/학습 없이 3주차 일정 안에 완료 가능 |
 
-`vision/requirements.txt`에 `mediapipe`가 빠져 있으므로 추가해야 합니다.
+`vision/requirements.txt`에는 `mediapipe`가 이미 포함되어 있습니다(초기 킷에는 빠져 있어 추가된 항목입니다).
 
 ```
 mediapipe
@@ -141,7 +141,7 @@ mediapipe
 기본 스킬의 이벤트 형식은 다음처럼 고정되어 있습니다(`vision-recognition-integration/SKILL.md`).
 
 ```json
-{"event_type": "person_detected", "detected": true, "count": 1, "confidence": 0.9}
+{"event_type": "object_detected", "detected": true, "count": 1, "confidence": 0.9, "label": "person"}
 ```
 
 이 형식에는 "가위/바위/보 중 무엇이 인식됐는지", "어떤 미션에서 온 이벤트인지"를 담을
@@ -173,6 +173,12 @@ mediapipe
 인식기만 실행합니다.
 
 **`GET /api/v1/vision/current-mission`** (헤더: `X-Device-Api-Key`)
+
+> ✅ **현재 구현 상태**: 이 기능은 별도 엔드포인트 대신 **`GET /api/alarm/status`의 `data.mission`**
+> 필드로 제공되고 있습니다(진행 여부, AI 손패, 내야 하는 손, 라운드, 남은 시간 포함).
+> `vision/main.py`가 이미 1초마다 이 값을 읽어 웹캠 화면에 "무엇을 내야 하는지"를 표시합니다.
+> 아래 설계안은 **직접 엔드포인트를 만들어 보고 싶을 때의 참고용**이며, 같은 기능을 두 번
+> 만들지 않도록 먼저 `/api/alarm/status`를 확인하세요.
 
 ```json
 {
