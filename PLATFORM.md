@@ -73,7 +73,7 @@
 
 | 항목 | 파일 | 검증 |
 |---|---|---|
-| 드라이버 10종 (`apply`/`read` 2개 메서드 계약) | `pi/drivers/` | ✅ |
+| 드라이버 11종 (`apply`/`read` 2개 메서드 계약) | `pi/drivers/` | ✅ |
 | GPIO 없는 PC에서 부품 자동 흉내내기 | `pi/drivers/gpio.py` | ✅ |
 | 팀 하드웨어 배치표 | `pi/slot_map.py` | ✅ |
 | 배치표 오타를 실행 전에 잡는 검사기 | `pi/slot_config.py` | ✅ 5종 오류 |
@@ -139,7 +139,17 @@ level→단계 버튼), 화면 조작이 pi까지 도달해 반영 보고가 돌
 
 > ✅ **세 고정층(backend · db · vision)이 모두 팀 고유 내용을 갖지 않습니다.**
 > 팀이 고치는 곳은 `pi/slot_map.py`와 `frontend/`뿐입니다 — 키트의 약속이 성립했습니다.
-> 남은 것은 P5(4팀 배포)입니다.
+
+### P5 — 4팀 배포 준비 완료
+
+| 항목 | 위치 |
+|---|---|
+| 팀별 배치표 예시 4종 | `pi/examples/slot_map_{wakeup,classroom,study,subway}.py` |
+| 학생용 착수 가이드 | `docs/05-팀별-2차개발-착수-가이드.md` |
+| 3핀 RGB LED 드라이버 (study 팀 스탠드용) | `pi/drivers/rgb_out.py` |
+
+4팀 배치표를 실제 데몬·백엔드에 붙여 등록·제어·보고까지 확인했습니다.
+팀 브랜치는 `wakeup-v2` · `classroom-v2` · `study-v2` · `subway-v2`로 `platform`에서 분기합니다.
 
 ---
 
@@ -148,33 +158,42 @@ level→단계 버튼), 화면 조작이 pi까지 도달해 반영 보고가 돌
 | 단계 | 내용 | 상태 |
 |---|---|---|
 | **P0** | 슬롯 규약 · DB 스키마 · API 계약 확정 (부록F) | ✅ 완료 (실제 DB로 14항목 검증) |
-| **P1** | 백엔드 코어: 슬롯 레지스트리, 배치 API, register/PATCH, 규칙 엔진, 적합성 테스트 | ✅ 완료 (적합성 47건) |
-| **P2** | pi 프레임워크: `slot_map.py` + 드라이버 10종 + 흉내내기 + 공통 데몬 | ✅ 완료 (자가 점검 33건 + 종단 18건) |
+| **P1** | 백엔드 코어: 슬롯 레지스트리, 배치 API, register/PATCH, 규칙 엔진, 적합성 테스트 | ✅ 완료 (적합성 57건) |
+| **P2** | pi 프레임워크: `slot_map.py` + 드라이버 11종 + 흉내내기 + 공통 데몬 | ✅ 완료 (자가 점검 33건 + 종단 18건) |
 | **P3** | 프론트 키트: SlotGrid · 카드 · HardwareSetup · RuleEditor · 시나리오 SDK | ✅ 완료 (브라우저 종단 26건) |
 | **P3.5** | wakeup 고유 코드 일괄 교체 (알람·미션·레거시 디바이스 정리) | ✅ 완료 (이식 검증 후 제거, 브라우저 22건) |
 | **P4** | vision 일반화: 설정 기반 감지 대상 | ✅ 완료 (브라우저 11건 + 자가 점검 18건) |
-| **P5** | 4팀 배포: 팀별 `slot_map` 예시, 매뉴얼 갱신, 팀 브랜치 분기 | ⬜ |
+| **P5** | 4팀 배포: 팀별 `slot_map` 예시, 착수 가이드, 팀 브랜치 분기 | ✅ 완료 (4팀 배치표 종단 검증) |
 
 ---
 
-## 4. 팀 브랜치 운영 방법 (P5 이후)
+## 4. 팀 브랜치 운영 방법
+
+학생용 실행 순서는 **[docs/05 팀별 2차 개발 착수 가이드](docs/05-팀별-2차개발-착수-가이드.md)** 에 있습니다.
+여기는 요약입니다.
 
 ```bash
 # 팀 작업 시작 — platform에서 새로 분기
 git fetch origin
-git checkout -b wakeup-v2 origin/platform
+git checkout -b classroom-v2 origin/platform
 
 # 1) 하드웨어 매핑 (pi 담당)
-#    pi/slot_map.py 에 우리 팀 부품을 슬롯에 배치
+cd pi && cp examples/slot_map_classroom.py slot_map.py
+python daemon.py --check
+
 # 2) 화면·시나리오 (프론트 담당)
-#    frontend/ 에서 디자인과 시나리오 작성
+#    frontend/app/page.tsx, frontend/scenarios/, frontend/components/team/
 
 # 키트가 업데이트되면 받아오기
-git merge origin/platform     # 충돌은 frontend/ pi/ 에서만 발생
+git merge origin/platform     # 충돌은 frontend/ pi/slot_map.py 에서만 발생
 ```
 
+브랜치 이름은 `wakeup-v2` · `classroom-v2` · `study-v2` · `subway-v2`로 통일합니다.
 **기존 팀 브랜치는 이력 보존용으로 남깁니다.** 이식 대상이 `frontend/` + `pi/slot_map.py`로
 한정되도록 설계했으므로 팀당 옮길 작업량이 작습니다.
+
+팀별 배치표 예시는 [`pi/examples/`](pi/examples/)에 있습니다.
+`backend/`·`vision/`에서 병합 충돌이 난다면 **고치면 안 되는 곳을 고친 것**입니다.
 
 ---
 
@@ -184,8 +203,11 @@ git merge origin/platform     # 충돌은 frontend/ pi/ 에서만 발생
 2. 팀 고유 디바이스 이름(`buzzer_1`, `servo_door` 등)을 `backend/`·`vision/`에 넣지 않습니다.
 3. 변경 후 반드시 통과해야 하는 검사:
    ```bash
-   cd backend && python smoke_test.py          # 기능 회귀 (36항목)
-   cd backend && python conformance_test.py    # 키트 적합성 (P1 산출물)
-   cd frontend && npm run lint && npm run build
+   cd backend  && python smoke_test.py              # 백엔드 기본 동작 (32항목)
+   cd backend  && python conformance_test.py        # 키트 적합성 (57항목)
+   cd pi       && python test_slot_daemon.py        # 드라이버·배치표 (33항목)
+   cd vision   && python test_vision_config.py      # 감지 대상 설정 (18항목)
+   cd frontend && node --experimental-strip-types scenarios/wakeupEngine.test.ts   # 30항목
+   cd frontend && npx eslint . && npm run build
    ```
 4. 액추에이터의 `current_state`는 **하드웨어 보고로만** 바뀝니다. 백엔드가 직접 쓰지 않습니다.
