@@ -23,8 +23,6 @@ from fastapi.responses import JSONResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from db.database import get_db_status, init_db
-from routers.alarm import alarm_scheduler
-from routers.alarm import router as alarm_router
 from routers.devices import router as devices_router
 from routers.logs import router as logs_router
 from routers.slots import router as slots_router
@@ -66,13 +64,8 @@ async def lifespan(app: FastAPI):
             "현재 DB 상태는 GET /health 로 확인할 수 있습니다."
         )
 
-    # 저장된 알람 예약 복원 (서버 재시작/‑‑reload 후에도 예약이 유지되도록)
-    try:
-        await alarm_scheduler.restore()
-    except Exception as exc:
-        logger.warning(f"저장된 알람 예약 복원 실패: {exc}")
-
     # 플랫폼 키트 규칙 엔진의 스케줄 트리거 점검 루프
+    # (알람 예약은 schedule 트리거 규칙으로 저장되므로 서버를 재시작해도 살아 있습니다)
     rule_task = asyncio.create_task(
         rule_engine.run_scheduler(float(os.getenv("RULE_TICK_SECONDS", "20")))
     )
@@ -80,13 +73,16 @@ async def lifespan(app: FastAPI):
     yield
 
     rule_task.cancel()
-    alarm_scheduler.cancel()
 
 
 app = FastAPI(
-    title="Smart IoT & Vision Control System API",
-    version="1.1.0",
-    description="스마트 기상 시스템: 알람 피에조 부저 제어, 터치패드/카메라 센서 모니터링, 영상인식 기상 미션 트리거 백엔드 API",
+    title="IoT 개발 플랫폼 키트 API",
+    version="2.0.0",
+    description=(
+        "4개 팀이 공통으로 쓰는 IoT 플랫폼 키트 백엔드. "
+        "센서·액추에이터 슬롯 20개를 중계하고, 자동화 규칙을 실행합니다. "
+        "시나리오(게임·미션) 로직은 프론트엔드가 맡습니다 — docs/부록F 참고."
+    ),
     lifespan=lifespan,
 )
 
@@ -150,7 +146,6 @@ def _default_error_code(status_code: int) -> str:
 
 # 라우터 등록
 app.include_router(devices_router)
-app.include_router(alarm_router)
 app.include_router(vision_router)
 app.include_router(logs_router)
 app.include_router(slots_router)   # 플랫폼 키트 (슬롯·배치 통신·규칙)

@@ -95,6 +95,61 @@ def _ensure_column(cursor, table: str, column: str, ddl: str) -> None:
         cursor.execute(f"ALTER TABLE {table} ADD COLUMN {column} {ddl}")
         logger.info(f"테이블 '{table}'에 '{column}' 컬럼을 추가했습니다.")
 
+# 1차 완성본(wakeup)의 디바이스 → 플랫폼 슬롯 대응표 (부록F 12장)
+LEGACY_DEVICE_MIGRATION = {
+    "buzzer_1": "actuator_01",
+    "touch_pad_1": "sensor_01",
+    # camera_1은 슬롯이 아니라 vision_events로 들어오므로 대응 슬롯이 없다
+    "camera_1": None,
+}
+
+# 1차 완성본의 종류 이름 → 키트 표준 이름 (Mock 시뮬레이션·아이콘이 이 이름을 봅니다)
+LEGACY_KIND_ALIASES = {"touch_pad": "touch"}
+
+
+def _migrate_legacy_devices(cursor) -> None:
+    """
+    레거시 디바이스를 슬롯으로 이관합니다 (1차 완성본을 이미 올린 팀 호환).
+
+    행을 지우지 않는 이유: sensor_readings·control_log가 device_id로 이력을 가리키고 있어서,
+    지우면 학생들이 만든 기록이 통째로 고아가 됩니다. 대신 대시보드에서만 숨깁니다.
+    쓰고 있던 부품은 대응 슬롯을 켠 채로 넘겨 주므로, 올리자마자 대시보드가 비지 않습니다.
+    """
+    for legacy_id, slot_id in LEGACY_DEVICE_MIGRATION.items():
+        cursor.execute("SELECT id, name, kind, enabled FROM devices WHERE id = %s", (legacy_id,))
+        legacy = cursor.fetchone()
+        if not legacy:
+            continue
+        was_enabled = bool(legacy.get("enabled"))
+
+        if slot_id:
+            cursor.execute(
+                "SELECT id, label, kind, enabled FROM devices WHERE id = %s AND slot_index >= 1",
+                (slot_id,),
+            )
+            slot = cursor.fetchone()
+            if slot:
+                # 팀이 이미 설정한 슬롯은 건드리지 않습니다 (빈 칸만 채웁니다).
+                kind = LEGACY_KIND_ALIASES.get(legacy.get("kind"), legacy.get("kind"))
+                cursor.execute(
+                    """
+                    UPDATE devices SET
+                        label = COALESCE(label, %s),
+                        kind = IF(kind = %s, %s, kind),
+                        enabled = IF(%s AND NOT enabled, TRUE, enabled)
+                    WHERE id = %s
+                    """,
+                    (legacy.get("name"), UNASSIGNED_KIND, kind, was_enabled, slot_id),
+                )
+
+        if was_enabled:
+            cursor.execute("UPDATE devices SET enabled = FALSE WHERE id = %s", (legacy_id,))
+            logger.info(
+                f"[이관] 레거시 디바이스 '{legacy_id}'를 대시보드에서 숨겼습니다"
+                + (f" (이제 '{slot_id}' 슬롯을 쓰세요)." if slot_id else " (비전 이벤트로 대체).")
+            )
+
+
 # DB 상태 (DB가 꺼져 있어도 시스템이 죽지 않도록 상태만 기록하고 진행한다)
 _db_status: Dict[str, Any] = {
     "healthy": None,      # None=아직 시도 안 함, True=정상, False=장애
@@ -371,29 +426,10 @@ def init_db() -> None:
             for column, ddl in SLOT_COLUMNS:
                 _ensure_column(cursor, "devices", column, ddl)
 
-            # 시드 데이터 삽입 (원점 상태 덮어쓰기 방지: ON DUPLICATE KEY UPDATE name, kind만 갱신)
-            # 기존 3개 디바이스는 '레거시 행'으로 남겨 두고(slot_index=0) 계속 동작시킨다.
-            seed_devices = [
-                ("buzzer_1", "알람 출력 장치(피에조 부저)", "buzzer", "actuator"),
-                ("touch_pad_1", "패드 화면/터치 입력", "touch_pad", "sensor"),
-                ("camera_1", "기상 감지 카메라", "camera", "sensor"),
-            ]
-            for dev_id, name, kind, role in seed_devices:
-                cursor.execute(
-                    """
-                    INSERT INTO devices (id, name, kind, role, slot_index, enabled, label)
-                    VALUES (%s, %s, %s, %s, 0, TRUE, %s)
-                    ON DUPLICATE KEY UPDATE
-                        name = VALUES(name),
-                        kind = VALUES(kind),
-                        role = VALUES(role),
-                        enabled = TRUE,
-                        -- 1차 완성본에서 올라온 팀은 label이 비어 있으므로 한 번 채워 준다.
-                        -- (이미 값이 있으면 팀이 바꾼 라벨을 덮어쓰지 않는다)
-                        label = COALESCE(label, VALUES(label));
-                    """,
-                    (dev_id, name, kind, role, name),
-                )
+            # 1차 완성본(wakeup)에서 올라온 팀의 레거시 디바이스를 슬롯으로 이관한다.
+            # 이력(sensor_readings·control_log)은 device_id로 남아 있으므로 행 자체는 지우지 않고,
+            # 대시보드에서만 숨긴다(enabled=FALSE). 실제 제어는 슬롯이 이어받는다.
+            _migrate_legacy_devices(cursor)
 
             # 플랫폼 키트 슬롯 20개 시드 (부록F 2장)
             # 처음부터 모두 만들어 두고, 사용하지 않는 슬롯은 enabled=FALSE로 둔다.
@@ -411,7 +447,7 @@ def init_db() -> None:
                 )
     logger.info(
         "Database initialized successfully "
-        f"(레거시 디바이스 3개 + 플랫폼 슬롯 {len(SENSOR_SLOTS) + len(ACTUATOR_SLOTS)}개)."
+        f"(플랫폼 슬롯 {len(SENSOR_SLOTS) + len(ACTUATOR_SLOTS)}개)."
     )
 
 
@@ -437,7 +473,7 @@ def get_all_devices(include_disabled: bool = False) -> List[Dict[str, Any]]:
     enabled=FALSE로 시드되므로, 팀이 쓰는 슬롯만 대시보드에 나타납니다.
     하드웨어 구성 설정 화면처럼 빈 슬롯까지 보여줘야 할 때만 include_disabled=True를 씁니다.
     """
-    where = "" if include_disabled else "WHERE enabled IS NULL OR enabled = TRUE"
+    where = "" if include_disabled else "WHERE enabled = TRUE"
     with get_db_connection() as conn:
         with conn.cursor() as cursor:
             cursor.execute(

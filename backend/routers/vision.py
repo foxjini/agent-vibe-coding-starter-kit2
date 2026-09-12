@@ -10,7 +10,6 @@ from db.database import get_recent_vision_events, log_vision_event
 from schemas.common import DataResponse
 from schemas.vision import VisionEventRequest
 from services.rule_engine import rule_engine
-from services.trigger_service import trigger_service
 from websocket_manager import ws_manager
 
 
@@ -30,8 +29,10 @@ async def receive_vision_event(
 ):
     """
     Windows PC 웹캠 영상인식 클라이언트(YOLO / MediaPipe)가 감지한 이벤트를 수신합니다.
-    이벤트를 DB에 저장하고 WebSocket을 통해 대시보드로 실시간 브로드캐스트한 뒤,
-    기상 미션 판정(trigger_service)에 넘깁니다.
+    이벤트를 DB에 저장하고 WebSocket으로 대시보드에 실시간 전달한 뒤, 자동화 규칙에 넘깁니다.
+
+    **무엇을 감지했는지에 대한 판단은 하지 않습니다.** 가위바위보 승패 같은 시나리오 판정은
+    프론트엔드가 이 브로드캐스트를 받아서 처리합니다 (docs/부록F 9-2절).
     """
     # 1. DB 기록 (DB가 없으면 inserted_id가 None이고, 시스템은 계속 동작한다)
     inserted_id = await asyncio.to_thread(
@@ -56,20 +57,7 @@ async def receive_vision_event(
         "created_at": now_iso,
     })
 
-    # 3. 스마트 기상 시스템 트리거 규칙 연계 (AGENTS.md)
-    # 기상 미션 판정 → 성공 시 알람 종료 및 2차 수면 방지 루틴 시작
-    try:
-        await trigger_service.handle_vision_event(
-            event_type=payload.event_type,
-            detected=payload.detected,
-            count=payload.count,
-            confidence=payload.confidence,
-            label=payload.label,
-        )
-    except Exception as exc:
-        logger.warning(f"트리거 서비스 실행 중 오류: {exc}", exc_info=True)
-
-    # 4. 플랫폼 키트 자동화 규칙 연계 (vision_label 트리거)
+    # 3. 플랫폼 키트 자동화 규칙 연계 (vision_label 트리거)
     try:
         await rule_engine.on_vision_event(
             label=payload.label,
@@ -91,7 +79,6 @@ async def receive_vision_event(
             "event_type": payload.event_type,
             "label": payload.label,
             "detected": payload.detected,
-            "mission": trigger_service.get_mission_status(),
         }
     }
 

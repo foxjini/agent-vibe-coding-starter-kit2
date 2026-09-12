@@ -8,7 +8,7 @@
 import React from "react";
 
 import SlotIcon from "@/components/kit/SlotIcon";
-import { getStatusBadgeClass } from "@/components/dashboard/statusColor";
+import { getStatusBadgeClass } from "@/components/kit/statusColor";
 import { Slot, sensorText, slotLabel, slotStatus } from "@/lib/slots";
 
 function relativeTime(iso?: string | null): string {

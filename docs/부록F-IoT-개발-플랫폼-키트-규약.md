@@ -616,11 +616,20 @@ python conformance_test.py      # DB를 켜고 한 번, 끄고 한 번 돌려 �
 | 백엔드·vision 코드에 **다른 팀** 디바이스 이름이 0개인가 | ✅ 8번 |
 | 팀 브랜치의 `backend/`·`vision/` diff가 공통 키트와 **동일**한가 | 수동 (`git diff platform -- backend vision`) |
 
-검사 결과(P1 시점, `platform` 브랜치): **DB 켠 상태 38건 전부 통과 / DB 끈 상태 32건 전부 통과**.
-기존 wakeup 회귀 검사(`smoke_test.py` 36건, `test_mission.py` 18건)도 두 상태 모두 통과합니다.
+검사 결과(P3.5 시점, `platform` 브랜치): **DB 켠 상태 47건 전부 통과 / DB 끈 상태 37건 전부 통과**.
 
-> 8번 검사는 **다른 팀** 이름만 실패로 셉니다. wakeup 레거시 이름(`buzzer_1` 등)은
-> P3.5에서 한꺼번에 교체할 예정이므로, 남아 있는 개수를 참고용으로만 알려 줍니다.
+전체 자가 점검 목록:
+
+| 무엇 | 실행 | 항목 |
+|---|---|---|
+| 키트 적합성 | `cd backend && python conformance_test.py` | 47 |
+| 백엔드 기본 동작 | `cd backend && python smoke_test.py` | 32 |
+| pi 드라이버·배치표 | `cd pi && python test_slot_daemon.py` | 33 |
+| 시나리오 판정 규칙 | `cd frontend && node --experimental-strip-types scenarios/wakeupEngine.test.ts` | 30 |
+
+> 8번 검사는 **모든 팀 고유 이름**을 실패로 셉니다(wakeup의 `buzzer_1` 포함).
+> 예외는 `db/database.py`의 이관 대응표 하나뿐입니다 — 1차 완성본을 올린 팀이
+> 그대로 올라오려면 옛 이름을 알아야 하기 때문입니다.
 
 ---
 
@@ -636,6 +645,20 @@ python conformance_test.py      # DB를 켜고 한 번, 끄고 한 번 돌려 �
 | study | `touch_display` | `sensor_01` |
 | subway | `led_congestion` / `motor_conveyor` | `actuator_01`, `actuator_02` |
 | subway | `sensor_seat_pressure` | `sensor_01` |
+
+**wakeup 팀 이행은 완료되었습니다 (P3.5).** 백엔드가 DB를 열 때 자동으로 옮깁니다.
+
+| 옛 것 | 새 것 |
+|---|---|
+| `buzzer_1` | `actuator_01` (라벨·종류를 그대로 물려받음) |
+| `touch_pad_1` | `sensor_01` (종류는 `touch`로 변환) |
+| `camera_1` | 슬롯 없음 — `vision_events`로 들어옴 |
+| `POST /api/alarm/schedule` | 자동화 규칙 (`schedule` 트리거) |
+| `services/trigger_service.py` (미션 엔진) | `frontend/scenarios/wakeupEngine.ts` + `useWakeup.ts` |
+| `pi/main.py` | `pi/daemon.py` + `pi/slot_map.py` |
+
+레거시 행은 **지우지 않고 숨깁니다**(`enabled=false`) — `sensor_readings`·`control_log`가
+`device_id`로 이력을 가리키고 있어서, 지우면 학생들이 만든 기록이 통째로 고아가 됩니다.
 
 **이행 방법**: 기존 팀 브랜치는 이력 보존용으로 남기고, 공통 키트 브랜치에서 새로 분기한 뒤
 `pi/slot_map.py`와 프론트 화면만 옮깁니다(이식 대상이 작도록 설계한 이유입니다).

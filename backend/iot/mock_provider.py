@@ -98,7 +98,10 @@ class MockDeviceProvider(DeviceProvider):
 
     async def read_sensor_value(self, device_id: str) -> Dict[str, Any]:
         """
-        센서의 최신 측정값을 시뮬레이션(Random Walk)하여 반환합니다.
+        센서의 최신 측정값을 시뮬레이션합니다.
+
+        **슬롯 ID가 아니라 `kind`를 보고** 흉내낼 값을 정합니다. 그래야 팀이 어느 슬롯에
+        무엇을 꽂아도 Mock 모드가 동작합니다 (부록F 3-2절의 보고 형식을 따릅니다).
         """
         dev = self._devices.get(device_id)
         if not dev:
@@ -107,76 +110,69 @@ class MockDeviceProvider(DeviceProvider):
         now = datetime.now(timezone.utc)
         dev["updated_at"] = now.isoformat()
 
-        # 디바이스별 센서 시뮬레이션
-        if device_id == "touch_pad_1":
-            # 터치패드: 랜덤 워크 / 이벤트 시뮬레이션
-            # 평소에는 false, 15% 확률로 터치 입력 이벤트 발생
-            is_pressed = random.random() < 0.15
-            touch_x = random.randint(100, 700) if is_pressed else 0
-            touch_y = random.randint(100, 500) if is_pressed else 0
-            gesture = random.choice(["tap", "swipe_right", "none"]) if is_pressed else "none"
+        kind = str(dev.get("kind") or "").strip().lower()
+        reading, state, numeric = self._simulate_reading(kind, dev)
 
-            reading = {
-                "pressed": is_pressed,
-                "touch_x": touch_x,
-                "touch_y": touch_y,
-                "gesture": gesture,
-            }
-            dev["current_state"] = "touched" if is_pressed else "idle"
-            dev["current_value"] = reading
-
-            await asyncio.to_thread(
-                log_sensor_reading, device_id, 1.0 if is_pressed else 0.0, "pressed", reading
-            )
-            await asyncio.to_thread(update_current_state, device_id, dev["current_state"], reading)
-
-            return {
-                "device_id": device_id,
-                "kind": dev["kind"],
-                "value": reading,
-                "reported_at": now.isoformat(),
-            }
-
-        elif device_id == "camera_1":
-            # 카메라: 사람 감지 신뢰도 Random Walk (0.70 ~ 0.99 사이)
-            current_value = dev.get("current_value") or {}
-            cur_conf = current_value.get("confidence", 0.90)
-            delta = random.uniform(-0.03, 0.03)
-            new_conf = round(max(0.70, min(0.99, cur_conf + delta)), 2)
-
-            motion = random.random() < 0.3
-            gestures = ["rock", "scissors", "paper", "none"]
-            gesture = random.choice(gestures)
-
-            reading = {
-                "person_detected": True,
-                "confidence": new_conf,
-                "gesture": gesture,
-                "motion_detected": motion,
-            }
-            dev["current_state"] = "detecting" if motion else "idle"
-            dev["current_value"] = reading
-
-            await asyncio.to_thread(
-                log_sensor_reading, device_id, new_conf, "confidence", reading
-            )
-            await asyncio.to_thread(update_current_state, device_id, dev["current_state"], reading)
-
-            return {
-                "device_id": device_id,
-                "kind": dev["kind"],
-                "value": reading,
-                "reported_at": now.isoformat(),
-            }
-
-        else:
-            # 기타 또는 액추에이터 상태 조회
+        if reading is None:
+            # 흉내낼 방법을 모르는 종류 — 마지막 값을 그대로 돌려준다
             return {
                 "device_id": device_id,
                 "kind": dev.get("kind"),
                 "value": dev.get("current_value"),
                 "reported_at": now.isoformat(),
             }
+
+        dev["current_state"] = state
+        dev["current_value"] = reading
+
+        await asyncio.to_thread(
+            log_sensor_reading, device_id, numeric, dev.get("unit"), reading
+        )
+        await asyncio.to_thread(update_current_state, device_id, state, reading)
+
+        return {
+            "device_id": device_id,
+            "kind": dev.get("kind"),
+            "value": reading,
+            "reported_at": now.isoformat(),
+        }
+
+    @staticmethod
+    def _simulate_reading(kind: str, dev: Dict[str, Any]):
+        """종류별 흉내내기 값 — (보고값, 표시 상태, 차트용 숫자)."""
+        if kind in ("button", "touch"):
+            pressed = random.random() < 0.15
+            return {"pressed": pressed}, "touched" if pressed else "idle", 1.0 if pressed else 0.0
+
+        if kind in ("presence", "motion"):
+            detected = random.random() < 0.3
+            return (
+                {"detected": detected},
+                "detected" if detected else "idle",
+                1.0 if detected else 0.0,
+            )
+
+        if kind == "camera":
+            return {"connected": True, "fps": random.randint(12, 30)}, "active", None
+
+        # 숫자 센서 — 마지막 값에서 조금씩 움직이는 랜덤 워크
+        ranges = {
+            "temperature": (18.0, 30.0, 23.0, 0.3),
+            "humidity": (30.0, 80.0, 50.0, 1.0),
+            "distance": (2.0, 200.0, 80.0, 5.0),
+            "pressure": (0.0, 120.0, 40.0, 2.0),
+            "light": (0.0, 1000.0, 400.0, 20.0),
+        }
+        if kind not in ranges:
+            return None, None, None
+
+        low, high, default, step = ranges[kind]
+        current = dev.get("current_value")
+        base = current.get("value") if isinstance(current, dict) else None
+        if not isinstance(base, (int, float)):
+            base = default
+        value = round(max(low, min(high, float(base) + random.uniform(-step, step))), 1)
+        return {"value": value}, "active", value
 
     async def get_all_statuses(self) -> List[Dict[str, Any]]:
         """등록된 모든 디바이스의 현재 상태 목록을 반환합니다."""

@@ -15,8 +15,7 @@ from db.database import (
 from iot.provider_factory import get_device_provider
 from schemas.common import DataResponse
 from schemas.device import ActuatorControlRequest, DeviceStateReportRequest
-from services.device_control import BUZZER_ID, broadcast_device_state, set_actuator
-from services.trigger_service import trigger_service
+from services.device_control import broadcast_device_state, set_actuator
 from websocket_manager import ws_manager
 
 
@@ -24,7 +23,6 @@ logger = logging.getLogger("backend.routers.devices")
 
 router = APIRouter(tags=["Devices"])
 
-TOUCH_PAD_ID = "touch_pad_1"
 
 
 def _device_not_found(device_id: str) -> HTTPException:
@@ -95,10 +93,6 @@ async def control_actuator(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail={"error": {"code": "INVALID_DEVICE_OPERATION", "message": str(exc)}},
         )
-
-    # 사용자가 부저를 직접 끄면 진행 중인 기상 미션도 함께 종료한다
-    if device_id == BUZZER_ID and payload.desired_state not in ("ringing", "on"):
-        await trigger_service.cancel_mission(reason="manual_stop")
 
     return {"data": updated_dev}
 
@@ -209,14 +203,6 @@ async def report_device_state(
             "unit": payload.unit,
             "updated_at": now_iso,
         })
-
-        # 터치패드에서 터치가 감지된 경우 기상 확인 트리거 처리
-        if (
-            device_id == TOUCH_PAD_ID
-            and isinstance(payload.value, dict)
-            and payload.value.get("pressed")
-        ):
-            await trigger_service.confirm_wakeup(actor="touch_pad")
 
     return {
         "data": {
