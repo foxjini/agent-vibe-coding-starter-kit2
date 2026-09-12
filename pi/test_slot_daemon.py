@@ -7,7 +7,7 @@ GPIO가 없는 PC에서도 돌아갑니다. 백엔드도 켜지 않아도 됩니
     python test_slot_daemon.py
 
 무엇을 확인하나요?
- 1) 드라이버 10종이 모두 만들어지고 apply()/read() 계약을 지키는지
+ 1) 기본 드라이버가 모두 만들어지고 apply()/read() 계약을 지키는지
  2) 배치표 오타(슬롯 이름·드라이버·핀 중복)를 실행 전에 잡아내는지
  3) 부품을 **한 줄 추가/삭제**하면 등록·폴링·보고가 따라오는지
  4) 백엔드가 끊겨도 죽지 않고, 돌아오면 자동으로 다시 등록하는지
@@ -102,7 +102,7 @@ class FakeBackend:
         return [r for r in self.reports if r.get("slot_id") == slot_id]
 
 
-# 팀이 실제로 쓸 만한 배치표 — 드라이버 10종을 모두 덮습니다.
+# 팀이 실제로 쓸 만한 배치표 — 기본 드라이버를 고루 덮습니다.
 FULL_MAP: Dict[str, Dict[str, Any]] = {
     "actuator_01": {"label": "알람 부저", "kind": "buzzer", "driver": "tonal_buzzer",
                     "pin": 18, "control_type": "tonal", "buzzer_type": "passive"},
@@ -117,6 +117,8 @@ FULL_MAP: Dict[str, Dict[str, Any]] = {
                     "pin": 21, "control_type": "rgb", "count": 8},
     "actuator_06": {"label": "혼잡도 표시등", "kind": "level_led", "driver": "level_out",
                     "pins": [5, 6, 16], "control_type": "level"},
+    "actuator_07": {"label": "스탠드 조명", "kind": "rgb_led", "driver": "rgb_out",
+                    "pins": {"r": 25, "g": 8, "b": 7}, "control_type": "rgb"},
     "sensor_01": {"label": "기상 버튼", "kind": "button", "driver": "button_in", "pin": 24},
     "sensor_02": {"label": "좌석 압력", "kind": "pressure", "unit": "kg",
                   "driver": "analog_in", "channel": 0, "scale": 120},
@@ -135,10 +137,16 @@ def main_test() -> int:
     # ------------------------------------------------------------------
     section("1. 드라이버 계약 (apply / read)")
     names = available_drivers()
-    check("드라이버 10종이 모두 있음", len(names) == 10, str(names))
+    # 드라이버는 파일을 넣으면 늘어납니다. 개수를 고정하지 말고 '있어야 할 것'만 확인합니다.
+    required = {
+        "digital_out", "pwm_out", "tonal_buzzer", "servo", "neopixel_out", "rgb_out",
+        "level_out", "button_in", "analog_in", "dht_in", "distance_in",
+    }
+    check(f"기본 드라이버가 모두 있음 (현재 {len(names)}종)", required <= set(names),
+          f"빠진 것: {sorted(required - set(names))}")
 
     usable, problems = validate_slots(FULL_MAP)
-    check("드라이버 10종을 쓰는 배치표가 검사를 통과", not problems, str(problems))
+    check("여러 드라이버를 쓰는 배치표가 검사를 통과", not problems, str(problems))
 
     drivers = {slot_id: create_driver(slot_id, config) for slot_id, config in usable.items()}
     check("배치표 10줄이 모두 드라이버로 만들어짐", len(drivers) == len(FULL_MAP))

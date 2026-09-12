@@ -404,12 +404,14 @@ pi/
 │   ├── pwm_out.py         PWM (진동모터 세기, LED 밝기, 모터 속도)
 │   ├── tonal_buzzer.py    주파수 지정 부저 (passive/active 선택)
 │   ├── servo.py           서보모터 각도
-│   ├── neopixel_out.py    RGB 스트립
+│   ├── neopixel_out.py    RGB 스트립 (데이터선 1개로 여러 알)
+│   ├── rgb_out.py         3핀 RGB LED (R·G·B 각각 PWM)
 │   ├── level_out.py       단계 표시 (LED 여러 개를 단계로)
 │   ├── button_in.py       버튼·터치센서·PIR (극성 설정)
 │   ├── analog_in.py       압력·조도 (ADC 경유)
 │   ├── dht_in.py          온습도
 │   └── distance_in.py     초음파 거리
+├── examples/          ← 팀별 배치표 예시 (복사해서 slot_map.py로 쓰세요)
 ├── slot_config.py     ← 키트 제공 배치표 검사기 (오타를 실행 전에 잡아냄)
 ├── backend_client.py  ← 키트 제공 배치 통신 (등록·폴링·보고)
 ├── daemon.py          ← 키트 제공 공통 루프 (수정 불필요)
@@ -472,6 +474,7 @@ SLOTS = {
 
 | 하고 싶은 것 | 해야 하는 일 |
 |---|---|
+| 우리 팀 배치표 시작 | `cp examples/slot_map_<우리팀>.py slot_map.py` 후 핀 번호만 수정 |
 | 부품 추가 | `SLOTS`에 한 줄 추가 |
 | 부품 제거 | `SLOTS`에서 한 줄 삭제 |
 | 핀 변경 | `pin` 값 수정 |
@@ -638,6 +641,7 @@ python conformance_test.py      # DB를 켜고 한 번, 끄고 한 번 돌려 �
 | pi 드라이버·배치표 | `cd pi && python test_slot_daemon.py` | 33 |
 | 시나리오 판정 규칙 | `cd frontend && node --experimental-strip-types scenarios/wakeupEngine.test.ts` | 30 |
 | 영상인식 설정 | `cd vision && python test_vision_config.py` | 18 |
+| 팀별 배치표 예시 | `cd pi && python test_team_examples.py` | 32 |
 
 > 8번 검사는 **모든 팀 고유 이름**을 실패로 셉니다(wakeup의 `buzzer_1` 포함).
 > 예외는 `db/database.py`의 이관 대응표 하나뿐입니다 — 1차 완성본을 올린 팀이

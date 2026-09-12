@@ -90,7 +90,10 @@ def validate_slots(slots: Dict[str, Any]) -> Tuple[Dict[str, Dict[str, Any]], Li
                     "핀 하나에 부품 하나만 연결하세요."
                 )
             pins_in_use[pin] = slot_id
-        for pin in config.get("pins") or []:
+        # pins는 목록([5, 6, 13])일 수도, 딕셔너리({"r":17,"g":27,"b":22})일 수도 있습니다
+        declared = config.get("pins") or []
+        pin_list = list(declared.values()) if isinstance(declared, dict) else list(declared)
+        for pin in pin_list:
             owner = pins_in_use.get(pin)
             if owner and owner != slot_id:
                 problems.append(
