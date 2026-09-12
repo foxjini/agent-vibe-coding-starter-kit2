@@ -576,31 +576,100 @@ onVision(["rock", "paper", "scissors"], (e) => {
 
 ---
 
-## 10. vision 계약 — 감지 대상을 설정으로
+## 10. vision 계약 — 감지 "대상"은 설정으로, 감지 "방법"은 플러그인으로
 
-`vision/main.py`는 **무엇을 감지할지 코드에 두지 않습니다.**
-`GET /api/v1/vision/config`로 대상 목록을 받아옵니다.
+팀마다 보는 것이 다릅니다. 손동작·사람 수·자세·혼잡도 — 그래서 vision은
+**통째로 공통이 아니고, 공통 루프 + 검출기 플러그인**으로 나뉩니다.
+
+```
+vision/
+  main.py                  공통 — 카메라를 열고, 검출기를 돌리고, 보내고, 보여 줌
+  camera.py                공통 — USB 웹캠 / Pi Camera 자동 선택
+  detectors/
+    base.py                공통 — 검출기 계약 (이 파일은 고치지 않습니다)
+    __init__.py            공통 — 폴더를 훑어 검출기를 자동으로 찾는 로더
+    objects.py             공통 — 사물 탐지(YOLO). 4팀이 같이 씁니다
+    <팀 이름>.py            ★ 팀 고유 — 파일 하나 = 검출기 하나
+    _<보조 모듈>.py          `_`로 시작하면 로더가 검출기로 세지 않습니다
+```
+
+### 10-1. 검출기 계약 (`detectors/base.py`)
+
+파일 하나에 `FrameDetector`를 상속한 `Detector` 클래스를 두면 끝입니다.
+**등록은 하지 않습니다** — `detectors/` 폴더를 넣으면 자동으로 인식됩니다(pi의 `drivers/`와 같은 방식).
+
+```python
+class Detector(FrameDetector):
+    name = "pose"                          # 설정에서 이 이름으로 켭니다
+    labels = ("my_label_a", "my_label_b")  # 내가 내보낼 라벨 (백엔드에 신고됩니다)
+    description = "자세 감지"
+
+    def detect(self, frame_bgr, config):   # 한 프레임을 보고 무엇이 보이는지만 말합니다
+        return [DetectionEvent(label="my_label_a", detected=True, confidence=0.9)]
+```
+
+- 라이브러리가 없으면 `self.disable("이유")`를 부르면 됩니다. 그 검출기만 빠지고
+  **나머지는 그대로 동작합니다** — MediaPipe가 없다고 사물 감지까지 멈추면 수업이 멈춥니다.
+- 검출기는 **판정하지 않습니다.** 이겼는지·혼잡한지·졸고 있는지는 프론트엔드 시나리오의 몫입니다(9-2절).
+
+### 10-2. 검출기 신고 — 백엔드는 라벨 이름을 모릅니다
+
+비전 클라이언트는 부팅할 때 자기 검출기를 한 번 신고합니다.
+
+```
+POST /api/v1/vision/detectors     (디바이스 키)
+{ "detectors": [
+    {"name": "objects",  "labels": [],                      "description": "사물 탐지"},
+    {"name": "my_pose",  "labels": ["my_label_a"],           "description": "자세 감지"},
+    {"name": "broken",   "labels": [], "available": false,   "reason": "라이브러리 없음"}
+] }
+```
+
+**이 신고가 규약의 핵심입니다.** 백엔드 코드에는 어느 팀의 라벨 이름도 없습니다.
+신고를 받고 나면 백엔드는 그 라벨이 "사물 탐지 대상이 아니다"라는 것을 알게 되고,
+대시보드의 영상인식 설정 화면과 규칙 편집기도 그 목록을 보고 채워집니다.
+그래서 팀이 검출기를 추가해도 **백엔드 0줄 · 대시보드 0줄**입니다.
+
+DB가 꺼져 있으면 응답에 `"persisted": false`가 들어옵니다(감지는 계속 동작합니다).
+저장된 척하지 않는 이유: "설정은 바꿨는데 왜 안 먹지?"로 한참 헤매게 됩니다.
+
+### 10-3. 감지 설정 (`GET /api/v1/vision/config`)
 
 ```json
 { "data": {
     "object_labels": ["person", "bottle", "cup"],
-    "gesture_enabled": true,
+    "detectors": [],
     "min_confidence": 0.6,
-    "cooldown_seconds": 2.5
+    "cooldown_seconds": 2.5,
+    "source": "saved",
+    "known_detectors": [{"name": "objects", "labels": [], "available": true}],
+    "gesture_enabled": true
 } }
 ```
 
-- 이 설정은 규칙(`vision_label` 트리거)과 대시보드 설정에서 자동으로 산출됩니다.
+- `object_labels` — **사물 탐지 검출기에만** 주는 값입니다(COCO 클래스명).
+  규칙(`vision_label` 트리거)과 대시보드 설정에서 자동으로 산출됩니다.
   **규칙에 쓴 라벨은 설정에 적지 않아도 자동으로 포함됩니다** — 규칙을 만들었는데
   감지가 안 되면 원인을 찾기 어렵기 때문입니다.
-- 팀이 감지 대상을 바꿔도 **vision 코드는 수정하지 않습니다.**
-  바꾸는 곳: 대시보드 `/kit` → **영상인식 설정** 탭.
-- vision은 5초마다 설정을 다시 받아오므로 **프로그램을 다시 켜지 않아도** 반영됩니다.
-- 서버에 연결되지 않으면 마지막 설정(없으면 기본 대상 5종)으로 계속 동작합니다 —
-  설정을 못 읽었다고 감지를 멈추면 수업이 멈춥니다.
-- 손동작 라벨(rock/paper/scissors)은 MediaPipe가 판정하므로 사물 대상 목록에서 제외됩니다.
+- `detectors` — 돌릴 검출기 이름 목록. **비어 있으면 "가진 것 전부"**입니다.
+  그래서 팀이 나중에 검출기를 추가해도 설정을 다시 만지지 않아도 돌아갑니다.
+- `known_detectors` — 10-2의 신고 내용. 대시보드가 이것을 보고 체크박스를 그립니다.
+- `gesture_enabled` — 구버전 화면·클라이언트 호환용 불린입니다(신규 코드는 `detectors`를 씁니다).
+- 사물 탐지가 아닌 검출기의 라벨은 `object_labels`에서 **자동으로 제외**됩니다.
+  제외 목록은 코드가 아니라 **신고**에서 나옵니다.
 - COCO에 없는 라벨을 넣으면 조용히 건너뜁니다 (화면이 깨지지 않습니다).
+- vision은 5초마다 설정을 다시 받아오므로 **프로그램을 다시 켜지 않아도** 반영됩니다.
+- 서버에 연결되지 않으면 마지막 설정(없으면 기본 대상 5종)으로 계속 동작합니다.
+- 바꾸는 곳: 대시보드 `/kit` → **영상인식 설정** 탭. `PUT /api/vision/config`는
+  DB가 꺼져 있으면 200이 아니라 **503 `DB_UNAVAILABLE`**로 거절합니다.
 - 이벤트 전송 형식은 기존 그대로: `{"event_type","detected","count","confidence","label"}`
+  백엔드는 `label` 값을 해석하지 않고 그대로 저장·중계합니다.
+
+### 10-4. 카메라 (`camera.py`)
+
+`CAMERA_SOURCE=auto|usb|picamera`(기본 `auto`)로 고릅니다. `auto`는 picamera2를 먼저
+시도하고 없으면 USB 웹캠으로 넘어갑니다. 실패하면 원인별 한국어 안내를 출력합니다
+(리본 케이블, `sudo apt install -y python3-picamera2`, `rpicam-hello --list-cameras`).
 
 **vision 화면은 판정하지 않습니다.** 무엇을 봤는지만 보여 주고, 승패·라운드 같은 시나리오
 판정은 프론트엔드가 합니다(9-2절). 그래서 미리보기 창에는 감지 대상과 인식 결과만 나옵니다.
@@ -627,25 +696,36 @@ python conformance_test.py      # DB를 켜고 한 번, 끄고 한 번 돌려 �
 | 숫자 센서가 `{"value": 숫자}` 형식으로 보고되어 차트가 동작하는가 | ✅ 6번 |
 | 자동화가 코드가 아니라 규칙으로 표현되는가 (트리거 3종·액션 2종) | ✅ 7번 |
 | DB를 꺼도 제어·폴링·목록이 500 없이 동작하는가 | ✅ DB를 끄고 실행 |
+| 감지 대상·검출기를 코드 없이 바꿀 수 있는가 | ✅ 7-3번 |
+| 처음 보는 팀 라벨도 **신고만으로** 사물 대상에서 제외되는가 | ✅ 7-3번 |
 | 백엔드·vision 코드에 **다른 팀** 디바이스 이름이 0개인가 | ✅ 8번 |
-| 팀 브랜치의 `backend/`·`vision/` diff가 공통 키트와 **동일**한가 | 수동 (`git diff platform -- backend vision`) |
+| 백엔드에 **팀 시나리오 라벨**(게임·자세 이름)이 0개인가 | ✅ 8번 |
+| vision 공통층(`main.py`·`camera.py`·`detectors/{base,__init__,objects}`)에 팀 라벨이 0개인가 | ✅ 8번 |
+| 팀 고유 검출기가 `detectors/` 안에만 있는가 | ✅ 8번 |
+| 팀 브랜치의 `backend/`·`vision/` 공통층 diff가 공통 키트와 **동일**한가 | 수동 (`git diff platform -- backend vision/main.py vision/camera.py vision/detectors/base.py vision/detectors/__init__.py vision/detectors/objects.py`) |
 
-검사 결과(P4 시점, `platform` 브랜치): **DB 켠 상태 57건 전부 통과 / DB 끈 상태 43건 전부 통과**.
+검사 결과(P6 시점, `platform` 브랜치): **DB 켠 상태 69건 전부 통과 / DB 끈 상태 51건 전부 통과**.
 
 전체 자가 점검 목록:
 
 | 무엇 | 실행 | 항목 |
 |---|---|---|
-| 키트 적합성 | `cd backend && python conformance_test.py` | 47 |
+| 키트 적합성 | `cd backend && python conformance_test.py` | 69 |
 | 백엔드 기본 동작 | `cd backend && python smoke_test.py` | 32 |
-| pi 드라이버·배치표 | `cd pi && python test_slot_daemon.py` | 33 |
+| pi 드라이버·배치표 | `cd pi && python test_slot_daemon.py` | 39 |
 | 시나리오 판정 규칙 | `cd frontend && node --experimental-strip-types scenarios/wakeupEngine.test.ts` | 30 |
-| 영상인식 설정 | `cd vision && python test_vision_config.py` | 18 |
+| 영상인식 설정·검출기 계층 | `cd vision && python test_vision_config.py` | 38 |
 | 팀별 배치표 예시 | `cd pi && python test_team_examples.py` | 32 |
 
 > 8번 검사는 **모든 팀 고유 이름**을 실패로 셉니다(wakeup의 `buzzer_1` 포함).
 > 예외는 `db/database.py`의 이관 대응표 하나뿐입니다 — 1차 완성본을 올린 팀이
 > 그대로 올라오려면 옛 이름을 알아야 하기 때문입니다.
+>
+> ⚠️ P4까지 8번 검사는 디바이스 **이름**만 봤고 **라벨**은 보지 않았습니다.
+> 그래서 `backend/services/vision_config.py`에 `GESTURE_LABELS`로 박혀 있던
+> wakeup 게임 라벨을 놓쳤습니다. P6에서 라벨도 금지 목록에 넣었습니다 —
+> **금지 목록에 없는 것은 검사되지 않는다**는 뜻이니, 팀 고유 이름을 새로 만들면
+> `conformance_test.py`의 `team_names` · `scenario_labels`에 함께 추가하세요.
 
 ---
 

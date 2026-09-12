@@ -110,6 +110,25 @@ export default function RuleEditor({ slots }: { slots: Slot[] }) {
     return () => clearTimeout(timer);
   }, [load]);
 
+  // 고를 수 있는 감지 라벨 — 코드에 적어 두지 않고, 비전 클라이언트가 신고한 것을 씁니다.
+  // (`vision/detectors/`에 팀이 검출기를 추가하면 여기 후보에도 자동으로 나타납니다.)
+  const [visionLabels, setVisionLabels] = useState<string[]>([]);
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      void (async () => {
+        const res = await apiFetch<{
+          object_labels?: string[];
+          known_detectors?: { labels?: string[] }[];
+        }>("/api/vision/config");
+        if (!res.ok || !res.data) return;
+        const fromDetectors = (res.data.known_detectors ?? []).flatMap((d) => d.labels ?? []);
+        const merged = [...(res.data.object_labels ?? []), ...fromDetectors];
+        setVisionLabels([...new Set(merged.filter(Boolean))]);
+      })();
+    }, 0);
+    return () => clearTimeout(timer);
+  }, []);
+
   // 고르지 않았으면 첫 슬롯을 기본값으로 씁니다.
   // (이펙트로 state를 맞추면 렌더가 연쇄되므로 파생해서 계산합니다)
   const sensorId = pickedSensorId || sensors[0]?.slot_id || "";
@@ -295,10 +314,28 @@ export default function RuleEditor({ slots }: { slots: Slot[] }) {
               <input
                 type="text"
                 value={label}
-                placeholder="person, rock, bottle …"
+                placeholder="person, cup, bottle …"
                 onChange={(e) => setLabel(e.target.value)}
                 className="w-full rounded-md border border-slate-200 px-2.5 py-2 text-sm focus:border-sky-400 focus:outline-none"
               />
+              {visionLabels.length > 0 && (
+                <div className="mt-1.5 flex flex-wrap gap-1.5">
+                  {visionLabels.map((candidate) => (
+                    <button
+                      key={candidate}
+                      type="button"
+                      onClick={() => setLabel(candidate)}
+                      className={`rounded-full border px-2 py-0.5 text-xs ${
+                        label === candidate
+                          ? "border-sky-300 bg-sky-50 text-sky-800"
+                          : "border-slate-200 text-slate-500 hover:border-slate-300"
+                      }`}
+                    >
+                      {candidate}
+                    </button>
+                  ))}
+                </div>
+              )}
             </Field>
           )}
 

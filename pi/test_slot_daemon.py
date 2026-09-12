@@ -243,6 +243,36 @@ def main_test() -> int:
     })
     check("오타가 있는 줄만 빼고 나머지는 살린다", list(usable) == ["actuator_01"], str(list(usable)))
 
+    # 핀을 여러 개 쓰는 부품은 pins에 적습니다. pin에 목록·딕셔너리를 적는 실수가 흔합니다.
+    _, problems = validate_slots({
+        "actuator_01": {"driver": "level_out", "pin": {"low": 5, "mid": 6, "high": 13}},
+    })
+    check("pin에 여러 핀을 적으면 pins를 쓰라고 알려 줌 (죽지 않음)",
+          problems and "'pins'에 적으세요" in problems[0], str(problems))
+
+    _, problems = validate_slots({"actuator_01": {"driver": "level_out", "pins": [5, 6, 13]}})
+    check("pins에 목록을 적으면 통과", not problems, str(problems))
+
+    _, problems = validate_slots({
+        "actuator_01": {"driver": "rgb_out", "pins": {"r": 17, "g": 27, "b": 22}},
+    })
+    check("pins에 딕셔너리를 적으면 통과", not problems, str(problems))
+
+    _, problems = validate_slots({"actuator_01": {"driver": "digital_out", "pin": "열일곱"}})
+    check("핀 번호에 글자를 적으면 알려 줌",
+          problems and "숫자가 아닙니다" in problems[0], str(problems))
+
+    _, problems = validate_slots({"actuator_01": {"driver": "level_out", "pins": "5,6,13"}})
+    check("pins에 문자열을 적으면 알려 줌",
+          problems and "목록이나 딕셔너리" in problems[0], str(problems))
+
+    _, problems = validate_slots({
+        "actuator_01": {"driver": "level_out", "pins": [5, 6]},
+        "actuator_02": {"driver": "digital_out", "pin": 6},
+    })
+    check("pins와 pin이 같은 핀을 쓰면 알려 줌",
+          problems and "같이 쓰고" in problems[0], str(problems))
+
     # ------------------------------------------------------------------
     section("3. 부품 추가 — slot_map.py에 한 줄 추가")
     backend = FakeBackend()

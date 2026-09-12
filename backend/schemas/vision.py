@@ -13,9 +13,10 @@ class VisionEventRequest(BaseModel):
     label: Optional[str] = Field(
         default=None,
         description=(
-            "감지 대상 이름. 사물이면 COCO 클래스명('person', 'bottle'), "
-            "손동작이면 'rock' / 'paper' / 'scissors'. "
-            "생략하면 백엔드가 event_type에서 유추합니다(구버전 호환)."
+            "검출기가 내보내는 라벨. 사물 검출기는 COCO 클래스명('person', 'bottle')을 쓰고, "
+            "팀이 추가한 검출기는 그 검출기가 선언한 라벨을 씁니다(vision/detectors/ 참고). "
+            "백엔드는 라벨 값을 해석하지 않고 그대로 저장·중계합니다. "
+            "생략하면 event_type에서 유추합니다(구버전 호환)."
         ),
-        examples=["person", "rock"],
+        examples=["person"],
     )

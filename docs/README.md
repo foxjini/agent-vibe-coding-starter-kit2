@@ -74,5 +74,5 @@
 | `pi/daemon.py --check` | 라즈베리파이 | 배치표·백엔드 주소·핀 충돌을 GPIO 없이 점검 |
 | `pi/test_slot_daemon.py` | 라즈베리파이 | 드라이버·배치표·부품 추가/제거를 자가 점검 (GPIO·백엔드 불필요) |
 | `frontend/scenarios/wakeupEngine.test.ts` | PC | 기상 미션 판정 규칙 자가 점검 (`node --experimental-strip-types`) |
-| `vision/test_vision_config.py` | PC | 감지 대상이 설정에서 오는지 자가 점검 (웹캠·백엔드 불필요) |
+| `vision/test_vision_config.py` | PC | 감지 대상이 설정에서 오는지 · 검출기 플러그인 계약 자가 점검 (웹캠·백엔드 불필요) |
 | `pi/test_team_examples.py` | PC · 라즈베리파이 | 4팀 배치표 예시가 바로 쓸 수 있는 상태인지 (GPIO·백엔드 불필요) |

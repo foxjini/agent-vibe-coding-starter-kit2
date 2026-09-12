@@ -1,14 +1,18 @@
 """
-가위바위보 손동작 인식 모듈 (MediaPipe Hands)
+가위바위보 손동작 인식 모듈 (MediaPipe Hands) — **wakeup 팀 고유 코드**
 =============================================================================
 웹캠 프레임에서 손을 찾아 '가위/바위/보' 중 무엇인지 판별합니다.
+
+`detectors/hands_rps.py`가 이 모듈을 씁니다 (이름이 밑줄로 시작하므로 로더가 검출기로 취급하지 않습니다 — 보조 모듈은 이렇게 이름 짓습니다). 공통 계층(`main.py`·`camera.py`·
+`detectors/base.py`·`detectors/objects.py`)은 이 파일을 전혀 모릅니다 —
+다른 팀은 이 두 파일을 지우고 자기 검출기를 넣으면 됩니다.
 
 MediaPipe는 버전에 따라 API가 두 가지입니다. 이 모듈은 둘 다 지원합니다.
   1) Tasks API (mediapipe 0.10.20 이후 / 1.x) — `hand_landmarker.task` 모델 파일 필요
   2) 레거시 solutions API (mediapipe 0.10 초기 버전) — 모델 내장
 
 모델 파일(`vision/hand_landmarker.task`)이 저장소에 함께 들어 있습니다.
-혹시 없다면 아래 주소에서 받아 vision 폴더에 두면 됩니다:
+혹시 없다면 아래 주소에서 받아 vision 폴더(또는 이 폴더)에 두면 됩니다:
   https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task
 
 MediaPipe가 아예 없거나 초기화에 실패하면 `available`이 False가 되고,
@@ -22,7 +26,7 @@ import logging
 import os
 from typing import Any, Dict, List, Optional, Tuple
 
-logger = logging.getLogger("vision.gesture")
+logger = logging.getLogger("vision.detectors.hands_rps")
 
 # MediaPipe 손 랜드마크 번호 (두 API 공통)
 _FINGER_TIPS = [8, 12, 16, 20]      # 검지, 중지, 약지, 새끼 끝
@@ -86,7 +90,16 @@ class RockPaperScissorsDetector:
         self._hands = None         # 레거시 API
         self._mp = None
 
-        model_path = model_path or os.path.join(os.path.dirname(__file__), MODEL_FILENAME)
+        # 모델 파일은 vision/ 에 두는 것이 기본입니다. 이 폴더에 둔 경우도 찾아 줍니다.
+        if not model_path:
+            here = os.path.dirname(os.path.abspath(__file__))
+            for candidate in (os.path.join(here, MODEL_FILENAME),
+                              os.path.join(os.path.dirname(here), MODEL_FILENAME)):
+                if os.path.exists(candidate):
+                    model_path = candidate
+                    break
+            else:
+                model_path = os.path.join(os.path.dirname(here), MODEL_FILENAME)
 
         try:
             import mediapipe as mp

@@ -3,21 +3,37 @@ import logging
 from datetime import datetime, timezone
 from typing import Any, Dict, List
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 
 from auth import verify_device_api_key, verify_user_auth
 from db.database import get_recent_vision_events, log_vision_event
 from schemas.common import DataResponse
-from schemas.slot import VisionConfigUpdate
+from schemas.slot import DetectorReportRequest, VisionConfigUpdate
 from schemas.vision import VisionEventRequest
 from services.rule_engine import rule_engine
-from services.vision_config import get_vision_config, save_vision_config
+from services.vision_config import get_vision_config, save_detectors, save_vision_config
 from websocket_manager import ws_manager
 
 
 logger = logging.getLogger("backend.routers.vision")
 
 router = APIRouter(tags=["Vision"])
+
+
+def _db_required(what: str) -> HTTPException:
+    """설정은 DB에만 저장되므로, 꺼져 있으면 저장된 척하지 않고 503으로 알려 준다."""
+    return HTTPException(
+        status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+        detail={
+            "error": {
+                "code": "DB_UNAVAILABLE",
+                "message": (
+                    f"데이터베이스에 연결되지 않아 {what}을 저장할 수 없습니다. "
+                    "MySQL/MariaDB를 켜고 다시 시도하세요 (상태는 GET /health)."
+                ),
+            }
+        },
+    )
 
 
 @router.post(
@@ -33,7 +49,7 @@ async def receive_vision_event(
     Windows PC 웹캠 영상인식 클라이언트(YOLO / MediaPipe)가 감지한 이벤트를 수신합니다.
     이벤트를 DB에 저장하고 WebSocket으로 대시보드에 실시간 전달한 뒤, 자동화 규칙에 넘깁니다.
 
-    **무엇을 감지했는지에 대한 판단은 하지 않습니다.** 가위바위보 승패 같은 시나리오 판정은
+    **무엇을 감지했는지에 대한 판단은 하지 않습니다.** 승패·성공 여부 같은 시나리오 판정은
     프론트엔드가 이 브로드캐스트를 받아서 처리합니다 (docs/부록F 9-2절).
     """
     # 1. DB 기록 (DB가 없으면 inserted_id가 None이고, 시스템은 계속 동작한다)
@@ -141,5 +157,40 @@ async def update_vision_config(payload: VisionConfigUpdate, user=Depends(verify_
     """
     fields = payload.model_dump(exclude_unset=True)
     config = await asyncio.to_thread(save_vision_config, fields)
+    if not config.get("persisted"):
+        raise _db_required("감지 설정")
     await ws_manager.broadcast({"type": "vision_config", **config})
     return {"data": config}
+
+
+@router.post(
+    "/api/v1/vision/detectors",
+    response_model=DataResponse[Dict[str, Any]],
+    summary="[비전] 내가 가진 검출기 신고 (부팅 시 1회)",
+)
+async def report_detectors(
+    payload: DetectorReportRequest,
+    device_key=Depends(verify_device_api_key),
+):
+    """
+    비전 클라이언트가 `detectors/` 폴더에서 찾은 검출기와 **그 검출기가 내보내는 라벨**을
+    알려 줍니다.
+
+    이 신고 덕분에 백엔드는 팀 고유 라벨을 코드에 하나도 두지 않습니다.
+    팀이 `detectors/`에 파일 하나를 추가하면 백엔드도 대시보드도 자동으로 알게 됩니다.
+    """
+    result = await asyncio.to_thread(
+        save_detectors, [d.model_dump() for d in payload.detectors]
+    )
+    saved = result["detectors"]
+    persisted = result["persisted"]
+    if persisted:
+        await ws_manager.broadcast({"type": "vision_detectors", "detectors": saved})
+    else:
+        # 감지는 계속 돌아야 하므로 에러로 끊지 않고, 저장 여부만 솔직하게 알려 줍니다
+        logger.warning("검출기 신고를 받았지만 DB가 꺼져 있어 저장하지 못했습니다.")
+    return {"data": {
+        "registered": [d["name"] for d in saved],
+        "detectors": saved,
+        "persisted": persisted,
+    }}

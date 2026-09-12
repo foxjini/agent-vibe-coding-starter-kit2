@@ -79,7 +79,7 @@ export interface ScenarioApi {
 
   /** 센서 보고 구독 */
   onSensor: (slotIds: string | string[], handler: SensorHandler) => Unsubscribe;
-  /** 비전 감지 구독 — onVision(["rock","paper"], e => ...) */
+  /** 비전 감지 구독 — onVision(["person","cup"], e => ...) · null이면 전부 */
   onVision: (labels: string | string[] | null, handler: VisionHandler) => Unsubscribe;
   /** 슬롯 상태 변화 구독 (액추에이터 반영·센서 상태 모두) */
   onSlotChange: (slotIds: string | string[], handler: SlotHandler) => Unsubscribe;

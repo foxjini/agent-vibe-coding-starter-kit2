@@ -402,17 +402,63 @@ def main_test() -> int:
               isinstance(config.get("min_confidence"), (int, float))
               and isinstance(config.get("cooldown_seconds"), (int, float)), str(config)[:160])
 
+        # 검출기 신고 — 백엔드가 '사물이 아닌 라벨'을 코드가 아니라 신고로 배우는지 봅니다.
+        # 일부러 아무 팀도 쓰지 않는 이름을 씁니다: 어딘가에 하드코딩돼 있다면 통과할 수 없습니다.
+        DEMO_DETECTOR = "conformance_demo"
+        DEMO_LABEL = "qqz_demo_pose"
+        restore_detectors = config.get("known_detectors") or []
+
+        res = client.post("/api/v1/vision/detectors", headers=HEADERS, json={
+            "detectors": [
+                {"name": "objects", "labels": [], "description": "사물 탐지"},
+                {"name": DEMO_DETECTOR, "labels": [DEMO_LABEL, DEMO_LABEL.upper()],
+                 "description": "적합성 테스트용 가짜 검출기"},
+            ],
+        })
+        check("POST /api/v1/vision/detectors 200", res.status_code == 200, res.text[:160])
+        reported = res.json().get("data", {})
+        check("신고한 검출기 이름이 그대로 등록됨",
+              DEMO_DETECTOR in (reported.get("registered") or []), str(reported)[:160])
+        check("DB 연결 여부를 솔직하게 알려 줌",
+              reported.get("persisted") is db_on, str(reported.get("persisted")))
+
+        if db_on:
+            learned = client.get("/api/v1/vision/config",
+                                 headers=HEADERS).json().get("data", {})
+            known = [d.get("name") for d in (learned.get("known_detectors") or [])]
+            check("신고한 검출기를 설정 응답에서 알려 줌 (대시보드가 목록을 채움)",
+                  DEMO_DETECTOR in known, str(known))
+
         res = client.put("/api/vision/config", json={
-            "object_labels": ["Dog", "cup", "cup", "rock"], "min_confidence": 0.8,
+            "object_labels": ["Dog", "cup", "cup", DEMO_LABEL], "min_confidence": 0.8,
         })
         if db_on:
             check("PUT /api/vision/config 200", res.status_code == 200, res.text[:160])
             saved = res.json().get("data", {})
             check("대상이 소문자·중복 제거되어 저장됨",
                   saved.get("object_labels") == ["dog", "cup"], str(saved.get("object_labels")))
-            check("손동작 라벨은 사물 대상에서 제외됨 (MediaPipe가 판정)",
-                  "rock" not in (saved.get("object_labels") or []))
+            check("처음 보는 팀 라벨도 신고만 받으면 사물 대상에서 제외됨 (백엔드 수정 0줄)",
+                  DEMO_LABEL not in (saved.get("object_labels") or []),
+                  str(saved.get("object_labels")))
             check("신뢰도 기준이 저장됨", saved.get("min_confidence") == 0.8)
+
+            # 어떤 검출기를 돌릴지도 설정으로 고릅니다 (코드 수정 없이 켜고 끄기)
+            picked = client.put("/api/vision/config", json={
+                "detectors": ["objects"],
+            }).json().get("data", {})
+            check("돌릴 검출기를 설정으로 고를 수 있음",
+                  picked.get("detectors") == ["objects"], str(picked.get("detectors")))
+            check("사물 탐지만 고르면 구버전 호환 플래그도 꺼짐",
+                  picked.get("gesture_enabled") is False, str(picked.get("gesture_enabled")))
+            picked = client.put("/api/vision/config", json={
+                "detectors": ["objects", DEMO_DETECTOR],
+            }).json().get("data", {})
+            check("팀 검출기를 켜면 호환 플래그도 켜짐",
+                  picked.get("gesture_enabled") is True, str(picked.get("gesture_enabled")))
+            check("신고되지 않은 검출기 이름은 걸러짐",
+                  client.put("/api/vision/config", json={
+                      "detectors": ["objects", "없는검출기"],
+                  }).json().get("data", {}).get("detectors") == ["objects"])
 
             # 규칙에 쓴 라벨은 설정에 없어도 자동으로 포함되어야 한다
             rule_res = client.post("/api/rules", json={
@@ -430,14 +476,18 @@ def main_test() -> int:
             if rule_id:
                 client.delete(f"/api/rules/{rule_id}")
 
-            # 원상 복구
+            # 원상 복구 (테스트가 남긴 가짜 검출기·설정을 치웁니다)
             client.put("/api/vision/config", json={
                 "object_labels": ["person", "bottle", "cup", "book", "cell phone"],
-                "min_confidence": 0.6,
+                "min_confidence": 0.6, "detectors": [],
             })
+            client.post("/api/v1/vision/detectors", headers=HEADERS,
+                        json={"detectors": restore_detectors})
         else:
             check("DB 미연결 시에도 기본 감지 대상을 내려줌",
                   bool(config.get("object_labels")), str(config)[:120])
+            check("DB 미연결 시 설정 저장은 503으로 거절됨 (저장된 척하지 않음)",
+                  res.status_code == 503, f"{res.status_code} {res.text[:120]}")
 
         # ---------------------------------------------------------------
         section("8. 코드 격리 (팀 고유 이름이 고정층에 없어야 함)")
@@ -449,11 +499,16 @@ def main_test() -> int:
             # wakeup 1차 완성본 이름 (P3.5에서 제거됨)
             "buzzer_1", "touch_pad_1", "camera_1",
         ]
+        # 팀 게임·시나리오 라벨도 고정층에 있으면 안 됩니다.
+        # (P4까지 backend/services/vision_config.py에 GESTURE_LABELS로 박혀 있었고,
+        #  금지 목록에 없어서 검사가 놓쳤습니다 — P6에서 검출기 신고로 대체했습니다.)
+        scenario_labels = ["rock", "paper", "scissors", "banzai", "가위바위보"]
         # 마이그레이션 대응표는 옛 이름을 알아야 하므로 여기서만 예외입니다.
         MIGRATION_FILE = "db/database.py"
 
-        targets = [p for p in (root / "backend").rglob("*.py")] + \
-                  [p for p in (root / "vision").rglob("*.py")]
+        backend_files = [p for p in (root / "backend").rglob("*.py")]
+        vision_files = [p for p in (root / "vision").rglob("*.py")]
+        targets = backend_files + vision_files
         # 자가 점검 스크립트는 "이 이름이 없어야 한다"를 검사하느라 그 이름을 적고 있습니다.
         targets = [p for p in targets
                    if not (p.name.startswith("test_") or p.name.endswith("_test.py"))]
@@ -468,6 +523,45 @@ def main_test() -> int:
                     continue    # 1차 완성본 이관용 대응표
                 leaked.append(f"{path.relative_to(root)}:{name}")
         check("팀 고유 디바이스 이름이 backend/vision에 없음", not leaked, str(leaked[:5]))
+
+        # 백엔드는 시나리오 라벨을 몰라야 합니다. vision은 검출기 파일 안에서만 씁니다.
+        scenario_leaked = []
+        for path in backend_files:
+            if path.name.startswith("test_") or path.name.endswith("_test.py"):
+                continue
+            text = path.read_text(encoding="utf-8", errors="ignore")
+            for name in scenario_labels:
+                if re.search(rf'["\']{re.escape(name)}["\']', text):
+                    scenario_leaked.append(f"{path.relative_to(root)}:{name}")
+        check("백엔드가 팀 게임 라벨(rock/paper/scissors 등)을 모름", not scenario_leaked,
+              str(scenario_leaked[:5]))
+
+        # 시나리오 검출기는 detectors/ 안에만 있어야 합니다.
+        # vision 공통층 = vision/*.py + detectors/{base,__init__,objects}.py
+        vision_common = sorted((root / "vision").glob("*.py"))
+        vision_common += [(root / "vision" / "detectors" / f)
+                          for f in ("base.py", "__init__.py", "objects.py")]
+        common_leaked = []
+        for path in vision_common:
+            if not path.exists() or path.name.startswith("test_") \
+                    or path.name.endswith("_test.py"):
+                continue
+            text = path.read_text(encoding="utf-8", errors="ignore")
+            for name in scenario_labels:
+                # objects.py의 COCO 클래스 'scissors'(사물 가위)는 게임 라벨이 아닙니다
+                if path.name == "objects.py" and name == "scissors":
+                    continue
+                quoted = re.search(rf'["\']{re.escape(name)}["\']', text) is not None
+                prose = name == "가위바위보" and name in text   # 한국어 이름은 주석에도 없어야
+                if quoted or prose:
+                    common_leaked.append(f"{path.relative_to(root)}:{name}")
+        check("vision 공통층이 특정 감지 방법을 모름", not common_leaked,
+              str(common_leaked[:5]))
+        check("검출기 플러그인 계층이 있음",
+              (root / "vision" / "detectors" / "base.py").exists())
+        check("팀 고유 검출기는 detectors/ 안에만 있음",
+              not list((root / "vision").glob("gesture*.py")),
+              "vision/ 최상위에 팀 감지 모듈이 남아 있습니다")
 
         # 마이그레이션 대응표는 살아 있어야 합니다 (1차 완성본을 올린 팀이 그대로 올라오도록)
         migration_text = (root / "backend" / MIGRATION_FILE).read_text(encoding="utf-8")

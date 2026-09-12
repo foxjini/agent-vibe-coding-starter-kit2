@@ -92,6 +92,22 @@ class TimerRequest(BaseModel):
     label: Optional[str] = Field(None, max_length=100, description="로그·알림에 표시할 이름")
 
 
+class DetectorReport(BaseModel):
+    """비전 클라이언트가 신고하는 검출기 하나 (부록F 10장)."""
+
+    name: str = Field(..., max_length=40, description="검출기 이름 (objects, hands_rps …)")
+    labels: List[str] = Field(default_factory=list, description="이 검출기가 내보내는 라벨")
+    description: Optional[str] = Field(default=None, max_length=200)
+    available: bool = Field(default=True, description="지금 쓸 수 있는 상태인지")
+    reason: Optional[str] = Field(default=None, max_length=200, description="못 쓰면 그 이유")
+
+
+class DetectorReportRequest(BaseModel):
+    """POST /api/v1/vision/detectors — 부팅 시 1회 신고."""
+
+    detectors: List[DetectorReport] = Field(default_factory=list)
+
+
 class VisionConfigUpdate(BaseModel):
     """PUT /api/v1/vision/config — 감지 대상을 코드가 아니라 설정으로 바꿉니다 (부록F 10장)."""
 
@@ -99,8 +115,13 @@ class VisionConfigUpdate(BaseModel):
         default=None,
         description="YOLO로 찾을 대상 (COCO 클래스명). 예: [\"person\", \"cup\"]",
     )
+    detectors: Optional[List[str]] = Field(
+        default=None,
+        description='돌릴 검출기 이름 목록. 비우면 클라이언트가 가진 것을 모두 씁니다.',
+    )
     gesture_enabled: Optional[bool] = Field(
-        default=None, description="MediaPipe 손동작(가위바위보) 판정 사용 여부"
+        default=None,
+        description="구버전 호환 — 사물 탐지가 아닌 검출기를 쓸지 (detectors로 대체됨)",
     )
     min_confidence: Optional[float] = Field(
         default=None, ge=0.0, le=1.0, description="이 값보다 낮으면 보고하지 않음"
