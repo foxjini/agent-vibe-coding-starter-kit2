@@ -32,7 +32,7 @@ Start-Sleep -Seconds 2
 
 # 3. 하드웨어 Mock-up 실행 창
 Write-Host ">> [3/4] 하드웨어(라즈베리파이 5) Mock-up 창을 엽니다..." -ForegroundColor Green
-Start-Process powershell -ArgumentList "-NoExit", "-Command", "cd '$Root\pi'; Write-Host '--- [3] 하드웨어 Mock-up 시뮬레이터 실행 중 ---' -ForegroundColor Green; python main.py"
+Start-Process powershell -ArgumentList "-NoExit", "-Command", "cd '$Root\pi'; Write-Host '--- [3] 하드웨어 데몬 실행 중 (slot_map.py 배치표) ---' -ForegroundColor Green; python daemon.py"
 
 Start-Sleep -Seconds 1
 

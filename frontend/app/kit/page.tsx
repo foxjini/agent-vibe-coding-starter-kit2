@@ -17,6 +17,7 @@ import React, { useState } from "react";
 import HardwareSetup from "@/components/kit/HardwareSetup";
 import RuleEditor from "@/components/kit/RuleEditor";
 import SlotGrid from "@/components/kit/SlotGrid";
+import VisionLogCard from "@/components/kit/VisionLogCard";
 import { useScenario } from "@/lib/scenario";
 
 type Tab = "dashboard" | "hardware" | "rules";
@@ -110,7 +111,12 @@ export default function KitDashboardPage() {
           ))}
         </nav>
 
-        {tab === "dashboard" && <SlotGrid slots={slots} onControl={setActuator} />}
+        {tab === "dashboard" && (
+          <div className="space-y-8">
+            <SlotGrid slots={slots} onControl={setActuator} />
+            <VisionLogCard />
+          </div>
+        )}
         {tab === "hardware" && <HardwareSetup onChanged={() => void refresh()} />}
         {tab === "rules" && <RuleEditor slots={slots} />}
       </div>

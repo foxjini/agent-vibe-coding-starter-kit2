@@ -2,11 +2,11 @@
 액추에이터 제어 및 상태 브로드캐스트 단일 창구.
 
 부록A의 desired/current 계약을 한 곳에서 지키기 위한 모듈입니다.
-- 백엔드(대시보드/알람/트리거)가 내리는 명령은 항상 desired_state로만 기록한다.
+- 백엔드(대시보드 요청·규칙 엔진)가 내리는 명령은 항상 desired_state로만 기록한다.
 - current_state는 하드웨어가 POST /api/v1/devices/{id}/state로 보고할 때만 확정된다.
 - 대시보드에는 두 값을 모두 보내 '명령됨 / 실제 반영됨'을 구분해 보여줄 수 있게 한다.
 
-알람 라우터·트리거 서비스가 DB를 직접 건드리지 않고 이 모듈을 통해서만 제어하도록 하여
+라우터와 규칙 엔진이 DB를 직접 건드리지 않고 이 모듈을 통해서만 제어하도록 하여
 provider 캐시와 DB가 어긋나는 문제를 막습니다.
 """
 import logging
@@ -17,8 +17,6 @@ from iot.provider_factory import get_device_provider
 from websocket_manager import ws_manager
 
 logger = logging.getLogger("backend.services.device_control")
-
-BUZZER_ID = "buzzer_1"
 
 
 def _now_iso() -> str:
@@ -82,14 +80,3 @@ async def get_device_snapshot(device_id: str) -> Optional[Dict[str, Any]]:
     """현재 디바이스 상태를 Provider(DB 우선, 실패 시 메모리 캐시)에서 조회합니다."""
     provider = get_device_provider()
     return await provider.get_device_status(device_id)
-
-
-async def is_buzzer_ringing() -> bool:
-    """부저가 실제로 울리는 중인지(또는 울리도록 명령된 상태인지) 판단합니다."""
-    dev = await get_device_snapshot(BUZZER_ID)
-    if not dev:
-        return False
-    return (
-        dev.get("current_state") in ("ringing", "on")
-        or dev.get("desired_state") in ("ringing", "on")
-    )

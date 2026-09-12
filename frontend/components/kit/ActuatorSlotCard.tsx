@@ -16,7 +16,7 @@
 import { Loader2 } from "lucide-react";
 import React, { useState } from "react";
 
-import { getStatusBadgeClass } from "@/components/dashboard/statusColor";
+import { getStatusBadgeClass } from "@/components/kit/statusColor";
 import SlotIcon from "@/components/kit/SlotIcon";
 import {
   ControlType,

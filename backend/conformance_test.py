@@ -352,35 +352,77 @@ def main_test() -> int:
                 client.delete(f"/api/rules/{rid}")
 
         # ---------------------------------------------------------------
+        section("7-2. 1차 완성본 마이그레이션 (레거시 디바이스 → 슬롯)")
+        if db_on:
+            import pymysql  # noqa: E402
+
+            from db.database import _get_connection_params, init_db  # noqa: E402
+
+            conn = pymysql.connect(**_get_connection_params(include_db=True))
+            try:
+                with conn.cursor() as cursor:
+                    # 1차 완성본만 올린 팀의 DB 상태를 흉내낸다
+                    cursor.execute(
+                        "INSERT INTO devices (id, name, kind, role, slot_index, enabled) "
+                        "VALUES ('buzzer_1','알람 출력 장치(피에조 부저)','buzzer','actuator',0,TRUE) "
+                        "ON DUPLICATE KEY UPDATE enabled = TRUE"
+                    )
+                    cursor.execute(
+                        "UPDATE devices SET enabled=FALSE, label=NULL, kind='unassigned' "
+                        "WHERE id='actuator_01'"
+                    )
+                conn.commit()
+            finally:
+                conn.close()
+
+            init_db()   # 서버가 켜질 때 하는 일과 같다
+            slots = client.get("/api/slots").json().get("data", [])
+            migrated = next((s for s in slots if s.get("slot_id") == "actuator_01"), {})
+            check("레거시 부저의 이름이 슬롯으로 옮겨짐",
+                  migrated.get("label") == "알람 출력 장치(피에조 부저)", str(migrated)[:160])
+            check("쓰고 있던 부품이라 슬롯이 켜진 채로 넘어옴", bool(migrated.get("enabled")))
+
+            devices = client.get("/api/devices").json().get("data", [])
+            check("레거시 디바이스는 대시보드에서 사라짐",
+                  all(d.get("id") != "buzzer_1" for d in devices),
+                  str([d.get("id") for d in devices]))
+            check("이력을 잃지 않도록 행 자체는 남아 있음",
+                  any(s.get("slot_id") == "actuator_01" for s in slots))
+        else:
+            print("       · DB 미연결이라 마이그레이션 검사는 건너뜁니다.")
+
+        # ---------------------------------------------------------------
         section("8. 코드 격리 (팀 고유 이름이 고정층에 없어야 함)")
         root = Path(CURRENT_DIR).parent
         team_names = [
             "servo_door", "seat_led", "neopixel_seat", "relay_light",
             "rgb_led", "vibration_motor", "relay_power", "touch_display",
             "led_congestion", "motor_conveyor", "sensor_seat_pressure",
+            # wakeup 1차 완성본 이름 (P3.5에서 제거됨)
+            "buzzer_1", "touch_pad_1", "camera_1",
         ]
+        # 마이그레이션 대응표는 옛 이름을 알아야 하므로 여기서만 예외입니다.
+        MIGRATION_FILE = "db/database.py"
+
         targets = [p for p in (root / "backend").rglob("*.py")] + \
                   [p for p in (root / "vision").rglob("*.py")]
-        targets = [p for p in targets if p.name not in
-                   ("conformance_test.py", "smoke_test.py", "test_mission.py")]
+        targets = [p for p in targets if p.name not in ("conformance_test.py", "smoke_test.py")]
         leaked = []
         for path in targets:
+            relative = str(path.relative_to(root / "backend")) if "backend" in path.parts else ""
             text = path.read_text(encoding="utf-8", errors="ignore")
             for name in team_names:
-                if re.search(rf"\b{re.escape(name)}", text):
-                    leaked.append(f"{path.relative_to(root)}:{name}")
-        check("다른 팀 디바이스 이름이 backend/vision에 없음", not leaked, str(leaked[:5]))
+                if not re.search(rf"\b{re.escape(name)}", text):
+                    continue
+                if relative == MIGRATION_FILE and name in ("buzzer_1", "touch_pad_1", "camera_1"):
+                    continue    # 1차 완성본 이관용 대응표
+                leaked.append(f"{path.relative_to(root)}:{name}")
+        check("팀 고유 디바이스 이름이 backend/vision에 없음", not leaked, str(leaked[:5]))
 
-        legacy = []
-        for path in targets:
-            text = path.read_text(encoding="utf-8", errors="ignore")
-            for name in ("buzzer_1", "touch_pad_1", "camera_1"):
-                if name in text:
-                    legacy.append(f"{path.relative_to(root)}:{name}")
-        if legacy:
-            print(f"       · (P3.5 예정) wakeup 레거시 이름이 아직 {len(legacy)}곳에 남아 있습니다.")
-            for item in legacy[:6]:
-                print(f"         - {item}")
+        # 마이그레이션 대응표는 살아 있어야 합니다 (1차 완성본을 올린 팀이 그대로 올라오도록)
+        migration_text = (root / "backend" / MIGRATION_FILE).read_text(encoding="utf-8")
+        check("1차 완성본 이관 대응표는 남아 있음",
+              "LEGACY_DEVICE_MIGRATION" in migration_text)
 
         # 정리
         register(client, [], exclusive=True)

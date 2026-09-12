@@ -1,7 +1,7 @@
 """
 백엔드 자가 점검 스크립트 (smoke_test.py)
 =============================================================================
-서버를 따로 띄우지 않고 FastAPI 앱을 직접 호출해서, 시스템의 핵심 경로가
+서버를 따로 띄우지 않고 FastAPI 앱을 직접 호출해서, 백엔드의 핵심 경로가
 살아 있는지 1분 안에 확인합니다. DB가 꺼져 있어도 실행되며, 이 경우
 'DB 없이도 동작하는지'를 함께 검증합니다.
 
@@ -10,25 +10,23 @@
 
 무엇을 확인하나요?
  1) 서버 기동 및 /health (DB 연결 상태 포함)
- 2) 디바이스 목록 조회 / 액추에이터 제어 (대시보드 경로)
+ 2) 슬롯 조회 / 액추에이터 제어 (대시보드 경로)
  3) 라즈베리파이 폴링·상태 보고 (하드웨어 경로, X-Device-Api-Key)
- 4) 알람 발동 → 기상 미션 개시 → 가위바위보 라운드 판정 → 미션 성공
+ 4) 비전 이벤트 수신 (시나리오 판정은 프론트엔드가 합니다)
  5) 에러 응답이 api-rules.md 규격({"error": {...}})을 지키는지
+ 6) 시나리오 전용 코드가 백엔드에 남아 있지 않은지
+
+키트가 약속한 "부품을 바꿔도 코드를 고치지 않는다"는 conformance_test.py가 검사합니다.
 """
 import os
 import sys
-import time
-from typing import Any, Dict, Optional
+from typing import Any, Dict
 
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
 if CURRENT_DIR not in sys.path:
     sys.path.insert(0, CURRENT_DIR)
 
-# 미션 판정을 빠르게 확인하기 위해 유예/디바운스를 줄인다 (실제 운영값은 .env로 관리)
-os.environ.setdefault("MISSION_ROUND_GRACE_SECONDS", "0")
-os.environ.setdefault("MISSION_EVENT_DEBOUNCE_SECONDS", "0")
-os.environ.setdefault("WAKEUP_POPUP_DELAY_SECONDS", "2")
-os.environ.setdefault("WAKEUP_CONFIRM_TIMEOUT_SECONDS", "2")
+os.environ.setdefault("RULE_TICK_SECONDS", "3600")  # 점검 중 스케줄 루프가 끼어들지 않도록
 
 from fastapi.testclient import TestClient  # noqa: E402
 
@@ -36,6 +34,9 @@ import main  # noqa: E402
 
 DEVICE_KEY = os.getenv("DEVICE_API_KEY", "")
 DEVICE_HEADERS = {"X-Device-Api-Key": DEVICE_KEY} if DEVICE_KEY else {}
+
+BUZZER = "actuator_01"
+BUTTON = "sensor_01"
 
 _passed = 0
 _failed = 0
@@ -57,32 +58,25 @@ def section(title: str) -> None:
     print("-" * 66)
 
 
-def mission_status(client: TestClient) -> Dict[str, Any]:
-    res = client.get("/api/alarm/status")
-    return res.json().get("data", {}).get("mission", {})
-
-
-def play_round(client: TestClient, hand: Optional[str] = None) -> Dict[str, Any]:
-    """현재 라운드에 손동작을 하나 낸다. hand가 None이면 '이기는 손'을 낸다."""
-    status = mission_status(client)
-    user_hand = hand or status.get("expected_hand")
-    client.post(
-        "/api/v1/vision/events",
+def register_demo_slots(client: TestClient) -> Dict[str, Any]:
+    """점검용 하드웨어 구성을 등록합니다 (pi가 부팅 때 하는 일과 같습니다)."""
+    return client.post(
+        "/api/v1/devices/register",
         headers=DEVICE_HEADERS,
         json={
-            "event_type": "gesture_detected",
-            "detected": True,
-            "count": 1,
-            "confidence": 0.95,
-            "label": user_hand,
+            "slots": [
+                {"slot_id": BUZZER, "label": "알람 부저", "kind": "buzzer",
+                 "control_type": "tonal"},
+                {"slot_id": BUTTON, "label": "기상 확인 버튼", "kind": "button"},
+            ],
+            "exclusive": True,
         },
-    )
-    return mission_status(client)
+    ).json().get("data", {})
 
 
 def main_test() -> int:
     print("=" * 66)
-    print(" 스마트 기상 시스템 - 백엔드 자가 점검 (smoke test)")
+    print(" IoT 플랫폼 키트 백엔드 - 자가 점검 (smoke test)")
     print("=" * 66)
 
     with TestClient(main.app) as client:
@@ -96,159 +90,143 @@ def main_test() -> int:
         print(f"       · 디바이스 모드: {health.get('device_mode')}")
         check("헬스체크에 DB 상태 포함", "database" in health)
 
+        register_demo_slots(client)
+
         # ---------------------------------------------------------------
-        section("2. 대시보드 경로 (디바이스 조회 · 제어)")
+        section("2. 대시보드 경로 (슬롯 조회 · 제어)")
         res = client.get("/api/devices")
         devices = res.json().get("data", [])
         check("GET /api/devices 200", res.status_code == 200, res.text[:120])
-        check("디바이스 3종이 조회됨", len(devices) >= 3, f"count={len(devices)}")
+        check("등록한 슬롯 2개가 조회됨", len(devices) == 2, f"count={len(devices)}")
+        check("쓰지 않는 슬롯은 목록에 없음",
+              all(d.get("id") in (BUZZER, BUTTON) for d in devices),
+              str([d.get("id") for d in devices]))
+
+        # 제어 전 current_state를 기억해 둔다 — 제어는 이 값을 건드리면 안 된다 (부록A 계약)
+        before = client.get(f"/api/devices/{BUZZER}").json().get("data", {}).get("current_state")
 
         res = client.post(
-            "/api/devices/buzzer_1/control",
-            json={"desired_state": "ringing", "value": {"volume": 70, "frequency": 1000}},
+            f"/api/devices/{BUZZER}/control",
+            json={"desired_state": "on", "value": {"volume": 70, "frequency": 1000}},
         )
-        check("POST 부저 제어 200", res.status_code == 200, res.text[:160])
+        check("POST 액추에이터 제어 200", res.status_code == 200, res.text[:160])
         data = res.json().get("data", {})
-        check("desired_state가 ringing으로 반영", data.get("desired_state") == "ringing")
+        check("desired_state가 on으로 반영", data.get("desired_state") == "on")
 
-        res = client.get("/api/devices/buzzer_1")
+        res = client.get(f"/api/devices/{BUZZER}")
         detail = res.json().get("data", {})
         check(
             "desired_value가 객체(JSON)로 반환 — 문자열이 아님",
             isinstance(detail.get("desired_value"), dict),
             f"type={type(detail.get('desired_value')).__name__}",
         )
+        # 부록A 계약: 백엔드는 desired_*만 쓰고, current_*는 하드웨어 보고로만 확정한다.
+        # 단 Mock 모드에서는 시뮬레이터 자신이 '하드웨어'이므로 즉시 반영되는 것이 정상이다.
+        mock_mode = str(health.get("device_mode", "")).lower() == "mock"
+        if mock_mode:
+            check("Mock 모드에서는 가상 하드웨어가 즉시 반영 보고",
+                  detail.get("current_state") == "on", str(detail.get("current_state")))
+        else:
+            check("제어 명령이 current_state를 건드리지 않음 (하드웨어 보고만 확정)",
+                  detail.get("current_state") == before,
+                  f"{before!r} → {detail.get('current_state')!r}")
+        check("desired와 current가 각각 따로 전달됨",
+              "desired_state" in detail and "current_state" in detail, str(sorted(detail))[:160])
 
         # ---------------------------------------------------------------
         section("3. 하드웨어 경로 (라즈베리파이 폴링 · 상태 보고)")
-        res = client.get("/api/v1/devices/buzzer_1/desired-state", headers=DEVICE_HEADERS)
-        check("GET desired-state 200 (DB 없어도 성공해야 함)", res.status_code == 200, res.text[:160])
-        check(
-            "폴링 응답의 desired_state가 ringing",
-            res.json().get("data", {}).get("desired_state") == "ringing",
-        )
+        res = client.get("/api/v1/devices/desired-states", headers=DEVICE_HEADERS)
+        check("GET 배치 폴링 200 (DB 없어도 성공해야 함)", res.status_code == 200, res.text[:160])
+        polled = res.json().get("data", {}).get("slots", {})
+        check("폴링 응답의 desired_state가 on",
+              polled.get(BUZZER, {}).get("desired_state") == "on", str(polled)[:160])
 
         res = client.post(
-            "/api/v1/devices/buzzer_1/state",
+            "/api/v1/devices/states",
             headers=DEVICE_HEADERS,
-            json={"state": "ringing", "value": {"volume": 70}},
+            json={"states": [
+                {"slot_id": BUZZER, "state": "on", "value": {"volume": 70}},
+                {"slot_id": BUTTON, "value": {"pressed": True}},
+            ]},
         )
-        check("POST 상태 보고 200", res.status_code == 200, res.text[:160])
-        res = client.get("/api/devices/buzzer_1")
-        check(
-            "보고 후 current_state가 ringing으로 확정",
-            res.json().get("data", {}).get("current_state") == "ringing",
-        )
+        check("POST 배치 보고 200", res.status_code == 200, res.text[:160])
+        check("2건 모두 수락됨", res.json().get("data", {}).get("accepted") == 2, res.text[:160])
 
+        res = client.get(f"/api/devices/{BUZZER}")
+        check("보고 후 current_state가 on으로 확정",
+              res.json().get("data", {}).get("current_state") == "on")
+
+        res = client.get(f"/api/devices/{BUTTON}")
+        button = res.json().get("data", {})
+        check("센서 보고 후 current_state가 touched", button.get("current_state") == "touched")
+        check("센서 값이 객체(JSON)로 반환", isinstance(button.get("current_value"), dict),
+              f"value={button.get('current_value')!r}")
+
+        # 구버전 단일 엔드포인트도 호환을 위해 살아 있어야 합니다
+        res = client.get(f"/api/v1/devices/{BUZZER}/desired-state", headers=DEVICE_HEADERS)
+        check("구버전 단일 폴링도 여전히 동작 (호환)", res.status_code == 200, res.text[:120])
+
+        # ---------------------------------------------------------------
+        section("4. 비전 이벤트 (판정은 프론트엔드가 합니다)")
         res = client.post(
-            "/api/v1/devices/touch_pad_1/state",
+            "/api/v1/vision/events",
             headers=DEVICE_HEADERS,
-            json={"value": {"pressed": True, "touch_x": 100, "touch_y": 200, "gesture": "tap"}},
+            json={"event_type": "gesture_detected", "label": "rock",
+                  "detected": True, "count": 1, "confidence": 0.93},
         )
-        check("POST 터치 센서 보고 200", res.status_code == 200, res.text[:160])
-        res = client.get("/api/devices/touch_pad_1")
-        touch = res.json().get("data", {})
-        check("터치 보고 후 current_state가 touched", touch.get("current_state") == "touched")
-        check(
-            "터치 값이 객체(JSON)로 반환",
-            isinstance(touch.get("current_value"), dict),
-            f"value={touch.get('current_value')!r}",
-        )
+        check("POST 비전 이벤트 200", res.status_code == 200, res.text[:160])
+        body = res.json().get("data", {})
+        check("이벤트 라벨이 그대로 기록됨", body.get("label") == "rock", str(body)[:120])
+        check("백엔드가 승패를 판정하지 않음 (mission 필드 없음)", "mission" not in body,
+              str(body)[:120])
 
         # ---------------------------------------------------------------
-        section("4. 알람 → 기상 미션 (가위바위보) → 2차 수면 방지")
-        client.post("/api/alarm/stop")
-        res = client.post("/api/alarm/trigger")
-        check("POST /api/alarm/trigger 200", res.status_code == 200, res.text[:160])
-
-        status = mission_status(client)
-        check("미션이 시작됨", status.get("active") is True, str(status))
-        check("AI 손패가 제시됨", status.get("ai_hand") in ("rock", "paper", "scissors"), str(status))
-
-        res = client.get("/api/devices/buzzer_1")
-        check(
-            "알람 발동 시 부저 desired_state=ringing",
-            res.json().get("data", {}).get("desired_state") == "ringing",
-        )
-
-        # 4-1. 지는 손을 내면 라운드가 재시도되어야 한다
-        before = mission_status(client)
-        losing = {"rock": "scissors", "paper": "rock", "scissors": "paper"}[before["ai_hand"]]
-        after = play_round(client, hand=losing)
-        check("오답 시 승수가 오르지 않음", after.get("wins", 0) == before.get("wins", 0))
-        check(
-            "오답 시 다음 라운드로 재시도",
-            after.get("round", 0) == before.get("round", 0) + 1,
-            f"{before.get('round')} -> {after.get('round')}",
-        )
-
-        # 4-2. 이기는 손을 필요한 횟수만큼 내면 미션 성공
-        required = after.get("required_wins", 2)
-        for _ in range(required):
-            after = play_round(client)
-        check(
-            f"이기는 손 {required}회로 미션 성공",
-            after.get("active") is False,
-            str(after),
-        )
-
-        res = client.get("/api/devices/buzzer_1")
-        check(
-            "미션 성공 시 부저 desired_state=off",
-            res.json().get("data", {}).get("desired_state") == "off",
-        )
-
-        status = client.get("/api/alarm/status").json().get("data", {})
-        check("2차 수면 방지 감시가 시작됨", status.get("second_sleep_guard_active") is True)
-
-        res = client.post("/api/alarm/confirm-wakeup")
-        check("POST 기상 확인 200", res.status_code == 200, res.text[:160])
-        time.sleep(0.2)
-        status = client.get("/api/alarm/status").json().get("data", {})
-        check("기상 확인 후 감시 종료", status.get("second_sleep_guard_active") is False)
-
-        # ---------------------------------------------------------------
-        section("5. 알람 예약 (시간대 처리)")
-        res = client.post("/api/alarm/schedule", json={"alarm_time": "07:30"})
-        check("POST 알람 예약 200", res.status_code == 200, res.text[:160])
-        data = res.json().get("data", {})
-        check("예약 시각이 저장됨", data.get("alarm_time") == "07:30", str(data))
-        check("시간대가 응답에 포함", bool(data.get("timezone")), str(data))
-        check(
-            "다음 발동 시각이 계산됨",
-            isinstance(data.get("remaining_seconds"), int) and data["remaining_seconds"] > 0,
-            str(data.get("remaining_seconds")),
-        )
-        res = client.post("/api/alarm/schedule", json={"alarm_time": "99:99"})
-        check("잘못된 시각은 400", res.status_code == 400, res.text[:160])
-        client.delete("/api/alarm/schedule")
-
-        # ---------------------------------------------------------------
-        section("6. 에러 응답 규격 (api-rules.md)")
+        section("5. 에러 응답 규격 (api-rules.md)")
         res = client.get("/api/devices/no_such_device")
         body = res.json()
         check("없는 디바이스는 404", res.status_code == 404)
         check("에러 껍데기가 {'error': ...}", "error" in body and "detail" not in body, res.text[:160])
-        check(
-            "에러 코드 포함",
-            body.get("error", {}).get("code") == "DEVICE_NOT_FOUND",
-            res.text[:160],
-        )
+        check("에러 코드 포함", body.get("error", {}).get("code") == "DEVICE_NOT_FOUND",
+              res.text[:160])
 
-        res = client.post("/api/devices/buzzer_1/control", json={})
+        res = client.post(f"/api/devices/{BUZZER}/control", json={})
         body = res.json()
         check("필수값 누락은 422", res.status_code == 422)
-        check(
-            "검증 실패도 동일한 껍데기",
-            body.get("error", {}).get("code") == "VALIDATION_ERROR",
-            res.text[:160],
-        )
+        check("검증 실패도 동일한 껍데기",
+              body.get("error", {}).get("code") == "VALIDATION_ERROR", res.text[:160])
 
-        res = client.post("/api/devices/touch_pad_1/control", json={"desired_state": "on"})
+        res = client.post(f"/api/devices/{BUTTON}/control", json={"desired_state": "on"})
         check("센서를 제어하려 하면 400", res.status_code == 400, res.text[:160])
 
-        # 정리
-        client.post("/api/alarm/stop")
+        res = client.post(f"/api/devices/{BUZZER}/control", json={"desired_state": "on"},
+                          headers={"X-Device-Api-Key": "wrong_key"})
+        check("디바이스 키로 사용자 경로를 부르지 않아도 동작 (인증 경로 분리)",
+              res.status_code in (200, 401, 403), res.text[:120])
+
+        # ---------------------------------------------------------------
+        section("6. 시나리오 코드가 백엔드에 남아 있지 않은지")
+        paths = set(main.app.openapi()["paths"])
+        check("알람 전용 엔드포인트가 없음",
+              not any(p.startswith("/api/alarm") for p in paths),
+              str(sorted(p for p in paths if p.startswith("/api/alarm"))))
+        check("슬롯·규칙·타이머 엔드포인트는 있음",
+              {"/api/slots", "/api/rules", "/api/timers"} <= paths,
+              str(sorted(paths)))
+
+        for module in ("services.trigger_service", "routers.alarm"):
+            try:
+                __import__(module)
+                present = True
+            except ImportError:
+                present = False
+            check(f"{module} 모듈이 제거됨", not present)
+
+        # 정리 — 하드웨어가 껐다고 보고한 상태까지 되돌려 다음 실행에 영향을 주지 않게 한다
+        client.post(f"/api/devices/{BUZZER}/control", json={"desired_state": "off"})
+        client.post("/api/v1/devices/states", headers=DEVICE_HEADERS,
+                    json={"states": [{"slot_id": BUZZER, "state": "off"}]})
+        client.post("/api/v1/devices/register", headers=DEVICE_HEADERS,
+                    json={"slots": [], "exclusive": True})
 
     print("\n" + "=" * 66)
     print(f" 결과: 성공 {_passed}건 / 실패 {_failed}건")
