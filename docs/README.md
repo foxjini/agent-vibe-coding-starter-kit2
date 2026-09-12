@@ -12,6 +12,7 @@
 > | 부품 추가·제거·핀 변경 | `pi/slot_map.py` 한 줄 |
 > | 화면·시나리오(게임·미션) | `frontend/` (`scenarios/`, `components/team/`) |
 > | 반복 자동화(임계값·시각) | 코드 아님 — 대시보드 `/kit`의 규칙 편집기 |
+> | 카메라 감지 대상 | 코드 아님 — 대시보드 `/kit`의 영상인식 설정 |
 >
 > 자세한 규약은 **부록F**를 보세요. 화면은 `/`(우리 팀 시나리오)와 `/kit`(하드웨어 구성·규칙) 둘입니다.
 
@@ -71,3 +72,4 @@
 | `pi/daemon.py --check` | 라즈베리파이 | 배치표·백엔드 주소·핀 충돌을 GPIO 없이 점검 |
 | `pi/test_slot_daemon.py` | 라즈베리파이 | 드라이버·배치표·부품 추가/제거를 자가 점검 (GPIO·백엔드 불필요) |
 | `frontend/scenarios/wakeupEngine.test.ts` | PC | 기상 미션 판정 규칙 자가 점검 (`node --experimental-strip-types`) |
+| `vision/test_vision_config.py` | PC | 감지 대상이 설정에서 오는지 자가 점검 (웹캠·백엔드 불필요) |

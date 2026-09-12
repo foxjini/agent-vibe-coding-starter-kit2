@@ -26,6 +26,8 @@ load_dotenv()
 BACKEND_URL = os.getenv("BACKEND_URL", "http://localhost:8000").rstrip("/")
 DEVICE_API_KEY = os.getenv("DEVICE_API_KEY", "")
 CAMERA_INDEX = int(os.getenv("CAMERA_INDEX", "0"))
+# 감지 설정을 몇 초마다 다시 받아올지 (대시보드에서 바꾼 대상이 반영되는 주기)
+CONFIG_POLL_SECONDS = float(os.getenv("CONFIG_POLL_SECONDS", "5"))
 
 # 2. COCO 80종 클래스 이름 목록
 COCO_CLASSES = [
@@ -40,14 +42,32 @@ COCO_CLASSES = [
     "hair drier", "toothbrush"
 ]
 
-# 3. 기상 미션 감지 대상 매핑
-MISSION_TARGETS: Dict[int, Dict[str, str]] = {
-    0: {"name": "person", "ko": "사람 (기상/기립 확인)"},
-    39: {"name": "bottle", "ko": "물병 (물 한 잔 마시기)"},
-    41: {"name": "cup", "ko": "컵 (양치/물 마시기)"},
-    73: {"name": "book", "ko": "책 (독서/두뇌 깨우기)"},
-    67: {"name": "cell phone", "ko": "휴대폰 (알람 해제 확인)"},
+# 3. 감지 대상은 코드에 두지 않습니다 (docs/부록F 10장)
+#    `GET /api/v1/vision/config`로 서버에서 받아옵니다. 팀이 감지 대상을 바꿔도
+#    이 파일은 고치지 않습니다 — 대시보드 설정이나 자동화 규칙만 바꾸면 됩니다.
+CLASS_INDEX: Dict[str, int] = {}   # main()에서 COCO_CLASSES로 채웁니다
+
+#: 서버에 연결되지 않았을 때 쓸 기본값 (수업이 멈추지 않도록)
+FALLBACK_CONFIG: Dict[str, Any] = {
+    "object_labels": ["person", "bottle", "cup", "book", "cell phone"],
+    "gesture_enabled": True,
+    "min_confidence": 0.6,
+    "cooldown_seconds": 2.5,
 }
+
+#: 자주 쓰는 COCO 클래스의 한글 이름 (없으면 영문 라벨을 그대로 보여 줍니다)
+LABEL_KO: Dict[str, str] = {
+    "person": "사람", "bottle": "물병", "cup": "컵", "book": "책",
+    "cell phone": "휴대폰", "chair": "의자", "laptop": "노트북", "mouse": "마우스",
+    "keyboard": "키보드", "backpack": "가방", "umbrella": "우산", "clock": "시계",
+    "tv": "TV", "bed": "침대", "dog": "개", "cat": "고양이", "banana": "바나나",
+    "apple": "사과", "scissors": "가위(사물)", "teddy bear": "곰인형", "toothbrush": "칫솔",
+}
+
+
+def label_ko(label: str) -> str:
+    return LABEL_KO.get(label, label)
+
 
 HAND_EMOJI_KO = {"rock": "주먹", "paper": "보", "scissors": "가위"}
 
@@ -110,7 +130,7 @@ def put_korean_text(
 
 class BackendClient:
     """
-    이벤트 전송과 미션 상태 조회를 백그라운드 스레드에서 처리합니다.
+    이벤트 전송과 감지 설정 조회를 백그라운드 스레드에서 처리합니다.
 
     예전에는 영상 루프 안에서 곧바로 requests.post를 호출해서,
     백엔드가 꺼져 있으면 매 프레임 최대 2.5초씩 멈추고 화면이 얼어붙었습니다.
@@ -128,11 +148,13 @@ class BackendClient:
         self._session = requests.Session()
 
         self.last_send_ok: Optional[bool] = None
-        self.mission: Dict[str, Any] = {"active": False}
+        #: 서버가 내려준 감지 설정 (부록F 10장). 연결 전에는 기본값을 씁니다.
+        self.config: Dict[str, Any] = dict(FALLBACK_CONFIG)
+        self.config_source: str = "기본값(서버 연결 전)"
 
         self._sender = threading.Thread(target=self._sender_loop, daemon=True)
         self._sender.start()
-        self._poller = threading.Thread(target=self._status_loop, daemon=True)
+        self._poller = threading.Thread(target=self._config_loop, daemon=True)
         self._poller.start()
 
     def send_event(
@@ -178,17 +200,35 @@ class BackendClient:
                 self.last_send_ok = False
                 logger.warning(f"[백엔드 통신 실패] {url}: {exc}")
 
-    def _status_loop(self) -> None:
-        """1초마다 미션 상태를 읽어 화면에 '무엇을 내야 하는지' 표시한다."""
-        url = f"{self.backend_url}/api/alarm/status"
+    def _config_loop(self) -> None:
+        """
+        감지 설정을 주기적으로 받아옵니다 (부록F 10장).
+
+        대시보드에서 감지 대상을 바꾸면 **프로그램을 다시 켜지 않아도** 몇 초 안에 반영됩니다.
+        서버에 연결되지 않으면 기본값을 유지합니다 — 설정을 못 읽었다고 감지를 멈추면
+        수업이 멈춥니다.
+        """
+        url = f"{self.backend_url}/api/v1/vision/config"
         while self._running:
             try:
-                res = self._session.get(url, timeout=2.0)
+                res = self._session.get(url, headers=self.headers, timeout=2.0)
                 if res.status_code == 200:
-                    self.mission = res.json().get("data", {}).get("mission", {"active": False})
+                    data = res.json().get("data") or {}
+                    labels = [str(x).strip().lower() for x in (data.get("object_labels") or []) if x]
+                    if labels != self.config.get("object_labels"):
+                        logger.info(f"[감지 설정] 대상이 바뀌었습니다: {labels}")
+                    self.config = {
+                        "object_labels": labels or list(FALLBACK_CONFIG["object_labels"]),
+                        "gesture_enabled": bool(data.get("gesture_enabled", True)),
+                        "min_confidence": float(data.get("min_confidence") or 0.6),
+                        "cooldown_seconds": float(data.get("cooldown_seconds") or 2.5),
+                    }
+                    self.config_source = "서버 설정" if data.get("source") == "saved" else "서버 기본값"
+                elif res.status_code in (401, 403):
+                    logger.error("인증 실패! vision/.env의 DEVICE_API_KEY를 확인하세요.")
             except requests.exceptions.RequestException:
-                self.mission = {"active": False}
-            time.sleep(1.0)
+                pass    # 다음 주기에 다시 시도 — 그동안은 마지막 설정을 그대로 씁니다
+            time.sleep(CONFIG_POLL_SECONDS)
 
     def close(self) -> None:
         self._running = False
@@ -330,6 +370,9 @@ def main():
     if not DEVICE_API_KEY:
         print("[안내] DEVICE_API_KEY가 설정되어 있지 않습니다. vision/.env에 백엔드와 같은 키를 넣어 주세요.\n")
 
+    # 라벨 이름 → COCO 클래스 번호 (서버가 이름으로 대상을 주므로 번호로 바꿔 준다)
+    CLASS_INDEX.update({name: index for index, name in enumerate(COCO_CLASSES)})
+
     # 모델 파일 경로 확인
     onnx_path = os.path.join(os.path.dirname(__file__), "yolov8n.onnx")
     if not os.path.exists(onnx_path):
@@ -364,35 +407,31 @@ def main():
     cap.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
     cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
 
-    # 현재 활성 미션 대상 (기본: person)
-    current_target_id = 0
-    current_target_info = MISSION_TARGETS[0]
-    detect_all_mode = False
+    # 감지 대상은 서버 설정에서 옵니다 (부록F 10장). 시작 시점에는 기본값일 수 있습니다.
+    # focus_index: 숫자키로 대상 하나만 골라 볼 때 쓰는 위치. -1이면 설정된 대상 전체.
+    focus_index = -1
     gesture_mode = gesture_detector.available
 
     # 이벤트 전송 상태 관리
     last_detected_state: Optional[bool] = None
     last_event_time: float = 0.0
-    EVENT_COOLDOWN_SECONDS = 2.5
 
     last_hand: Optional[str] = None
     last_hand_sent_at: float = 0.0
     HAND_COOLDOWN_SECONDS = 1.5
 
     print("\n" + "=" * 68)
-    print(" [스마트 기상 시스템 - 기상 미션 비전 클라이언트]")
+    print(" [IoT 플랫폼 키트 - 영상인식 클라이언트]")
     print(f" * 엔진: {detector.engine_name}")
     print(f" * 백엔드 URL: {BACKEND_URL}")
-    print(f" * 가위바위보(MediaPipe): {'사용 가능' if gesture_detector.available else '사용 불가 → 사물 미션만'}")
-    print(f" * 기본 미션 대상: [{current_target_info['ko']}]")
+    print(f" * 손동작(MediaPipe): {'사용 가능' if gesture_detector.available else '사용 불가 → 사물 감지만'}")
+    print(f" * 감지 대상: {backend.config['object_labels']}  ({backend.config_source})")
+    print("   └ 대상을 바꾸려면 코드가 아니라 대시보드 /kit → 영상인식 설정에서 바꾸세요.")
+    print("     자동화 규칙(vision_label 트리거)에 쓴 라벨도 자동으로 포함됩니다.")
     print(" * 키보드 단축키:")
-    print("   - [1]: 사람(person) 기상 감지 모드")
-    print("   - [2]: 물병(bottle) 기상 미션 모드")
-    print("   - [3]: 컵(cup) 양치/물 기상 미션 모드")
-    print("   - [4]: 책(book) 독서 기상 미션 모드")
-    print("   - [5]: 휴대폰(cell phone) 기상 미션 모드")
-    print("   - [A]: 전체 사물 자동 감지 모드 (All)")
-    print("   - [G]: 가위바위보 손동작 인식 켜기/끄기")
+    print("   - [1]~[9]: 설정된 대상 중 하나만 집중해서 보기")
+    print("   - [A]: 설정된 대상 전체 감지 (기본)")
+    print("   - [G]: 손동작 인식 켜기/끄기")
     print("   - [Q]: 프로그램 종료")
     print("=" * 68 + "\n")
 
@@ -419,9 +458,21 @@ def main():
             h, w, _ = frame.shape
             now = time.time()
 
-            # -------- 가위바위보 손동작 인식 --------
+            # -------- 서버 설정 적용 (대시보드에서 바꾸면 몇 초 안에 반영됩니다) --------
+            config = backend.config
+            active_labels = config["object_labels"]
+            if focus_index >= len(active_labels):
+                focus_index = -1                    # 대상이 줄어들면 전체 보기로 되돌린다
+            watching = (
+                [active_labels[focus_index]] if focus_index >= 0 else active_labels
+            )
+            target_classes = [CLASS_INDEX[label] for label in watching if label in CLASS_INDEX]
+            event_cooldown = config["cooldown_seconds"]
+            min_confidence = config["min_confidence"]
+
+            # -------- 손동작 인식 --------
             hand_result = None
-            if gesture_mode and gesture_detector.available:
+            if gesture_mode and config["gesture_enabled"] and gesture_detector.available:
                 frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
                 hand_result = gesture_detector.detect(frame_rgb)
 
@@ -443,14 +494,15 @@ def main():
                 last_hand = None
 
             # -------- 사물 감지 (YOLO) --------
-            target_classes = list(MISSION_TARGETS.keys()) if detect_all_mode else [current_target_id]
             detections = detector.detect(frame, target_classes=target_classes)
+            # 서버가 정한 신뢰도 기준에 못 미치는 것은 감지로 세지 않는다
+            detections = [d for d in detections if d["confidence"] >= min_confidence]
 
             detected_count = len(detections)
             is_detected = detected_count > 0
 
             max_confidence = 0.0
-            primary_label = current_target_info["name"]
+            primary_label = watching[0] if watching else ""
 
             # 감지된 객체 바운딩 박스 렌더링
             for det in detections:
@@ -481,14 +533,14 @@ def main():
             should_send = (
                 last_detected_state is None
                 or is_detected != last_detected_state
-                or now - last_event_time >= EVENT_COOLDOWN_SECONDS
+                or now - last_event_time >= event_cooldown
             )
 
-            if should_send:
+            if should_send and target_classes:
                 backend.send_event(
                     event_type="object_detected" if is_detected else "object_cleared",
                     detected=is_detected,
-                    label=primary_label if is_detected else current_target_info["name"],
+                    label=primary_label,
                     count=detected_count,
                     confidence=max_confidence if is_detected else 0.0,
                 )
@@ -502,27 +554,23 @@ def main():
             cv2.rectangle(overlay, (0, 0), (w, 74), (20, 20, 20), -1)
             cv2.addWeighted(overlay, 0.8, frame, 0.2, 0, frame)
 
-            mode_text = "전체 사물 감지" if detect_all_mode else current_target_info["ko"]
-            status_text = f"미션 감지 성공! ({detected_count}개)" if is_detected else "미션 대상 찾는 중..."
+            watching_ko = ", ".join(label_ko(label) for label in watching) or "설정된 대상 없음"
+            if focus_index >= 0:
+                watching_ko = f"{watching_ko} (하나만 보기 — [A]로 전체)"
+            status_text = (
+                f"감지됨 {detected_count}개 (신뢰도 {max_confidence:.0%})" if is_detected
+                else "대상을 찾는 중..."
+            )
             status_color = (100, 255, 100) if is_detected else (180, 180, 180)
 
-            frame = put_korean_text(frame, f"현재 미션: {mode_text}", (14, 4), font_size=17, color=(255, 255, 255))
+            frame = put_korean_text(frame, f"감지 대상: {watching_ko}", (14, 4),
+                                    font_size=17, color=(255, 255, 255))
             frame = put_korean_text(frame, status_text, (14, 26), font_size=15, color=status_color)
 
-            # 진행 중인 기상 미션이 있으면 '무엇을 내야 하는지' 크게 보여준다
-            mission = backend.mission or {}
-            if mission.get("active"):
-                ai_hand = mission.get("ai_hand")
-                expected = mission.get("expected_hand")
-                wins = mission.get("wins", 0)
-                need = mission.get("required_wins", 2)
-                if ai_hand and expected:
-                    guide = (
-                        f"AI: {HAND_EMOJI_KO.get(ai_hand, ai_hand)}  →  "
-                        f"당신은 [{HAND_EMOJI_KO.get(expected, expected)}]  ({wins}/{need}승)"
-                    )
-                    frame = put_korean_text(frame, guide, (14, 48), font_size=16, color=(120, 220, 255))
-            elif gesture_mode and hand_result:
+            # 인식된 손동작을 보여 준다.
+            # (미션 진행 상황 — 몇 승인지, 무엇을 내야 하는지 — 은 대시보드가 표시합니다.
+            #  판정은 프론트엔드 시나리오가 하므로 이 창은 '무엇을 봤는지'만 알려 줍니다.)
+            if gesture_mode and hand_result:
                 frame = put_korean_text(
                     frame,
                     f"인식된 손동작: {HAND_EMOJI_KO.get(hand_result['hand'], hand_result['hand'])}",
@@ -538,36 +586,42 @@ def main():
                 color=(120, 255, 120) if backend.last_send_ok else (150, 150, 255)
             )
 
-            # 하단 조작 단축키 안내 띠
+            # 하단 조작 단축키 안내 띠 — 설정된 대상으로 자동 생성됩니다
             cv2.rectangle(frame, (0, h - 26), (w, h), (15, 15, 15), -1)
             gesture_badge = "ON" if gesture_mode else ("OFF" if gesture_detector.available else "불가")
+            shortcuts = " ".join(
+                f"[{i + 1}]{label_ko(label)}" for i, label in enumerate(active_labels[:9])
+            )
             frame = put_korean_text(
                 frame,
-                f"단축키: [1]사람 [2]물병 [3]컵 [4]책 [5]휴대폰 [A]전체 [G]가위바위보({gesture_badge}) [Q]종료",
+                f"단축키: {shortcuts} [A]전체 [G]손동작({gesture_badge}) [Q]종료",
                 (10, h - 22),
                 font_size=13,
                 color=(210, 210, 210)
             )
 
             # 윈도우 창 표시
-            cv2.imshow("Wakeup Vision Mission (ONNX + MediaPipe)", frame)
+            cv2.imshow("IoT Kit Vision (ONNX + MediaPipe)", frame)
 
             # 키보드 입력 처리
             key = cv2.waitKey(1) & 0xFF
             if key == ord("q"):
                 logger.info("사용자에 의해 종료 명령(q)이 입력되었습니다.")
                 break
-            elif key in (ord("1"), ord("2"), ord("3"), ord("4"), ord("5")):
-                target_map = {ord("1"): 0, ord("2"): 39, ord("3"): 41, ord("4"): 73, ord("5"): 67}
-                current_target_id = target_map[key]
-                current_target_info = MISSION_TARGETS[current_target_id]
-                detect_all_mode = False
-                last_detected_state = None
-                logger.info(f"미션 대상 변경: {current_target_info['ko']}")
+            elif ord("1") <= key <= ord("9"):
+                index = key - ord("1")
+                if index < len(active_labels):
+                    focus_index = index
+                    last_detected_state = None
+                    logger.info(f"감지 대상 집중: {label_ko(active_labels[index])}")
+                else:
+                    logger.info(
+                        f"{index + 1}번 대상이 없습니다. 현재 설정된 대상은 {len(active_labels)}개입니다."
+                    )
             elif key == ord("a"):
-                detect_all_mode = not detect_all_mode
+                focus_index = -1
                 last_detected_state = None
-                logger.info(f"전체 감지 모드 토글: {detect_all_mode}")
+                logger.info(f"설정된 대상 전체 감지: {active_labels}")
             elif key == ord("g"):
                 if gesture_detector.available:
                     gesture_mode = not gesture_mode

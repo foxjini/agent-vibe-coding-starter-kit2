@@ -11,21 +11,23 @@
  */
 "use client";
 
-import { Bell, Cpu, Settings2, Wifi, WifiOff, Workflow, X } from "lucide-react";
+import { Bell, Camera, Cpu, Settings2, Wifi, WifiOff, Workflow, X } from "lucide-react";
 import React, { useState } from "react";
 
 import HardwareSetup from "@/components/kit/HardwareSetup";
 import RuleEditor from "@/components/kit/RuleEditor";
 import SlotGrid from "@/components/kit/SlotGrid";
 import VisionLogCard from "@/components/kit/VisionLogCard";
+import VisionSetup from "@/components/kit/VisionSetup";
 import { useScenario } from "@/lib/scenario";
 
-type Tab = "dashboard" | "hardware" | "rules";
+type Tab = "dashboard" | "hardware" | "rules" | "vision";
 
 const TABS: { id: Tab; label: string; icon: React.ComponentType<{ className?: string }> }[] = [
   { id: "dashboard", label: "대시보드", icon: Cpu },
   { id: "hardware", label: "하드웨어 구성", icon: Settings2 },
   { id: "rules", label: "자동화 규칙", icon: Workflow },
+  { id: "vision", label: "영상인식 설정", icon: Camera },
 ];
 
 const NOTICE_STYLES: Record<string, string> = {
@@ -119,6 +121,7 @@ export default function KitDashboardPage() {
         )}
         {tab === "hardware" && <HardwareSetup onChanged={() => void refresh()} />}
         {tab === "rules" && <RuleEditor slots={slots} />}
+        {tab === "vision" && <VisionSetup />}
       </div>
     </main>
   );
