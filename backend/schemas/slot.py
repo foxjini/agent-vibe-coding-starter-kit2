@@ -78,3 +78,15 @@ class RuleUpsertRequest(BaseModel):
     )
     enabled: bool = Field(default=True)
     priority: int = Field(default=0, ge=0, le=99)
+
+
+class TimerRequest(BaseModel):
+    """POST /api/timers — N초 뒤에 액션 하나를 딱 한 번 실행 (부록F 9-3절)."""
+
+    seconds: float = Field(..., ge=0, le=86400, description="몇 초 뒤에 실행할지 (최대 24시간)")
+    action: Dict[str, Any] = Field(
+        ...,
+        description='실행할 액션. 예: {"action":"notify","message":"기상 확인!"} 또는 '
+                    '{"action":"set_actuator","slot_id":"actuator_01","state":"off"}',
+    )
+    label: Optional[str] = Field(None, max_length=100, description="로그·알림에 표시할 이름")

@@ -12,6 +12,9 @@ __pycache__/
 # Node / Next.js
 node_modules/
 .next/
+# Next.js 16이 dev/build 때마다 자동 생성하는 파일 (사람이 쓴 문서가 아님)
+frontend/AGENTS.md
+frontend/CLAUDE.md
 out/
 build/
 dist/

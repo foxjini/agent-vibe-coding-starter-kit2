@@ -201,6 +201,38 @@ def main_test() -> int:
               rejected and rejected[0]["reason"] == "UNKNOWN_SLOT", res.text[:160])
 
         # ---------------------------------------------------------------
+        section("4-2. 부품 교체 (같은 슬롯에 다른 부품을 꽂음)")
+        # 서보를 떼고 부저를 꽂았는데 서보의 value_schema(0~180도)가 남아 있으면
+        # 대시보드에 주파수 슬라이더가 0~180Hz로 그려집니다.
+        register(client, [
+            {"slot_id": "actuator_01", "label": "서보 시절", "kind": "servo",
+             "control_type": "servo", "value_schema": {"min": 0, "max": 180}, "unit": "도"},
+        ])
+        register(client, [
+            {"slot_id": "actuator_01", "label": "부저로 교체", "kind": "buzzer",
+             "control_type": "tonal"},
+        ])
+        res = client.get("/api/slots")
+        swapped = next(
+            (s for s in res.json().get("data", []) if s.get("slot_id") == "actuator_01"), {}
+        )
+        check("교체한 부품의 종류·라벨이 반영됨",
+              swapped.get("kind") == "buzzer" and swapped.get("label") == "부저로 교체",
+              str(swapped)[:160])
+        check("이전 부품의 value_schema가 남지 않음", swapped.get("value_schema") is None,
+              str(swapped.get("value_schema")))
+        check("이전 부품의 unit이 남지 않음", swapped.get("unit") is None, str(swapped.get("unit")))
+        check("이전 부품의 control_type이 새 값으로 바뀜",
+              swapped.get("control_type") == "tonal", str(swapped.get("control_type")))
+
+        # 뒤 검사들이 쓰는 구성(서보 + 온도센서)으로 되돌린다
+        register(client, [
+            {"slot_id": "actuator_01", "label": "자동문 서보", "kind": "servo",
+             "control_type": "servo", "value_schema": {"min": 0, "max": 180}, "meta": {"pin": 12}},
+            {"slot_id": "sensor_01", "label": "실내 온도", "kind": "temperature", "unit": "°C"},
+        ])
+
+        # ---------------------------------------------------------------
         section("5. 메타데이터 수정 (대시보드 하드웨어 구성 화면)")
         res = client.patch("/api/slots/sensor_02",
                            json={"enabled": True, "label": "출입 감지", "kind": "presence"})

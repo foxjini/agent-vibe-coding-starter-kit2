@@ -240,6 +240,7 @@ CREATE TABLE IF NOT EXISTS rules (
 | `POST /api/v1/devices/states` | **pi** | 디바이스 키 | **센서값·반영상태 일괄 보고** | ✅ P1 |
 | `POST /api/v1/devices/register` | **pi** | 디바이스 키 | 부팅 시 슬롯 매핑 일괄 등록 | ✅ P1 |
 | `GET/POST /api/rules`, `PUT/DELETE /api/rules/{id}` | 대시보드 | 사용자 | 자동화 규칙 CRUD | ✅ P1 |
+| `POST /api/timers` | 대시보드 | 사용자 | N초 뒤 액션 1회 실행 (시나리오 SDK의 serverTimer) | ✅ P3 |
 | `POST /api/v1/vision/events` | vision | 디바이스 키 | 감지 이벤트 (기존 계약 유지) | ✅ 기존 |
 | `GET /api/logs/control`, `GET /api/events/vision`, `GET /health` | 대시보드 | 사용자 | 기존 그대로 | ✅ 기존 |
 | `GET /api/v1/vision/config` | vision | 디바이스 키 | 감지 대상 목록 | ⏳ P4 |
@@ -247,8 +248,9 @@ CREATE TABLE IF NOT EXISTS rules (
 **목록 두 개의 차이** — `GET /api/slots`는 빈 슬롯까지 20개를 모두 돌려주므로 '하드웨어 구성'
 설정 화면용이고, `GET /api/devices`는 활성 슬롯만 돌려주므로 대시보드 본화면용입니다.
 
-**타이머** — 별도의 `POST /api/timers`는 만들지 않았습니다. 규칙 액션의 `after_seconds`가
-같은 일(브라우저를 닫아도 살아있는 N초 후 동작)을 하므로 엔드포인트를 하나 줄였습니다(7-2절).
+**타이머** — `POST /api/timers`는 "지금부터 N초 뒤에 딱 한 번"을 위한 것입니다.
+반복되는 자동화는 규칙(`/api/rules`)으로 만드세요. 규칙 액션의 `after_seconds`는
+트리거가 발동한 뒤의 지연이라, 트리거 없이 지금 재는 시간은 표현할 수 없습니다.
 
 기존 단일 폴링(`GET /api/v1/devices/{slot_id}/desired-state`)과 단일 보고(`POST .../state`)도
 **호환을 위해 유지**합니다. 다만 pi는 배치 API를 쓰는 것을 기본으로 합니다.
@@ -303,6 +305,10 @@ XAMPP를 켜지 않아도 키트는 멈추지 않습니다. 슬롯 목록·배�
   나머지는 정상 처리합니다(하나 틀렸다고 전체가 실패하지 않음).
 
 **`POST /api/v1/devices/register`** — 배선을 아는 pi가 메타데이터를 올립니다.
+
+> **등록은 그 슬롯의 메타데이터 전체를 덮어씁니다.** 보내지 않은 항목은 지워집니다.
+> 서보를 떼고 부저를 꽂았는데 서보의 `value_schema`(0~180도)가 남아 있으면
+> 대시보드에 주파수 슬라이더가 0~180Hz로 그려지기 때문입니다.
 ```json
 {
   "exclusive": true,
@@ -480,15 +486,20 @@ frontend/
 ├── lib/
 │   ├── api.ts          기존 (apiFetch, parseJsonValue)
 │   ├── slots.ts        슬롯 메타데이터 → 위젯 결정 (키트 제공)
-│   └── scenario.ts     ★ 시나리오 SDK (키트 제공)
+│   └── scenario.ts     ★ 시나리오 SDK useScenario() (키트 제공)
 ├── components/kit/     키트 제공 범용 컴포넌트 (디자인은 팀이 수정)
-│   ├── SlotGrid.tsx        활성 슬롯 자동 배치
-│   ├── SensorSlotCard.tsx  kind·unit에 맞는 값 표시
+│   ├── SlotGrid.tsx         활성 슬롯 자동 배치
+│   ├── SensorSlotCard.tsx   kind·unit에 맞는 값 표시
 │   ├── ActuatorSlotCard.tsx control_type에 맞는 위젯 자동 선택
-│   ├── HardwareSetup.tsx   슬롯 20칸 설정 화면 (라벨·종류·사용여부)
-│   └── RuleEditor.tsx      규칙 편집기 (7장 스펙)
-└── app/page.tsx        팀이 자유롭게 구성
+│   ├── SlotIcon.tsx         kind에 맞는 아이콘
+│   ├── HardwareSetup.tsx    슬롯 20칸 설정 화면 (라벨·종류·사용여부)
+│   └── RuleEditor.tsx       규칙 편집기 (7장 스펙)
+├── app/kit/page.tsx    ★ 키트 대시보드 (팀이 자유롭게 고쳐 쓰는 출발점)
+└── app/page.tsx        wakeup 1차 대시보드 (P3.5에서 정리 예정)
 ```
+
+**두 화면이 공존합니다** — `/`는 1차 완성본(기상 시스템) 화면 그대로이고,
+`/kit`이 플랫폼 키트 화면입니다. 2차 개발은 `/kit`에서 시작하세요.
 
 ### 9-1. 카드 자동 생성
 
@@ -502,14 +513,26 @@ WebSocket 배선·재연결·상태 동기화는 SDK가 처리합니다. 팀은 
 ```tsx
 const {
   slots,                      // 현재 슬롯 상태 (실시간 갱신)
+  slotOf,                     // slotOf("actuator_01") — 슬롯 하나 찾기
+  connected,                  // 백엔드 WebSocket 연결 여부
   setActuator,                // setActuator("actuator_01", "on", {frequency: 1000})
-  onSensor,                   // onSensor("sensor_01", v => { ... })
-  onVision,                   // onVision("rock", e => { ... })
-  onSlotChange,               // 상태 변화 구독
+  onSensor,                   // onSensor("sensor_01", e => { if (e.pressed) ... })
+  onVision,                   // onVision(["rock","paper"], e => { ... })
+  onSlotChange,               // onSlotChange("actuator_01", s => { ... })
   after, cancel,              // after(60, cb) — 지연 실행 (취소 가능)
-  notify,                     // 화면 알림
-  serverTimer,                // 브라우저를 닫아도 살아있는 타이머 (규칙 액션의 after_seconds)
+  notify, notices,            // 화면 알림 (규칙의 notify 액션도 여기로 들어옵니다)
+  serverTimer,                // 브라우저를 닫아도 살아있는 타이머 (POST /api/timers)
+  refresh,                    // 슬롯 목록 다시 읽기
 } = useScenario();
+```
+
+`onSensor`·`onVision`·`onSlotChange`는 **구독 해지 함수**를 돌려줍니다.
+`useEffect`에서 등록했다면 정리 함수로 꼭 해지하세요.
+
+```tsx
+useEffect(() => onSensor("sensor_01", (e) => {
+  if (e.pressed) setActuator("actuator_01", "off");
+}), [onSensor, setActuator]);
 ```
 
 예) wakeup의 가위바위보 미션을 프론트에서 작성하면 이런 모양이 됩니다:
@@ -536,7 +559,16 @@ onVision(["rock", "paper", "scissors"], (e) => {
 
 프론트가 두뇌이므로 **대시보드 탭이 닫히면 시나리오가 멈춥니다.** 전시회·시연에서는
 화면이 항상 열려 있으므로 문제가 없지만, 꼭 브라우저 없이 동작해야 하는 동작은
-**규칙(7장)** 이나 `serverTimer`로 백엔드에 맡기세요. 이 경계를 팀이 알고 있어야 합니다.
+백엔드에 맡기세요. 이 경계를 팀이 알고 있어야 합니다.
+
+| 상황 | 어디에 맡기나 |
+|---|---|
+| 화면이 열려 있는 동안의 게임·미션 로직 | 시나리오 SDK (`onVision`, `after`) |
+| "지금부터 60초 뒤에 한 번" | `serverTimer(60, …)` → `POST /api/timers` |
+| "온도가 28도를 넘으면 항상" 같은 반복 자동화 | 규칙 (7장, RuleEditor 화면) |
+
+> 타이머는 저장되지 않습니다 — 백엔드를 재시작하면 사라집니다.
+> 수업이 끝나도 살아 있어야 하는 자동화는 규칙으로 만드세요.
 
 ---
 

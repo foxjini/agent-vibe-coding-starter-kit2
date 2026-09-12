@@ -5,7 +5,8 @@ slot_map.py 예시:
     "actuator_03": {"label": "진동 모터", "kind": "vibration_motor",
                     "driver": "pwm_out", "pin": 13, "control_type": "pwm"},
 
-백엔드에서 내려오는 값: {"level": 70}  또는  {"value": 70}  (0~100)
+백엔드에서 내려오는 값: {"duty": 70}  (부록F 3-1절 규약, 0~100)
+                       {"level": 70} / {"value": 70} 도 같은 뜻으로 받아들입니다.
 """
 import logging
 from typing import Any, Dict, Optional
@@ -21,7 +22,7 @@ class Driver(ActuatorDriver):
 
     def __init__(self, slot_id: str, config: Dict[str, Any]) -> None:
         super().__init__(slot_id, config)
-        self.default_level = float(config.get("default_level", 100))
+        self.default_level = float(config.get("default_duty", config.get("default_level", 100)))
         self.min_level = float(config.get("min_level", 0))
         self.device, self.simulated = make_device(
             "PWMOutputDevice",
@@ -39,13 +40,14 @@ class Driver(ActuatorDriver):
             self._state = "off"
             return "off"
 
-        level = self.number_from(value, "level", self.default_level)
+        level = self.number_from(value, "duty", self.default_level, "level")
         level = max(self.min_level, min(100.0, level))
         self.device.value = level / 100.0
-        if self._state != "on":
-            logger.info(f"[{self.slot_id}] {self.label} → on (세기 {level:.0f}%)")
-        self._state = "on"
-        return "on"
+        reflected = self.reflected(state)
+        if self._state != reflected:
+            logger.info(f"[{self.slot_id}] {self.label} → {reflected} (세기 {level:.0f}%)")
+        self._state = reflected
+        return reflected
 
     def close(self) -> None:
         try:

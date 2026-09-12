@@ -104,9 +104,13 @@ class DeviceProvider(ABC):
                 rejected.append(str(slot_id))
                 continue
             dev["enabled"] = True
+            # 등록은 메타데이터 전체를 덮어씁니다 — 보내지 않은 항목은 이전 부품의
+            # 흔적이므로 지웁니다 (DB의 register_slots와 같은 규칙).
             for key in ("label", "kind", "unit", "control_type", "value_schema", "meta", "display_order"):
-                if key in entry and entry[key] is not None:
+                if key in entry:
                     dev[key] = entry[key]
+                else:
+                    dev[key] = "unassigned" if key == "kind" else 0 if key == "display_order" else None
             dev["updated_at"] = datetime.now(timezone.utc).isoformat()
             registered.append(slot_id)
 

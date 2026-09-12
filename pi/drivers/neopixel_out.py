@@ -76,10 +76,9 @@ class Driver(ActuatorDriver):
             color = parse_color(value, self.default_color)
             brightness = max(0.0, min(100.0, self.number_from(value, "brightness", 100))) / 100.0
             color = tuple(int(c * brightness) for c in color)
-            result = "on"
         else:
             color = (0, 0, 0)
-            result = "off"
+        result = self.reflected(state)
 
         if self.strip is not None:
             try:
