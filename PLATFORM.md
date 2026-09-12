@@ -42,7 +42,7 @@
 
 ---
 
-## 2. 현재 상태 (P0 완료)
+## 2. 현재 상태 (P0·P1 완료)
 
 ### 이미 들어 있는 것 — wakeup 브랜치에서 검증된 기반
 
@@ -55,21 +55,36 @@
 | 자가 점검 스크립트 `backend/smoke_test.py` (36항목) | ✅ |
 | 문서 부록A(파이 연동 계약) · 부록F(키트 규약) | ✅ |
 
-### P1에서 바뀌는 것 — **아직 wakeup 고유 코드가 남아 있습니다**
+### P1에서 추가된 백엔드 코어 (기존 동작을 깨지 않는 **덧붙이기**)
 
-아래는 공통 키트에 들어가면 안 되는 wakeup 전용 기능입니다. P1에서 분리·일반화합니다.
-
-| 파일 | 현재 | P1 계획 |
+| 항목 | 파일 | 검증 |
 |---|---|---|
-| `backend/iot/device_catalog.py` | buzzer_1 / touch_pad_1 / camera_1 고정 | 슬롯 20개 레지스트리로 교체 |
-| `backend/db/init.sql`, `database.py` | 위 3개 시드 | 슬롯 20개 시드 |
-| `backend/routers/alarm.py` | 알람 전용 | 스케줄 → 규칙 엔진으로 일반화 |
-| `backend/services/trigger_service.py` | 가위바위보 미션 엔진 | **키트에서 제거** → 프론트 시나리오 SDK로 이전 |
-| `pi/main.py` | buzzer_1 단일 폴링 | `slot_map.py` + 드라이버 + 배치 폴링 |
-| `vision/main.py` | 감지 대상 하드코딩 | 서버 설정(`/api/v1/vision/config`) 기반 |
-| `frontend/` | 부저 1개 전제 | 슬롯 자동 렌더링 + 시나리오 SDK |
+| 슬롯 20개 레지스트리 + 자동 컬럼 마이그레이션 | `db/database.py`, `iot/device_catalog.py` | ✅ 실제 DB 이행 |
+| 슬롯 목록·메타데이터 수정 API | `routers/slots.py` (`/api/slots`) | ✅ |
+| pi 배치 통신 (폴링 1회 / 보고 1회 / 부팅 등록) | `services/slot_service.py` | ✅ |
+| 자동화 규칙 엔진 (트리거 3종 · 액션 2종) | `services/rule_engine.py` | ✅ |
+| 적합성 검사 스크립트 | `backend/conformance_test.py` | ✅ 38건 (DB 끈 상태 32건) |
 
-> ⚠️ **지금 이 브랜치를 팀에 배포하면 안 됩니다.** P1~P4가 끝나야 "백엔드 무수정" 약속이 성립합니다.
+검증 결과: **적합성 38/38, wakeup 회귀 `smoke_test.py` 36/36 · `test_mission.py` 18/18**
+— DB를 켠 상태와 끈 상태 양쪽 모두 통과. `GET /api/devices`는 여전히 wakeup의 3개만
+돌려주므로 1차 완성본 대시보드는 그대로 동작합니다.
+
+### 아직 남아 있는 wakeup 고유 코드 — **P3.5에서 한꺼번에 교체**
+
+공통 키트에 들어가면 안 되는 wakeup 전용 기능입니다. 프론트엔드 키트(P3)가 대체물을
+갖추기 전에 지우면 1차 완성본이 멈추므로, **P3까지 끝낸 뒤 한 번에** 교체합니다.
+
+| 파일 | 현재 | P3.5 계획 |
+|---|---|---|
+| `backend/iot/device_catalog.py` | 슬롯 20개 + 레거시 3개 공존 | 레거시 3개 제거 |
+| `backend/db/database.py` 시드 | 슬롯 20개 + 레거시 3개 시드 | 레거시 시드 제거 |
+| `backend/routers/alarm.py` | 알람 전용 스케줄러 | 규칙 엔진의 `schedule` 트리거로 대체 |
+| `backend/services/trigger_service.py` | 가위바위보 미션 엔진 | **키트에서 제거** → 프론트 시나리오 SDK로 이전 |
+| `pi/main.py` | buzzer_1 단일 폴링 | `slot_map.py` + 드라이버 + 배치 폴링 (P2) |
+| `vision/main.py` | 감지 대상 하드코딩 | 서버 설정(`/api/v1/vision/config`) 기반 (P4) |
+| `frontend/` | 부저 1개 전제 | 슬롯 자동 렌더링 + 시나리오 SDK (P3) |
+
+> ⚠️ **지금 이 브랜치를 팀에 배포하면 안 됩니다.** P2~P4가 끝나야 "백엔드 무수정" 약속이 성립합니다.
 
 ---
 
@@ -78,10 +93,12 @@
 | 단계 | 내용 | 상태 |
 |---|---|---|
 | **P0** | 슬롯 규약 · DB 스키마 · API 계약 확정 (부록F) | ✅ 완료 (실제 DB로 14항목 검증) |
-| **P1** | 백엔드 코어: 슬롯 레지스트리, 배치 API, register/PATCH, 규칙 엔진, 적합성 테스트 | ⬜ |
+| **P1** | 백엔드 코어: 슬롯 레지스트리, 배치 API, register/PATCH, 규칙 엔진, 적합성 테스트 | ✅ 완료 (적합성 38건 + 회귀 54건) |
 | **P2** | pi 프레임워크: `slot_map.py` + 드라이버 11종 + Mock + 공통 데몬 | ⬜ |
 | **P3** | 프론트 키트: SlotGrid · 카드 · HardwareSetup · RuleEditor · 시나리오 SDK | ⬜ |
 | **P4** | vision 일반화: 설정 기반 감지 대상 | ⬜ |
+| **P3.5** | wakeup 고유 코드 일괄 교체 (알람·미션·레거시 디바이스 정리) | ⬜ |
+| **P4** 이후 순서 주의 | P3까지 끝난 뒤 P3.5를 진행합니다 — 대체물이 없는 상태로 먼저 지우면 1차 완성본이 멈춥니다 | — |
 | **P5** | 4팀 배포: 팀별 `slot_map` 예시, 매뉴얼 갱신, wakeup 마이그레이션 검증 | ⬜ |
 
 ---

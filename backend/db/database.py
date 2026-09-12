@@ -27,7 +27,73 @@ DB_POOL_SIZE = int(os.getenv("DB_POOL_SIZE", "5"))
 DB_CONNECT_TIMEOUT = float(os.getenv("DB_CONNECT_TIMEOUT", "3"))
 
 # JSON 컬럼 목록 — PyMySQL은 JSON 컬럼을 dict가 아닌 '문자열'로 돌려주므로 직접 디코드한다.
-_JSON_COLUMNS = ("desired_value", "current_value", "value_json", "value")
+_JSON_COLUMNS = (
+    "desired_value", "current_value", "value_json", "value",
+    "value_schema", "meta", "definition", "setting_value",
+)
+
+# ==============================================================================
+# 플랫폼 키트 슬롯 규약 (docs/부록F-IoT-개발-플랫폼-키트-규약.md 2장)
+#   sensor_01 ~ sensor_10 / actuator_01 ~ actuator_10 — 20개 고정, 추가·삭제 없음
+#   사용하지 않는 슬롯은 enabled=FALSE로 둔다 (삭제가 아니라 비활성)
+# ==============================================================================
+SLOT_COUNT = 10
+# 아직 부품이 배정되지 않은 빈 슬롯의 kind (devices.kind가 NOT NULL이므로 필요)
+UNASSIGNED_KIND = "unassigned"
+SENSOR_SLOTS = tuple(f"sensor_{i:02d}" for i in range(1, SLOT_COUNT + 1))
+ACTUATOR_SLOTS = tuple(f"actuator_{i:02d}" for i in range(1, SLOT_COUNT + 1))
+ALL_SLOTS = SENSOR_SLOTS + ACTUATOR_SLOTS
+
+# devices 테이블에 추가되는 슬롯 메타데이터 컬럼 (기존 DB에도 자동 추가된다)
+SLOT_COLUMNS = (
+    ("role", "VARCHAR(10) NULL"),            # 'sensor' | 'actuator' (불변)
+    ("slot_index", "TINYINT DEFAULT 0"),     # 1~10, 레거시 행은 0
+    ("enabled", "BOOLEAN DEFAULT FALSE"),    # 팀이 사용 여부 토글
+    ("label", "VARCHAR(100) NULL"),          # 팀이 지정하는 표시 이름
+    ("unit", "VARCHAR(20) NULL"),            # 센서 단위
+    ("control_type", "VARCHAR(20) NULL"),    # onoff/pulse/tonal/pwm/servo/rgb/level
+    ("value_schema", "JSON NULL"),           # {"min":0,"max":180,"step":1}
+    ("meta", "JSON NULL"),                   # 팀 자유 확장 (핀 번호 등)
+    ("display_order", "TINYINT DEFAULT 0"),
+)
+
+# 팀이 메타데이터로 수정할 수 있는 필드 (role/slot_index는 불변이라 제외)
+SLOT_METADATA_FIELDS = (
+    "enabled", "label", "kind", "unit", "control_type",
+    "value_schema", "meta", "display_order",
+)
+
+
+def iter_slot_definitions():
+    """(slot_id, role, slot_index) 순서로 20개 슬롯 정의를 돌려줍니다."""
+    for index in range(1, SLOT_COUNT + 1):
+        yield f"sensor_{index:02d}", "sensor", index
+    for index in range(1, SLOT_COUNT + 1):
+        yield f"actuator_{index:02d}", "actuator", index
+
+
+def slot_role(slot_id: str) -> Optional[str]:
+    """슬롯 ID로부터 역할을 판정합니다. 슬롯이 아니면 None."""
+    if slot_id in SENSOR_SLOTS:
+        return "sensor"
+    if slot_id in ACTUATOR_SLOTS:
+        return "actuator"
+    return None
+
+
+def _ensure_column(cursor, table: str, column: str, ddl: str) -> None:
+    """컬럼이 없으면 추가합니다 (기존 DB를 가진 팀도 그대로 올라오도록)."""
+    cursor.execute(
+        """
+        SELECT COUNT(*) AS cnt FROM information_schema.columns
+        WHERE table_schema = %s AND table_name = %s AND column_name = %s
+        """,
+        (DB_NAME, table, column),
+    )
+    row = cursor.fetchone()
+    if row and int(row["cnt"]) == 0:
+        cursor.execute(f"ALTER TABLE {table} ADD COLUMN {column} {ddl}")
+        logger.info(f"테이블 '{table}'에 '{column}' 컬럼을 추가했습니다.")
 
 # DB 상태 (DB가 꺼져 있어도 시스템이 죽지 않도록 상태만 기록하고 진행한다)
 _db_status: Dict[str, Any] = {
@@ -284,36 +350,69 @@ def init_db() -> None:
                 """
             )
 
-            # 기존 DB에 label 컬럼이 없으면 추가 (1차 완성본에서 올라온 팀 호환)
+            # 6) rules — 플랫폼 키트 자동화 규칙 (부록F 7장)
             cursor.execute(
                 """
-                SELECT COUNT(*) AS cnt FROM information_schema.columns
-                WHERE table_schema = %s AND table_name = 'vision_events' AND column_name = 'label'
-                """,
-                (DB_NAME,),
+                CREATE TABLE IF NOT EXISTS rules (
+                    id INT AUTO_INCREMENT PRIMARY KEY, -- MySQL-only
+                    name VARCHAR(100) NOT NULL,
+                    enabled BOOLEAN DEFAULT TRUE,
+                    priority TINYINT DEFAULT 0,
+                    definition JSON NOT NULL,
+                    last_fired_at DATETIME NULL,
+                    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+                );
+                """
             )
-            row = cursor.fetchone()
-            if row and int(row["cnt"]) == 0:
-                cursor.execute("ALTER TABLE vision_events ADD COLUMN label VARCHAR(50) NULL")
+
+            # 기존 DB에 없는 컬럼을 채워 넣는다 (1차 완성본에서 올라온 팀 호환)
+            _ensure_column(cursor, "vision_events", "label", "VARCHAR(50) NULL")
+            for column, ddl in SLOT_COLUMNS:
+                _ensure_column(cursor, "devices", column, ddl)
 
             # 시드 데이터 삽입 (원점 상태 덮어쓰기 방지: ON DUPLICATE KEY UPDATE name, kind만 갱신)
+            # 기존 3개 디바이스는 '레거시 행'으로 남겨 두고(slot_index=0) 계속 동작시킨다.
             seed_devices = [
-                ("buzzer_1", "알람 출력 장치(피에조 부저)", "buzzer"),
-                ("touch_pad_1", "패드 화면/터치 입력", "touch_pad"),
-                ("camera_1", "기상 감지 카메라", "camera"),
+                ("buzzer_1", "알람 출력 장치(피에조 부저)", "buzzer", "actuator"),
+                ("touch_pad_1", "패드 화면/터치 입력", "touch_pad", "sensor"),
+                ("camera_1", "기상 감지 카메라", "camera", "sensor"),
             ]
-            for dev_id, name, kind in seed_devices:
+            for dev_id, name, kind, role in seed_devices:
                 cursor.execute(
                     """
-                    INSERT INTO devices (id, name, kind)
-                    VALUES (%s, %s, %s)
+                    INSERT INTO devices (id, name, kind, role, slot_index, enabled, label)
+                    VALUES (%s, %s, %s, %s, 0, TRUE, %s)
                     ON DUPLICATE KEY UPDATE
                         name = VALUES(name),
-                        kind = VALUES(kind);
+                        kind = VALUES(kind),
+                        role = VALUES(role),
+                        enabled = TRUE,
+                        -- 1차 완성본에서 올라온 팀은 label이 비어 있으므로 한 번 채워 준다.
+                        -- (이미 값이 있으면 팀이 바꾼 라벨을 덮어쓰지 않는다)
+                        label = COALESCE(label, VALUES(label));
                     """,
-                    (dev_id, name, kind),
+                    (dev_id, name, kind, role, name),
                 )
-    logger.info("Database initialized successfully with default devices.")
+
+            # 플랫폼 키트 슬롯 20개 시드 (부록F 2장)
+            # 처음부터 모두 만들어 두고, 사용하지 않는 슬롯은 enabled=FALSE로 둔다.
+            # kind는 NOT NULL이므로 아직 배정되지 않은 슬롯은 UNASSIGNED_KIND로 채운다.
+            for slot_id, role, index in iter_slot_definitions():
+                cursor.execute(
+                    """
+                    INSERT INTO devices (id, name, kind, role, slot_index, enabled)
+                    VALUES (%s, %s, %s, %s, %s, FALSE)
+                    ON DUPLICATE KEY UPDATE
+                        role = VALUES(role),
+                        slot_index = VALUES(slot_index);
+                    """,
+                    (slot_id, slot_id, UNASSIGNED_KIND, role, index),
+                )
+    logger.info(
+        "Database initialized successfully "
+        f"(레거시 디바이스 3개 + 플랫폼 슬롯 {len(SENSOR_SLOTS) + len(ACTUATOR_SLOTS)}개)."
+    )
 
 
 # ==============================================================================
@@ -330,11 +429,21 @@ def get_device(device_id: str) -> Optional[Dict[str, Any]]:
 
 
 @_tolerant(lambda: [])
-def get_all_devices() -> List[Dict[str, Any]]:
-    """등록된 모든 디바이스 목록을 조회합니다. (DB 장애 시 빈 목록)"""
+def get_all_devices(include_disabled: bool = False) -> List[Dict[str, Any]]:
+    """
+    디바이스 목록을 조회합니다. (DB 장애 시 빈 목록)
+
+    기본값은 **사용 중인 것만** 돌려줍니다. 플랫폼 슬롯 20개는 처음에 전부
+    enabled=FALSE로 시드되므로, 팀이 쓰는 슬롯만 대시보드에 나타납니다.
+    하드웨어 구성 설정 화면처럼 빈 슬롯까지 보여줘야 할 때만 include_disabled=True를 씁니다.
+    """
+    where = "" if include_disabled else "WHERE enabled IS NULL OR enabled = TRUE"
     with get_db_connection() as conn:
         with conn.cursor() as cursor:
-            cursor.execute("SELECT * FROM devices ORDER BY created_at ASC")
+            cursor.execute(
+                f"SELECT * FROM devices {where} "
+                "ORDER BY display_order ASC, role DESC, slot_index ASC, created_at ASC"
+            )
             return _decode_rows(cursor.fetchall())
 
 
@@ -567,3 +676,189 @@ def set_app_setting(key: str, value: Optional[Any]) -> bool:
                 (key, val_json),
             )
             return True
+
+
+# ==============================================================================
+# 플랫폼 키트 — 슬롯 레지스트리 (부록F 2·3장)
+# ==============================================================================
+
+@_tolerant(lambda: [])
+def get_slots(role: Optional[str] = None, enabled_only: bool = False) -> List[Dict[str, Any]]:
+    """
+    슬롯 목록을 조회합니다 (레거시 행은 제외 — slot_index >= 1만).
+
+    role: 'sensor' | 'actuator' | None(전체)
+    enabled_only: 팀이 실제로 쓰는 슬롯만
+    """
+    clauses = ["slot_index >= 1"]
+    params: List[Any] = []
+    if role:
+        clauses.append("role = %s")
+        params.append(role)
+    if enabled_only:
+        clauses.append("enabled = TRUE")
+    with get_db_connection() as conn:
+        with conn.cursor() as cursor:
+            cursor.execute(
+                f"SELECT * FROM devices WHERE {' AND '.join(clauses)} "
+                "ORDER BY role DESC, slot_index ASC",
+                params,
+            )
+            return _decode_rows(cursor.fetchall())
+
+
+@_tolerant(lambda: False)
+def update_slot_metadata(slot_id: str, fields: Dict[str, Any]) -> bool:
+    """
+    슬롯 메타데이터(label/kind/unit/control_type/enabled 등)를 수정합니다.
+    role·slot_index는 불변이므로 여기서 바꿀 수 없습니다.
+    """
+    updates = {k: v for k, v in fields.items() if k in SLOT_METADATA_FIELDS}
+    if not updates:
+        return False
+
+    assignments, params = [], []
+    for key, value in updates.items():
+        assignments.append(f"{key} = %s")
+        params.append(json.dumps(value) if key in ("value_schema", "meta") and value is not None else value)
+    params.append(slot_id)
+
+    with get_db_connection() as conn:
+        with conn.cursor() as cursor:
+            cursor.execute(
+                f"UPDATE devices SET {', '.join(assignments)} WHERE id = %s",
+                params,
+            )
+            return cursor.rowcount > 0
+
+
+@_tolerant(lambda: {"registered": [], "disabled": [], "rejected": []})
+def register_slots(slots: List[Dict[str, Any]], exclusive: bool = True) -> Dict[str, List[str]]:
+    """
+    라즈베리파이가 부팅 시 자기 슬롯 매핑을 일괄 등록합니다 (부록F 5-2절).
+
+    exclusive=True면 목록에 없는 슬롯은 자동으로 enabled=FALSE가 됩니다
+    → pi의 slot_map.py에서 한 줄을 지우면 대시보드에서도 사라집니다.
+    """
+    registered, rejected = [], []
+    with get_db_connection() as conn:
+        with conn.cursor() as cursor:
+            for entry in slots:
+                slot_id = entry.get("slot_id")
+                if slot_role(slot_id) is None:
+                    rejected.append(str(slot_id))
+                    continue
+                assignments = ["enabled = TRUE"]
+                params: List[Any] = []
+                for key in SLOT_METADATA_FIELDS:
+                    if key == "enabled" or key not in entry:
+                        continue
+                    value = entry[key]
+                    assignments.append(f"{key} = %s")
+                    params.append(
+                        json.dumps(value) if key in ("value_schema", "meta") and value is not None else value
+                    )
+                params.append(slot_id)
+                cursor.execute(
+                    f"UPDATE devices SET {', '.join(assignments)} WHERE id = %s AND slot_index >= 1",
+                    params,
+                )
+                registered.append(slot_id)
+
+            disabled: List[str] = []
+            if exclusive:
+                keep = registered or ["__none__"]
+                placeholders = ",".join(["%s"] * len(keep))
+                cursor.execute(
+                    f"SELECT id FROM devices WHERE slot_index >= 1 AND enabled = TRUE "
+                    f"AND id NOT IN ({placeholders})",
+                    keep,
+                )
+                disabled = [r["id"] for r in cursor.fetchall()]
+                if disabled:
+                    cursor.execute(
+                        f"UPDATE devices SET enabled = FALSE WHERE slot_index >= 1 "
+                        f"AND id NOT IN ({placeholders})",
+                        keep,
+                    )
+    return {"registered": registered, "disabled": disabled, "rejected": rejected}
+
+
+@_tolerant(lambda: None)
+def get_latest_reading(slot_id: str) -> Optional[Dict[str, Any]]:
+    """규칙 판정을 위해 센서 슬롯의 최신 측정값 1건을 읽어옵니다."""
+    with get_db_connection() as conn:
+        with conn.cursor() as cursor:
+            cursor.execute(
+                "SELECT value, unit, value_json, created_at FROM sensor_readings "
+                "WHERE device_id = %s ORDER BY id DESC LIMIT 1",
+                (slot_id,),
+            )
+            return _decode_row(cursor.fetchone())
+
+
+# ==============================================================================
+# 플랫폼 키트 — 자동화 규칙 (부록F 7장)
+# ==============================================================================
+
+@_tolerant(lambda: [])
+def list_rules(enabled_only: bool = False) -> List[Dict[str, Any]]:
+    """규칙 목록을 우선순위 순으로 조회합니다."""
+    where = "WHERE enabled = TRUE" if enabled_only else ""
+    with get_db_connection() as conn:
+        with conn.cursor() as cursor:
+            cursor.execute(f"SELECT * FROM rules {where} ORDER BY priority DESC, id ASC")
+            return _decode_rows(cursor.fetchall())
+
+
+@_tolerant(lambda: None)
+def get_rule(rule_id: int) -> Optional[Dict[str, Any]]:
+    with get_db_connection() as conn:
+        with conn.cursor() as cursor:
+            cursor.execute("SELECT * FROM rules WHERE id = %s", (rule_id,))
+            return _decode_row(cursor.fetchone())
+
+
+@_tolerant(lambda: None)
+def create_rule(name: str, definition: Dict[str, Any], enabled: bool = True, priority: int = 0) -> Optional[int]:
+    with get_db_connection() as conn:
+        with conn.cursor() as cursor:
+            cursor.execute(
+                "INSERT INTO rules (name, enabled, priority, definition) VALUES (%s, %s, %s, %s)",
+                (name, enabled, priority, json.dumps(definition)),
+            )
+            return int(cursor.lastrowid)
+
+
+@_tolerant(lambda: False)
+def update_rule(rule_id: int, fields: Dict[str, Any]) -> bool:
+    allowed = ("name", "enabled", "priority", "definition")
+    updates = {k: v for k, v in fields.items() if k in allowed}
+    if not updates:
+        return False
+    assignments, params = [], []
+    for key, value in updates.items():
+        assignments.append(f"{key} = %s")
+        params.append(json.dumps(value) if key == "definition" else value)
+    params.append(rule_id)
+    with get_db_connection() as conn:
+        with conn.cursor() as cursor:
+            cursor.execute(f"UPDATE rules SET {', '.join(assignments)} WHERE id = %s", params)
+            return cursor.rowcount > 0
+
+
+@_tolerant(lambda: False)
+def delete_rule(rule_id: int) -> bool:
+    with get_db_connection() as conn:
+        with conn.cursor() as cursor:
+            cursor.execute("DELETE FROM rules WHERE id = %s", (rule_id,))
+            return cursor.rowcount > 0
+
+
+@_tolerant(lambda: False)
+def touch_rule_fired(rule_id: int) -> bool:
+    """규칙이 발동한 시각을 기록합니다 (대시보드에서 '언제 동작했나' 표시용)."""
+    with get_db_connection() as conn:
+        with conn.cursor() as cursor:
+            cursor.execute("UPDATE rules SET last_fired_at = NOW() WHERE id = %s", (rule_id,))
+            return cursor.rowcount > 0

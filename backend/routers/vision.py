@@ -9,6 +9,7 @@ from auth import verify_device_api_key, verify_user_auth
 from db.database import get_recent_vision_events, log_vision_event
 from schemas.common import DataResponse
 from schemas.vision import VisionEventRequest
+from services.rule_engine import rule_engine
 from services.trigger_service import trigger_service
 from websocket_manager import ws_manager
 
@@ -67,6 +68,17 @@ async def receive_vision_event(
         )
     except Exception as exc:
         logger.warning(f"트리거 서비스 실행 중 오류: {exc}", exc_info=True)
+
+    # 4. 플랫폼 키트 자동화 규칙 연계 (vision_label 트리거)
+    try:
+        await rule_engine.on_vision_event(
+            label=payload.label,
+            detected=payload.detected,
+            confidence=payload.confidence,
+            count=payload.count,
+        )
+    except Exception as exc:
+        logger.warning(f"규칙 엔진 실행 중 오류: {exc}", exc_info=True)
 
     logger.info(
         f"[Vision Event] type={payload.event_type}, label={payload.label}, "
