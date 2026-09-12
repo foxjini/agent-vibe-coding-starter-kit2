@@ -391,18 +391,36 @@ XAMPP를 켜지 않아도 키트는 멈추지 않습니다. 슬롯 목록·배�
 pi/
 ├── slot_map.py        ← ★ 팀이 편집하는 유일한 파일
 ├── drivers/           ← 키트 제공 (필요 시 팀이 새 드라이버 추가)
+│   ├── base.py            드라이버 계약 (apply / read 2개 메서드)
+│   ├── gpio.py            GPIO 접근 + PC용 흉내내기 부품 자동 대체
 │   ├── digital_out.py     on/off 출력 (LED, 릴레이, 액티브 부저)
-│   ├── pwm_out.py         PWM (진동모터 세기, 패시브 부저, 모터 속도)
-│   ├── tonal_buzzer.py    주파수 지정 부저
+│   ├── pwm_out.py         PWM (진동모터 세기, LED 밝기, 모터 속도)
+│   ├── tonal_buzzer.py    주파수 지정 부저 (passive/active 선택)
 │   ├── servo.py           서보모터 각도
 │   ├── neopixel_out.py    RGB 스트립
 │   ├── level_out.py       단계 표시 (LED 여러 개를 단계로)
-│   ├── button_in.py       버튼·터치센서 (극성 설정)
+│   ├── button_in.py       버튼·터치센서·PIR (극성 설정)
 │   ├── analog_in.py       압력·조도 (ADC 경유)
 │   ├── dht_in.py          온습도
-│   ├── distance_in.py     초음파 거리
-│   └── mock_*.py          PC 개발용 (GPIO 없이 동작)
-└── daemon.py          ← 키트 제공 공통 루프 (수정 불필요)
+│   └── distance_in.py     초음파 거리
+├── slot_config.py     ← 키트 제공 배치표 검사기 (오타를 실행 전에 잡아냄)
+├── backend_client.py  ← 키트 제공 배치 통신 (등록·폴링·보고)
+├── daemon.py          ← 키트 제공 공통 루프 (수정 불필요)
+└── test_slot_daemon.py ← 키트 제공 자가 점검 (GPIO·백엔드 없이 실행)
+```
+
+> **구현 메모** — 설계 단계에서는 드라이버마다 `mock_*.py`를 따로 두기로 했지만,
+> 실제로는 **`drivers/gpio.py` 한 곳에서 부품만 흉내내도록** 바꿨습니다.
+> 파일을 둘로 나누면 각도 제한·볼륨 환산 같은 로직이 한쪽만 고쳐져서
+> "PC에서는 되는데 파이에서는 안 되는" 일이 생기기 때문입니다.
+> 드라이버는 한 벌만 유지하고, 실기기/흉내내기는 부품 계층에서만 갈립니다.
+
+**배선 확인 먼저** — 부품을 건드리기 전에 배치표만 점검할 수 있습니다.
+
+```bash
+cd pi
+python daemon.py --check     # 백엔드·GPIO·슬롯 목록·오타를 보여주고 종료
+python test_slot_daemon.py   # GPIO도 백엔드도 없이 28개 항목 자가 점검
 ```
 
 ### 8-1. `slot_map.py` 형식
@@ -440,7 +458,8 @@ SLOTS = {
 2. 1초 주기로 `GET /api/v1/devices/desired-states` → 드라이버에 반영
 3. 센서값·반영상태를 `POST /api/v1/devices/states`로 일괄 보고
 4. 보고 실패 시 다음 회차 재시도, 30초마다 재동기화
-5. 드라이버 로드 실패(PC 환경 등)는 자동으로 `mock_*`로 대체 — **프로그램이 죽지 않습니다**
+5. GPIO·라이브러리를 쓸 수 없으면(PC 환경 등) 그 부품만 흉내내기로 대체 —
+   **프로그램이 죽지 않습니다.** 배치표 한 줄에 오타가 있어도 그 줄만 빼고 나머지는 동작합니다.
 
 ### 8-3. pi 담당 학생의 작업 범위
 

@@ -12,3 +12,17 @@
 # 3) 가상환경 내부에서 실행할 의존성:
 requests>=2.31.0
 python-dotenv>=1.0.1
+
+# -----------------------------------------------------------------------------
+# 아래는 해당 부품을 실제로 달았을 때만 설치하세요 (없어도 데몬은 동작합니다 —
+# 라이브러리가 없으면 그 슬롯만 흉내내기로 대체되고 프로그램은 멈추지 않습니다).
+#
+#   온습도 센서 (drivers/dht_in.py)
+#     pip install adafruit-circuitpython-dht
+#
+#   네오픽셀 RGB 스트립 (drivers/neopixel_out.py) — sudo 권한으로 실행해야 합니다
+#     sudo pip install adafruit-circuitpython-neopixel --break-system-packages
+#
+#   아날로그 센서용 ADC (drivers/analog_in.py) — gpiozero에 MCP3008이 포함되어
+#   있으므로 추가 설치가 필요 없습니다. SPI를 켜 주세요: sudo raspi-config
+# -----------------------------------------------------------------------------
