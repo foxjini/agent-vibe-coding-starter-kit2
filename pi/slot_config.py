@@ -79,10 +79,14 @@ def validate_slots(slots: Dict[str, Any]) -> Tuple[Dict[str, Dict[str, Any]], Li
             continue
 
         # 같은 핀을 두 슬롯이 쓰면 한쪽이 조용히 동작하지 않습니다.
-        for key in ("pin", "trigger_pin", "echo_pin"):
-            pin = config.get(key)
-            if pin is None:
-                continue
+        def claim(pin: Any, where: str) -> None:
+            """핀 번호 하나를 이 슬롯 것으로 찜합니다 (겹치면 문제로 적습니다)."""
+            if not isinstance(pin, int) or isinstance(pin, bool):
+                problems.append(
+                    f"{slot_id}: {where}에 적은 핀 번호가 숫자가 아닙니다 ({pin!r}). "
+                    "GPIO 번호를 숫자로 적으세요 — 예: \"pin\": 17"
+                )
+                return
             owner = pins_in_use.get(pin)
             if owner and owner != slot_id:
                 problems.append(
@@ -90,16 +94,34 @@ def validate_slots(slots: Dict[str, Any]) -> Tuple[Dict[str, Dict[str, Any]], Li
                     "핀 하나에 부품 하나만 연결하세요."
                 )
             pins_in_use[pin] = slot_id
+
+        for key in ("pin", "trigger_pin", "echo_pin"):
+            pin = config.get(key)
+            if pin is None:
+                continue
+            if isinstance(pin, (list, tuple, dict)):
+                # 여러 핀을 쓰는 부품(level_out·rgb_out)은 'pins'에 적습니다.
+                problems.append(
+                    f"{slot_id}: '{key}'에는 핀 번호 하나만 적습니다. 핀을 여러 개 쓰는 "
+                    '부품은 \'pins\'에 적으세요 — 예: "pins": [5, 6, 13] 또는 '
+                    '"pins": {"r": 17, "g": 27, "b": 22}'
+                )
+                continue
+            claim(pin, f"'{key}'")
+
         # pins는 목록([5, 6, 13])일 수도, 딕셔너리({"r":17,"g":27,"b":22})일 수도 있습니다
         declared = config.get("pins") or []
-        pin_list = list(declared.values()) if isinstance(declared, dict) else list(declared)
+        if isinstance(declared, dict):
+            pin_list = list(declared.values())
+        elif isinstance(declared, (list, tuple)):
+            pin_list = list(declared)
+        else:
+            problems.append(
+                f"{slot_id}: 'pins'는 목록이나 딕셔너리여야 합니다 ({type(declared).__name__})."
+            )
+            pin_list = []
         for pin in pin_list:
-            owner = pins_in_use.get(pin)
-            if owner and owner != slot_id:
-                problems.append(
-                    f"GPIO {pin}번을 {owner}와 {slot_id}가 같이 쓰고 있습니다."
-                )
-            pins_in_use[pin] = slot_id
+            claim(pin, "'pins'")
 
         usable[slot_id] = dict(config)
 

@@ -17,14 +17,18 @@
 `backend/` · `backend/db/` · `vision/`을 한 줄도 고치지 않습니다.**
 
 ```
-[고정층] backend · db · vision     → 4팀 코드 100% 동일. 슬롯 20개만 안다.
+[고정층] backend · db              → 4팀 코드 100% 동일. 슬롯 20개만 안다.
             sensor_01 … sensor_10        (센서 최대 10개)
             actuator_01 … actuator_10    (액추에이터 최대 10개)
+         vision/ 공통 루프          → main.py · camera.py · detectors/{base,objects}
+                                      카메라를 열고, 검출기를 돌리고, 결과를 보냅니다
 
 [매핑층] DB 메타데이터 (코드 아님)  → "actuator_01 = 알람 부저, 주파수 제어"
             pi가 부팅 시 등록하거나 대시보드 설정 화면에서 지정
+         검출기 신고 (코드 아님)    → 비전 클라이언트가 "내가 내보내는 라벨"을 신고
 
-[팀층]   frontend + pi              → 팀이 자유롭게 수정
+[팀층]   frontend + pi/slot_map.py  → 팀이 자유롭게 수정
+         vision/detectors/<팀>.py    → 팀만의 감지 방법 (파일 하나 = 검출기 하나)
 ```
 
 상세 규약은 **[`docs/부록F-IoT-개발-플랫폼-키트-규약.md`](docs/부록F-IoT-개발-플랫폼-키트-규약.md)** 를 봅니다.
@@ -39,6 +43,8 @@
 | 화면 디자인·UX | `frontend/` | backend, db, vision |
 | 시나리오·게임 로직 | `frontend/` (시나리오 SDK) | backend, db, vision |
 | 단순 자동화 (임계값·스케줄) | 대시보드 규칙 편집 (데이터) | 코드 전부 |
+| 감지 **대상** 변경 (사람→컵) | 대시보드 영상인식 설정 (데이터) | 코드 전부 |
+| 감지 **방법** 추가 (자세·손동작) | `vision/detectors/<팀>.py` 파일 하나 | backend, db, vision 공통 루프 |
 
 ---
 
@@ -137,8 +143,47 @@ level→단계 버튼), 화면 조작이 pi까지 도달해 반영 보고가 돌
 `/api/alarm/status`를 폴링하던 회귀도 함께 고쳤습니다. 이제 감지 대상을 바꾸는 곳은
 **대시보드 한 곳**이며, 자동화 규칙에 쓴 라벨은 자동으로 포함됩니다.
 
-> ✅ **세 고정층(backend · db · vision)이 모두 팀 고유 내용을 갖지 않습니다.**
-> 팀이 고치는 곳은 `pi/slot_map.py`와 `frontend/`뿐입니다 — 키트의 약속이 성립했습니다.
+> ⚠️ **정정(P6):** P4를 끝낸 시점에 이 문서는 "세 고정층(backend · db · vision)이 모두
+> 팀 고유 내용을 갖지 않는다"고 적었지만, 그것은 사실이 아니었습니다.
+> `vision/gesture.py`는 가위바위보 전용이었고, 백엔드 `vision_config.py`에는
+> `GESTURE_LABELS = ("rock","paper","scissors")`가 그대로 박혀 있었습니다.
+> 적합성 테스트의 금지 이름 목록에 이 라벨들이 없어서 검사도 놓쳤습니다.
+> **감지 "대상"은 설정으로 뺐지만, 감지 "방법"은 여전히 wakeup 팀 것이었습니다.**
+> P6에서 검출기 플러그인 계층으로 고쳤습니다 (아래).
+
+### P6 — 감지 "방법"까지 팀별로 (검출기 플러그인)
+
+팀마다 보는 것이 다릅니다. wakeup은 손동작, classroom은 사람 수, study는 자세,
+subway는 혼잡도 — 그러니 **vision을 통째로 공통화할 수는 없습니다.**
+대신 pi의 `drivers/`와 같은 구조로 쪼갰습니다.
+
+| 계층 | 파일 | 팀이 고치나? |
+|---|---|---|
+| 공통 루프 (카메라·전송·화면·설정 폴링) | `vision/main.py` | ✗ |
+| 카메라 열기 (USB 웹캠 / Pi Camera 자동) | `vision/camera.py` | ✗ |
+| 검출기 계약 | `vision/detectors/base.py` | ✗ |
+| 사물 탐지 (YOLO, 4팀 공통) | `vision/detectors/objects.py` | ✗ |
+| **팀만의 감지 방법** | `vision/detectors/<이름>.py` | ✅ 파일 하나 추가 |
+
+`detectors/` 폴더에 파일을 넣으면 자동으로 인식됩니다(등록 불필요).
+보조 모듈은 이름을 `_`로 시작하면 로더가 건너뜁니다 — 예: `_hands_rps_engine.py`.
+
+**백엔드는 라벨 이름을 하나도 모릅니다.** 비전 클라이언트가 부팅할 때
+`POST /api/v1/vision/detectors`로 "내 검출기와 내보내는 라벨"을 신고하고,
+백엔드·대시보드·규칙 편집기는 그 신고를 보고 화면을 채웁니다.
+그래서 팀이 검출기를 추가해도 **백엔드 0줄 · 대시보드 0줄**입니다.
+
+| 항목 | 검증 |
+|---|---|
+| 적합성 테스트 (격리 검사 포함) | ✅ 69건 (DB 연결) / 51건 (DB 차단) |
+| 비전 자가 점검 (검출기 계층 포함) | ✅ 38건 |
+| 브라우저 종단 — 처음 보는 검출기가 화면에 나타나는지 | ✅ 21건 |
+| wakeup 시나리오 회귀 | ✅ 22건 |
+
+> ✅ **`backend/`와 `backend/db/`는 팀 고유 내용을 갖지 않습니다.**
+> `vision/`은 공통 루프와 검출기 플러그인으로 나뉘며, 팀 고유 내용은
+> `detectors/` 폴더 안에만 있습니다. 팀이 고치는 곳은 `pi/slot_map.py`,
+> `frontend/`, 그리고 `vision/detectors/<팀 파일>` 셋입니다.
 
 ### P5 — 4팀 배포 준비 완료
 
@@ -159,11 +204,12 @@ level→단계 버튼), 화면 조작이 pi까지 도달해 반영 보고가 돌
 |---|---|---|
 | **P0** | 슬롯 규약 · DB 스키마 · API 계약 확정 (부록F) | ✅ 완료 (실제 DB로 14항목 검증) |
 | **P1** | 백엔드 코어: 슬롯 레지스트리, 배치 API, register/PATCH, 규칙 엔진, 적합성 테스트 | ✅ 완료 (적합성 57건) |
-| **P2** | pi 프레임워크: `slot_map.py` + 드라이버 11종 + 흉내내기 + 공통 데몬 | ✅ 완료 (자가 점검 33건 + 종단 18건) |
+| **P2** | pi 프레임워크: `slot_map.py` + 드라이버 11종 + 흉내내기 + 공통 데몬 | ✅ 완료 (자가 점검 39건 + 종단 18건) |
 | **P3** | 프론트 키트: SlotGrid · 카드 · HardwareSetup · RuleEditor · 시나리오 SDK | ✅ 완료 (브라우저 종단 26건) |
 | **P3.5** | wakeup 고유 코드 일괄 교체 (알람·미션·레거시 디바이스 정리) | ✅ 완료 (이식 검증 후 제거, 브라우저 22건) |
-| **P4** | vision 일반화: 설정 기반 감지 대상 | ✅ 완료 (브라우저 11건 + 자가 점검 18건) |
+| **P4** | vision 감지 **대상**을 설정으로 | ✅ 완료 (브라우저 11건) — 감지 **방법**은 남아 있었음(P6에서 정정) |
 | **P5** | 4팀 배포: 팀별 `slot_map` 예시, 착수 가이드, 팀 브랜치 분기 | ✅ 완료 (4팀 배치표 종단 검증) |
+| **P6** | vision 감지 **방법**을 플러그인으로: `detectors/` + 검출기 신고 + `camera.py` | ✅ 완료 (적합성 69건 · 자가 점검 38건 · 브라우저 21건) |
 
 ---
 
@@ -204,9 +250,9 @@ git merge origin/platform     # 충돌은 frontend/ pi/slot_map.py 에서만 발
 3. 변경 후 반드시 통과해야 하는 검사:
    ```bash
    cd backend  && python smoke_test.py              # 백엔드 기본 동작 (32항목)
-   cd backend  && python conformance_test.py        # 키트 적합성 (57항목)
-   cd pi       && python test_slot_daemon.py        # 드라이버·배치표 (33항목)
-   cd vision   && python test_vision_config.py      # 감지 대상 설정 (18항목)
+   cd backend  && python conformance_test.py        # 키트 적합성 (69항목)
+   cd pi       && python test_slot_daemon.py        # 드라이버·배치표 (39항목)
+   cd vision   && python test_vision_config.py      # 감지 설정·검출기 (38항목)
    cd frontend && node --experimental-strip-types scenarios/wakeupEngine.test.ts   # 30항목
    cd frontend && npx eslint . && npm run build
    ```

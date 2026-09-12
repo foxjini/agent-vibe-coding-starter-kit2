@@ -14,13 +14,28 @@ import React, { useCallback, useEffect, useState } from "react";
 
 import { apiFetch } from "@/lib/api";
 
+/** 비전 클라이언트가 부팅할 때 신고한 검출기 하나 (부록F 10장). */
+interface KnownDetector {
+  name: string;
+  labels: string[];
+  description?: string;
+  available: boolean;
+  reason?: string;
+}
+
 interface VisionConfig {
   object_labels: string[];
-  gesture_enabled: boolean;
+  /** 돌릴 검출기 이름. 비어 있으면 "가진 것 전부"라는 뜻입니다. */
+  detectors: string[];
   min_confidence: number;
   cooldown_seconds: number;
   source?: string;
+  /** 비전 클라이언트가 신고한 검출기 — 화면은 이 목록을 보고 그립니다. */
+  known_detectors?: KnownDetector[];
 }
+
+/** 사물 탐지 검출기의 이름. 위의 '감지 대상' 목록을 받는 주인입니다. */
+const OBJECT_DETECTOR = "objects";
 
 /** 학생이 고르기 쉽도록 자주 쓰는 COCO 클래스만 추려 둡니다 (직접 입력도 가능). */
 const SUGGESTED: { label: string; ko: string }[] = [
@@ -81,6 +96,17 @@ export default function VisionSetup() {
   }
 
   const labels = config.object_labels ?? [];
+  const known = config.known_detectors ?? [];
+  const enabled = config.detectors ?? [];
+  /** 설정이 비어 있으면 "전부 사용"이라는 뜻입니다. */
+  const isRunning = (name: string) => enabled.length === 0 || enabled.includes(name);
+  const toggleDetector = (name: string) => {
+    const next = known
+      .map((d) => d.name)
+      .filter((n) => (n === name ? !isRunning(n) : isRunning(n)));
+    // 전부 켜면 빈 목록으로 저장합니다 — 나중에 추가한 검출기도 자동으로 돌게 하려고요.
+    void save({ detectors: next.length === known.length ? [] : next });
+  };
   const toggleLabel = (label: string) =>
     void save({
       object_labels: labels.includes(label)
@@ -183,20 +209,59 @@ export default function VisionSetup() {
       </div>
 
       <div className="rounded-xl border border-slate-200 bg-white p-5">
+        <div className="mb-1 text-xs font-semibold uppercase tracking-wider text-slate-400">
+          검출기 (감지 방법)
+        </div>
+        <p className="mb-3 text-xs text-slate-500">
+          비전 클라이언트가 <code className="rounded bg-slate-100 px-1">vision/detectors/</code> 폴더에서
+          찾은 것을 그대로 보여 줍니다. 팀이 파일을 하나 추가하면 여기에도 자동으로 나타납니다.
+        </p>
+
+        {known.length === 0 ? (
+          <p className="mb-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
+            아직 신고된 검출기가 없습니다. 비전 클라이언트(<code>python vision/main.py</code>)를 켜면
+            자기가 가진 검출기를 알려 주고, 그때 이 목록이 채워집니다.
+          </p>
+        ) : (
+          <ul className="mb-1 space-y-2">
+            {known.map((detector) => (
+              <li key={detector.name} className="flex items-start gap-2">
+                <input
+                  type="checkbox"
+                  id={`detector-${detector.name}`}
+                  checked={isRunning(detector.name)}
+                  disabled={busy || !detector.available}
+                  onChange={() => toggleDetector(detector.name)}
+                  className="mt-0.5 h-4 w-4 cursor-pointer accent-sky-600 disabled:opacity-50"
+                />
+                <label htmlFor={`detector-${detector.name}`} className="text-sm">
+                  <span className="font-medium text-slate-800">
+                    {detector.description || detector.name}
+                  </span>
+                  <span className="ml-1.5 font-mono text-xs text-slate-400">{detector.name}</span>
+                  {detector.name === OBJECT_DETECTOR ? (
+                    <span className="block text-xs text-slate-500">위에서 고른 감지 대상을 찾습니다.</span>
+                  ) : detector.labels.length > 0 ? (
+                    <span className="block text-xs text-slate-500">
+                      내보내는 라벨: {detector.labels.join(", ")}
+                    </span>
+                  ) : null}
+                  {!detector.available && (
+                    <span className="block text-xs text-rose-600">
+                      사용할 수 없음{detector.reason ? ` — ${detector.reason}` : ""}
+                    </span>
+                  )}
+                </label>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+
+      <div className="rounded-xl border border-slate-200 bg-white p-5">
         <div className="mb-4 text-xs font-semibold uppercase tracking-wider text-slate-400">
           감지 민감도
         </div>
-
-        <label className="mb-4 flex items-center gap-2 text-sm text-slate-700">
-          <input
-            type="checkbox"
-            checked={config.gesture_enabled}
-            disabled={busy}
-            onChange={(e) => void save({ gesture_enabled: e.target.checked })}
-            className="h-4 w-4 cursor-pointer accent-sky-600"
-          />
-          손동작(가위바위보) 인식 사용
-        </label>
 
         <SliderRow
           label="최소 신뢰도"
