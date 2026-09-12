@@ -429,7 +429,7 @@ pi/
 ```bash
 cd pi
 python daemon.py --check     # 백엔드·GPIO·슬롯 목록·오타를 보여주고 종료
-python test_slot_daemon.py   # GPIO도 백엔드도 없이 28개 항목 자가 점검
+python test_slot_daemon.py   # GPIO도 백엔드도 없이 39개 항목 자가 점검
 ```
 
 ### 8-1. `slot_map.py` 형식
