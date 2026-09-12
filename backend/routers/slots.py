@@ -32,9 +32,10 @@ from schemas.slot import (
     SlotMetadataUpdate,
     SlotRegisterRequest,
     StateReportRequest,
+    TimerRequest,
 )
 from iot.provider_factory import get_device_provider
-from services.rule_engine import rule_engine, validate_definition
+from services.rule_engine import rule_engine, validate_action, validate_definition
 from services.slot_service import apply_state_reports, build_desired_states
 from websocket_manager import ws_manager
 
@@ -298,3 +299,32 @@ async def remove_rule(rule_id: int, user=Depends(verify_user_auth)):
         )
     rule_engine.reset_state()
     return {"data": {"id": rule_id, "deleted": True}}
+
+
+# ==============================================================================
+# 일회성 타이머 (시나리오 SDK의 serverTimer)
+# ==============================================================================
+
+@router.post(
+    "/api/timers",
+    response_model=DataResponse[Dict[str, Any]],
+    summary="[키트] N초 뒤에 액션 하나를 한 번 실행",
+)
+async def post_timer(payload: TimerRequest, user=Depends(verify_user_auth)):
+    """
+    프론트엔드 시나리오는 브라우저 탭을 닫으면 멈춥니다. "미션 성공 60초 뒤 기상 확인"처럼
+    **화면 없이도 일어나야 하는 동작**을 백엔드에 맡길 때 씁니다 (부록F 9-3절).
+
+    규칙과 달리 저장되지 않으므로 서버를 재시작하면 사라집니다.
+    반복되는 자동화는 타이머가 아니라 규칙(`/api/rules`)으로 만드세요.
+    """
+    error = validate_action(payload.action)
+    if error:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail={"error": {"code": "INVALID_ACTION", "message": error}},
+        )
+
+    label = payload.label or "시나리오 타이머"
+    rule_engine.schedule_once(payload.seconds, payload.action, label)
+    return {"data": {"scheduled": True, "seconds": payload.seconds, "label": label}}

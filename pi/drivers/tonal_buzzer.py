@@ -58,13 +58,14 @@ class Driver(ActuatorDriver):
             # 능동 부저는 주파수를 못 바꾸므로 경보 패턴으로 울립니다.
             self.device.beep(on_time=0.25, off_time=0.15)
 
-        if self._state != "on":
+        reflected = self.reflected(state)
+        if self._state != reflected:
             logger.info(
-                f"[{self.slot_id}] {self.label} → on "
+                f"[{self.slot_id}] {self.label} → {reflected} "
                 f"({self.buzzer_type}, {frequency}Hz, 볼륨 {volume}%)"
             )
-        self._state = "on"
-        return "on"
+        self._state = reflected
+        return reflected
 
     def _silence(self) -> None:
         try:

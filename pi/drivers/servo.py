@@ -34,12 +34,11 @@ class Driver(ActuatorDriver):
         self._angle: Optional[float] = None
 
     def apply(self, state: Optional[str], value: Any = None) -> str:
+        result = self.reflected(state)     # servo는 보통 "move"
         if self.is_on(state):
             angle = self.number_from(value, "angle", self.max_angle)
-            result = "on"
         else:
             angle = self.rest_angle
-            result = "off"
 
         angle = max(self.min_angle, min(self.max_angle, angle))
         if self._angle is not None and abs(self._angle - angle) < 0.5:

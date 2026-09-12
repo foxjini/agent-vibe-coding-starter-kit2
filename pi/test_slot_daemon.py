@@ -148,10 +148,53 @@ def main_test() -> int:
 
     actuators = [d for d in drivers.values() if isinstance(d, ActuatorDriver)]
     check("액추에이터 apply()가 반영된 상태를 돌려줌",
-          all(d.apply("on", {"angle": 90, "level": 50, "frequency": 880,
+          all(d.apply("on", {"angle": 90, "duty": 50, "frequency": 880,
                              "volume": 70, "color": "#ff0000"}) == "on" for d in actuators))
     check("액추에이터 apply('off')가 off를 돌려줌",
           all(d.apply("off") == "off" for d in actuators))
+
+    # 부록F 3-1절: control_type마다 desired_state와 value 형식이 정해져 있습니다.
+    # 반영 결과(current_state)가 desired_state와 다르면 대시보드가 영원히 '반영 대기'로 보입니다.
+    contract = [
+        ("servo", {"driver": "servo", "pin": 12, "control_type": "servo"}, "move", {"angle": 90}),
+        ("onoff", {"driver": "digital_out", "pin": 23, "control_type": "onoff"}, "on", None),
+        ("pulse", {"driver": "digital_out", "pin": 26, "control_type": "pulse"}, "on",
+         {"on_time": 0.25, "off_time": 0.15}),
+        ("tonal", {"driver": "tonal_buzzer", "pin": 18, "control_type": "tonal"}, "on",
+         {"frequency": 880, "volume": 70}),
+        ("pwm", {"driver": "pwm_out", "pin": 13, "control_type": "pwm"}, "on", {"duty": 70}),
+        ("rgb", {"driver": "neopixel_out", "pin": 21, "control_type": "rgb"}, "on",
+         {"r": 255, "g": 0, "b": 0}),
+        ("level", {"driver": "level_out", "pins": [5, 6, 16], "control_type": "level"}, "on",
+         {"level": 2}),
+    ]
+    mismatches = []
+    for index, (control_type, config, state, value) in enumerate(contract):
+        driver = create_driver(f"actuator_{index + 1:02d}", {**config, "label": control_type})
+        if driver.apply(state, value) != state:
+            mismatches.append(control_type)
+        driver.close()
+    check("control_type 7종이 desired_state를 그대로 반영 보고 (부록F 3-1절)",
+          not mismatches, f"어긋난 것: {mismatches}")
+
+    servo = create_driver("actuator_01", {"driver": "servo", "pin": 12, "control_type": "servo"})
+    servo.apply("move", {"angle": 90})
+    check("servo의 'move' 상태를 켜짐으로 인식 (각도 반영)", servo._angle == 90.0, str(servo._angle))
+    servo.close()
+
+    pwm = create_driver("actuator_02", {"driver": "pwm_out", "pin": 13, "control_type": "pwm"})
+    pwm.apply("on", {"duty": 70})
+    check("pwm이 {'duty': 70}을 세기 70%로 반영", abs(pwm.device.value - 0.7) < 0.001,
+          str(pwm.device.value))
+    pwm.close()
+
+    pulse = create_driver("actuator_03", {"driver": "digital_out", "pin": 26,
+                                          "control_type": "pulse"})
+    pulse.apply("on", {"on_time": 0.25, "off_time": 0.15})
+    check("pulse가 점멸 주기를 반영", pulse._timing == (0.25, 0.15), str(pulse._timing))
+    pulse.apply("on", {"on_time": 1.0, "off_time": 1.0})
+    check("켜져 있어도 점멸 주기가 바뀌면 다시 반영", pulse._timing == (1.0, 1.0), str(pulse._timing))
+    pulse.close()
 
     sensors = [d for d in drivers.values() if isinstance(d, SensorDriver)]
     numeric_ok = True

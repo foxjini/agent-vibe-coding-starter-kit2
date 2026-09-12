@@ -43,13 +43,13 @@ class Driver(ActuatorDriver):
         level = int(self.number_from(value, "level", self.max_level)) if self.is_on(state) else 0
         level = max(0, min(self.max_level, level))
         if level == self._level:
-            return "on" if level else "off"
+            return self.reflected(state) if level else "off"
 
         for index, device in enumerate(self.devices):
             device.on() if index < level else device.off()
         self._level = level
         logger.info(f"[{self.slot_id}] {self.label} → 단계 {level}/{self.max_level}")
-        return "on" if level else "off"
+        return self.reflected(state) if level else "off"
 
     def close(self) -> None:
         for device in self.devices:

@@ -739,6 +739,10 @@ def register_slots(slots: List[Dict[str, Any]], exclusive: bool = True) -> Dict[
 
     exclusive=True면 목록에 없는 슬롯은 자동으로 enabled=FALSE가 됩니다
     → pi의 slot_map.py에서 한 줄을 지우면 대시보드에서도 사라집니다.
+
+    **등록은 그 슬롯의 메타데이터 전체를 덮어씁니다.** 보내지 않은 항목은 지웁니다 —
+    서보를 떼고 부저를 꽂았는데 서보의 value_schema(0~180도)가 남아 있으면
+    대시보드에 주파수 슬라이더가 0~180Hz로 그려집니다.
     """
     registered, rejected = [], []
     with get_db_connection() as conn:
@@ -751,9 +755,17 @@ def register_slots(slots: List[Dict[str, Any]], exclusive: bool = True) -> Dict[
                 assignments = ["enabled = TRUE"]
                 params: List[Any] = []
                 for key in SLOT_METADATA_FIELDS:
-                    if key == "enabled" or key not in entry:
+                    if key == "enabled":
                         continue
-                    value = entry[key]
+                    value = entry.get(key)
+                    if key not in entry:
+                        # 이번 등록에 없는 항목은 이전 부품의 흔적이므로 지웁니다.
+                        # kind는 NOT NULL, display_order는 정렬용이라 기본값으로 되돌립니다.
+                        value = (
+                            UNASSIGNED_KIND if key == "kind"
+                            else 0 if key == "display_order"
+                            else None
+                        )
                     assignments.append(f"{key} = %s")
                     params.append(
                         json.dumps(value) if key in ("value_schema", "meta") and value is not None else value

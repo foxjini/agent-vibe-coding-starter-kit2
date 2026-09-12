@@ -93,15 +93,25 @@ def validate_definition(definition: Dict[str, Any]) -> Optional[str]:
         if not isinstance(actions, list):
             return f"'{key}'는 액션 목록이어야 합니다."
         for action in actions:
-            if not isinstance(action, dict):
-                return f"'{key}'의 액션은 객체여야 합니다."
-            kind = action.get("action")
-            if kind not in ACTION_TYPES:
-                return f"지원하지 않는 액션입니다: {kind} (가능: {', '.join(ACTION_TYPES)})"
-            if kind == "set_actuator" and not action.get("slot_id"):
-                return "set_actuator에는 slot_id가 필요합니다."
+            error = validate_action(action)
+            if error:
+                return f"'{key}'의 {error}"
     if not definition.get("then"):
         return "'then'에 실행할 액션이 하나 이상 필요합니다."
+    return None
+
+
+def validate_action(action: Any) -> Optional[str]:
+    """액션 하나를 검증합니다 (규칙과 타이머가 함께 씁니다)."""
+    if not isinstance(action, dict):
+        return "액션은 객체여야 합니다."
+    kind = action.get("action")
+    if kind not in ACTION_TYPES:
+        return f"지원하지 않는 액션입니다: {kind} (가능: {', '.join(ACTION_TYPES)})"
+    if kind == "set_actuator" and not action.get("slot_id"):
+        return "set_actuator에는 slot_id가 필요합니다."
+    if kind == "notify" and not action.get("message"):
+        return "notify에는 message가 필요합니다."
     return None
 
 
@@ -297,6 +307,23 @@ class RuleEngine:
             pass
         except Exception as exc:
             logger.warning(f"지연 액션 실행 실패: {exc}", exc_info=True)
+
+    def schedule_once(self, delay_seconds: float, action: Dict[str, Any], label: str = "타이머") -> None:
+        """
+        액션 하나를 N초 뒤에 딱 한 번 실행합니다 (POST /api/timers).
+
+        프론트엔드 시나리오는 브라우저 탭이 닫히면 멈추므로, "미션 성공 60초 뒤 확인"처럼
+        화면 없이도 일어나야 하는 동작은 이 타이머로 백엔드에 맡깁니다 (부록F 9-3절).
+        규칙과 달리 저장되지 않으므로 서버를 재시작하면 사라집니다.
+        """
+        pseudo_rule = {"id": None, "name": label}
+        if delay_seconds > 0:
+            task = asyncio.create_task(self._delayed_action(pseudo_rule, action, delay_seconds))
+            self._timers.append(task)
+            self._timers = [t for t in self._timers if not t.done()]
+        else:
+            asyncio.create_task(self._run_action(pseudo_rule, action))
+        logger.info(f"[타이머] '{label}' — {delay_seconds:.0f}초 뒤 {action.get('action')} 실행 예약")
 
     async def _run_action(self, rule: Dict[str, Any], action: Dict[str, Any]) -> None:
         kind = action.get("action")

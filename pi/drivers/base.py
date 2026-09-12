@@ -94,23 +94,43 @@ class SlotDriver:
             entry["display_order"] = self.config["display_order"]
         return entry
 
-    @staticmethod
-    def is_on(state: Optional[str]) -> bool:
-        """백엔드가 내려주는 여러 표현을 '켜기/끄기'로 해석합니다."""
-        return str(state or "").strip().lower() in (
-            "on", "start", "open", "run", "active", "detected", "true", "1", "high",
-        )
+    #: '켜짐'으로 해석하는 desired_state 표현들.
+    #: servo는 부록F 3-1절 규약상 "move"를 씁니다.
+    ON_STATES = (
+        "on", "move", "start", "open", "run", "active", "detected", "true", "1", "high",
+    )
 
-    def number_from(self, value: Any, key: str, default: float) -> float:
+    @classmethod
+    def is_on(cls, state: Optional[str]) -> bool:
+        """백엔드가 내려주는 여러 표현을 '켜기/끄기'로 해석합니다."""
+        return str(state or "").strip().lower() in cls.ON_STATES
+
+    @classmethod
+    def reflected(cls, state: Optional[str]) -> str:
+        """
+        반영에 성공했을 때 보고할 상태 문자열.
+
+        백엔드가 내려준 표현을 **그대로** 되돌려 줍니다. servo의 "move"를 "on"으로
+        바꿔 보고하면 desired와 current가 영원히 달라 보여서, 대시보드가 계속
+        '반영 대기'로 표시됩니다 (부록A 상태 계약).
+        """
+        text = str(state or "").strip().lower()
+        return text if cls.is_on(text) else "off"
+
+    def number_from(self, value: Any, key: str, default: float, *aliases: str) -> float:
         """
         desired_value에서 숫자 하나를 꺼냅니다.
 
         - {"angle": 90} → number_from(v, "angle", 0) == 90
         - 90            → 90  (값 하나만 보낸 경우)
+        - 별칭을 주면 순서대로 찾습니다: number_from(v, "duty", 100, "level")
         """
         raw: Any = None
         if isinstance(value, dict):
-            raw = value.get(key, value.get("value"))
+            for candidate in (key, *aliases, "value"):
+                if candidate in value:
+                    raw = value[candidate]
+                    break
         elif value is not None:
             raw = value
         if raw is None:
