@@ -243,7 +243,8 @@ CREATE TABLE IF NOT EXISTS rules (
 | `POST /api/timers` | 대시보드 | 사용자 | N초 뒤 액션 1회 실행 (시나리오 SDK의 serverTimer) | ✅ P3 |
 | `POST /api/v1/vision/events` | vision | 디바이스 키 | 감지 이벤트 (기존 계약 유지) | ✅ 기존 |
 | `GET /api/logs/control`, `GET /api/events/vision`, `GET /health` | 대시보드 | 사용자 | 기존 그대로 | ✅ 기존 |
-| `GET /api/v1/vision/config` | vision | 디바이스 키 | 감지 대상 목록 | ⏳ P4 |
+| `GET /api/v1/vision/config` | vision | 디바이스 키 | 감지 대상 목록 | ✅ P4 |
+| `GET/PUT /api/vision/config` | 대시보드 | 사용자 | 감지 대상 설정 화면 | ✅ P4 |
 
 **목록 두 개의 차이** — `GET /api/slots`는 빈 슬롯까지 20개를 모두 돌려주므로 '하드웨어 구성'
 설정 화면용이고, `GET /api/devices`는 활성 슬롯만 돌려주므로 대시보드 본화면용입니다.
@@ -587,9 +588,19 @@ onVision(["rock", "paper", "scissors"], (e) => {
 ```
 
 - 이 설정은 규칙(`vision_label` 트리거)과 대시보드 설정에서 자동으로 산출됩니다.
+  **규칙에 쓴 라벨은 설정에 적지 않아도 자동으로 포함됩니다** — 규칙을 만들었는데
+  감지가 안 되면 원인을 찾기 어렵기 때문입니다.
 - 팀이 감지 대상을 바꿔도 **vision 코드는 수정하지 않습니다.**
-- 서버에 연결되지 않으면 기본값(전체 COCO 중 상위 신뢰도)으로 동작합니다.
+  바꾸는 곳: 대시보드 `/kit` → **영상인식 설정** 탭.
+- vision은 5초마다 설정을 다시 받아오므로 **프로그램을 다시 켜지 않아도** 반영됩니다.
+- 서버에 연결되지 않으면 마지막 설정(없으면 기본 대상 5종)으로 계속 동작합니다 —
+  설정을 못 읽었다고 감지를 멈추면 수업이 멈춥니다.
+- 손동작 라벨(rock/paper/scissors)은 MediaPipe가 판정하므로 사물 대상 목록에서 제외됩니다.
+- COCO에 없는 라벨을 넣으면 조용히 건너뜁니다 (화면이 깨지지 않습니다).
 - 이벤트 전송 형식은 기존 그대로: `{"event_type","detected","count","confidence","label"}`
+
+**vision 화면은 판정하지 않습니다.** 무엇을 봤는지만 보여 주고, 승패·라운드 같은 시나리오
+판정은 프론트엔드가 합니다(9-2절). 그래서 미리보기 창에는 감지 대상과 인식 결과만 나옵니다.
 
 ---
 
@@ -616,7 +627,7 @@ python conformance_test.py      # DB를 켜고 한 번, 끄고 한 번 돌려 �
 | 백엔드·vision 코드에 **다른 팀** 디바이스 이름이 0개인가 | ✅ 8번 |
 | 팀 브랜치의 `backend/`·`vision/` diff가 공통 키트와 **동일**한가 | 수동 (`git diff platform -- backend vision`) |
 
-검사 결과(P3.5 시점, `platform` 브랜치): **DB 켠 상태 47건 전부 통과 / DB 끈 상태 37건 전부 통과**.
+검사 결과(P4 시점, `platform` 브랜치): **DB 켠 상태 57건 전부 통과 / DB 끈 상태 43건 전부 통과**.
 
 전체 자가 점검 목록:
 
@@ -626,6 +637,7 @@ python conformance_test.py      # DB를 켜고 한 번, 끄고 한 번 돌려 �
 | 백엔드 기본 동작 | `cd backend && python smoke_test.py` | 32 |
 | pi 드라이버·배치표 | `cd pi && python test_slot_daemon.py` | 33 |
 | 시나리오 판정 규칙 | `cd frontend && node --experimental-strip-types scenarios/wakeupEngine.test.ts` | 30 |
+| 영상인식 설정 | `cd vision && python test_vision_config.py` | 18 |
 
 > 8번 검사는 **모든 팀 고유 이름**을 실패로 셉니다(wakeup의 `buzzer_1` 포함).
 > 예외는 `db/database.py`의 이관 대응표 하나뿐입니다 — 1차 완성본을 올린 팀이

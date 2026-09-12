@@ -90,3 +90,21 @@ class TimerRequest(BaseModel):
                     '{"action":"set_actuator","slot_id":"actuator_01","state":"off"}',
     )
     label: Optional[str] = Field(None, max_length=100, description="로그·알림에 표시할 이름")
+
+
+class VisionConfigUpdate(BaseModel):
+    """PUT /api/v1/vision/config — 감지 대상을 코드가 아니라 설정으로 바꿉니다 (부록F 10장)."""
+
+    object_labels: Optional[List[str]] = Field(
+        default=None,
+        description="YOLO로 찾을 대상 (COCO 클래스명). 예: [\"person\", \"cup\"]",
+    )
+    gesture_enabled: Optional[bool] = Field(
+        default=None, description="MediaPipe 손동작(가위바위보) 판정 사용 여부"
+    )
+    min_confidence: Optional[float] = Field(
+        default=None, ge=0.0, le=1.0, description="이 값보다 낮으면 보고하지 않음"
+    )
+    cooldown_seconds: Optional[float] = Field(
+        default=None, ge=0.0, le=60.0, description="같은 대상을 다시 보고하기까지 기다릴 시간"
+    )

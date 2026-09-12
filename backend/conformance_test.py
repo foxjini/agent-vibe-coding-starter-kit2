@@ -392,6 +392,54 @@ def main_test() -> int:
             print("       · DB 미연결이라 마이그레이션 검사는 건너뜁니다.")
 
         # ---------------------------------------------------------------
+        section("7-3. 감지 대상을 코드 없이 바꾸기 (부록F 10장)")
+        res = client.get("/api/v1/vision/config", headers=HEADERS)
+        check("GET /api/v1/vision/config 200", res.status_code == 200, res.text[:160])
+        config = res.json().get("data", {})
+        check("감지 대상 목록이 내려옴", isinstance(config.get("object_labels"), list),
+              str(config)[:160])
+        check("신뢰도·쿨다운 기준이 함께 내려옴",
+              isinstance(config.get("min_confidence"), (int, float))
+              and isinstance(config.get("cooldown_seconds"), (int, float)), str(config)[:160])
+
+        res = client.put("/api/vision/config", json={
+            "object_labels": ["Dog", "cup", "cup", "rock"], "min_confidence": 0.8,
+        })
+        if db_on:
+            check("PUT /api/vision/config 200", res.status_code == 200, res.text[:160])
+            saved = res.json().get("data", {})
+            check("대상이 소문자·중복 제거되어 저장됨",
+                  saved.get("object_labels") == ["dog", "cup"], str(saved.get("object_labels")))
+            check("손동작 라벨은 사물 대상에서 제외됨 (MediaPipe가 판정)",
+                  "rock" not in (saved.get("object_labels") or []))
+            check("신뢰도 기준이 저장됨", saved.get("min_confidence") == 0.8)
+
+            # 규칙에 쓴 라벨은 설정에 없어도 자동으로 포함되어야 한다
+            rule_res = client.post("/api/rules", json={
+                "name": "비전 설정 검사용 규칙",
+                "definition": {
+                    "when": {"type": "vision_label", "label": "person"},
+                    "then": [{"action": "notify", "message": "사람 감지"}],
+                },
+            })
+            rule_id = rule_res.json().get("data", {}).get("id")
+            merged = client.get("/api/v1/vision/config", headers=HEADERS).json().get("data", {})
+            check("규칙에 쓴 라벨이 감지 대상에 자동 포함됨",
+                  "person" in (merged.get("object_labels") or []),
+                  str(merged.get("object_labels")))
+            if rule_id:
+                client.delete(f"/api/rules/{rule_id}")
+
+            # 원상 복구
+            client.put("/api/vision/config", json={
+                "object_labels": ["person", "bottle", "cup", "book", "cell phone"],
+                "min_confidence": 0.6,
+            })
+        else:
+            check("DB 미연결 시에도 기본 감지 대상을 내려줌",
+                  bool(config.get("object_labels")), str(config)[:120])
+
+        # ---------------------------------------------------------------
         section("8. 코드 격리 (팀 고유 이름이 고정층에 없어야 함)")
         root = Path(CURRENT_DIR).parent
         team_names = [
@@ -406,7 +454,9 @@ def main_test() -> int:
 
         targets = [p for p in (root / "backend").rglob("*.py")] + \
                   [p for p in (root / "vision").rglob("*.py")]
-        targets = [p for p in targets if p.name not in ("conformance_test.py", "smoke_test.py")]
+        # 자가 점검 스크립트는 "이 이름이 없어야 한다"를 검사하느라 그 이름을 적고 있습니다.
+        targets = [p for p in targets
+                   if not (p.name.startswith("test_") or p.name.endswith("_test.py"))]
         leaked = []
         for path in targets:
             relative = str(path.relative_to(root / "backend")) if "backend" in path.parts else ""
@@ -423,6 +473,13 @@ def main_test() -> int:
         migration_text = (root / "backend" / MIGRATION_FILE).read_text(encoding="utf-8")
         check("1차 완성본 이관 대응표는 남아 있음",
               "LEGACY_DEVICE_MIGRATION" in migration_text)
+
+        # vision은 '무엇을 감지할지'를 코드에 두면 안 됩니다 (부록F 10장)
+        vision_text = (root / "vision" / "main.py").read_text(encoding="utf-8")
+        check("vision이 감지 대상을 코드에 고정하지 않음",
+              "MISSION_TARGETS" not in vision_text)
+        check("vision이 서버 설정을 받아 씀",
+              "/api/v1/vision/config" in vision_text)
 
         # 정리
         register(client, [], exclusive=True)

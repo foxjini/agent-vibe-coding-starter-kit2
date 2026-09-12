@@ -8,8 +8,10 @@ from fastapi import APIRouter, Depends, Query
 from auth import verify_device_api_key, verify_user_auth
 from db.database import get_recent_vision_events, log_vision_event
 from schemas.common import DataResponse
+from schemas.slot import VisionConfigUpdate
 from schemas.vision import VisionEventRequest
 from services.rule_engine import rule_engine
+from services.vision_config import get_vision_config, save_vision_config
 from websocket_manager import ws_manager
 
 
@@ -95,3 +97,49 @@ async def list_recent_vision_events(
     """대시보드에서 최근 수신된 영상인식 이벤트 목록을 조회합니다."""
     events = await asyncio.to_thread(get_recent_vision_events, limit)
     return {"data": events}
+
+
+# ==============================================================================
+# 감지 설정 (부록F 10장) — vision이 '무엇을 찾을지'를 코드가 아니라 여기서 받아 갑니다
+# ==============================================================================
+
+@router.get(
+    "/api/v1/vision/config",
+    response_model=DataResponse[Dict[str, Any]],
+    summary="[비전] 감지 대상 설정 조회",
+)
+async def read_vision_config(device_key=Depends(verify_device_api_key)):
+    """
+    비전 클라이언트가 시작할 때와 주기적으로 호출합니다.
+
+    감지 대상은 **자동화 규칙의 vision_label 트리거 + 대시보드 설정**에서 자동으로 산출됩니다.
+    팀이 감지 대상을 바꿔도 `vision/main.py`는 고치지 않습니다.
+    DB가 꺼져 있어도 기본값으로 응답합니다 — 설정을 못 읽었다고 감지를 멈추면 수업이 멈춥니다.
+    """
+    return {"data": await asyncio.to_thread(get_vision_config)}
+
+
+@router.get(
+    "/api/vision/config",
+    response_model=DataResponse[Dict[str, Any]],
+    summary="[키트] 감지 대상 설정 조회 (대시보드용)",
+)
+async def read_vision_config_for_dashboard(user=Depends(verify_user_auth)):
+    """설정 화면이 현재 감지 대상을 보여주기 위해 호출합니다."""
+    return {"data": await asyncio.to_thread(get_vision_config)}
+
+
+@router.put(
+    "/api/vision/config",
+    response_model=DataResponse[Dict[str, Any]],
+    summary="[키트] 감지 대상 설정 변경",
+)
+async def update_vision_config(payload: VisionConfigUpdate, user=Depends(verify_user_auth)):
+    """
+    감지 대상을 바꿉니다 — **코드가 아니라 데이터를 바꾸는 작업입니다.**
+    비전 클라이언트는 다음 설정 조회 주기에 자동으로 새 대상을 적용합니다.
+    """
+    fields = payload.model_dump(exclude_unset=True)
+    config = await asyncio.to_thread(save_vision_config, fields)
+    await ws_manager.broadcast({"type": "vision_config", **config})
+    return {"data": config}
