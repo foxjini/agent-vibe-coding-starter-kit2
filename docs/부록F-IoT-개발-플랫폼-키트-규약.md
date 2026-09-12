@@ -1,0 +1,576 @@
+# 부록F — IoT 개발 플랫폼 키트 규약 (P0 설계 확정안)
+
+> 📂 **4개 팀(wakeup · classroom · study · subway) 공통 / 전 담당자 필수** · 전체 목록 [docs/README.md](README.md)
+>
+> **이 문서의 목적**: 팀이 2차 개발에서 **센서·액추에이터의 종류나 개수를 바꿀 때
+> 백엔드·DB·vision을 한 줄도 고치지 않아도 되도록** 하는 공통 규약을 정의합니다.
+> 팀이 고치는 것은 **`frontend/`와 `pi/` 두 곳뿐**입니다.
+>
+> 이 문서는 구현 전 **계약서(P0)** 입니다. 여기 적힌 슬롯 규약·DB 스키마·API 형식은
+> 한 번 확정하면 바꾸지 않습니다(바꾸면 4팀이 모두 영향을 받습니다).
+
+---
+
+## 1. 왜 이 키트가 필요한가
+
+지금은 디바이스 이름이 코드에 직접 박혀 있습니다. 실제로 세어 보면 **10개 파일 20곳**입니다.
+
+| 파일 | 하드코딩 개수 |
+|---|---|
+| `pi/main.py` | 7 |
+| `backend/iot/device_catalog.py` | 6 |
+| `backend/db/init.sql`, `backend/db/database.py` | 각 3 |
+| `frontend/app/page.tsx` | 2 |
+| `backend/services/*`, `backend/routers/*` | 각 1 |
+
+그래서 부품 하나만 바꿔도 백엔드·DB까지 손대야 하고, 팀마다 이름이 전부 달라
+**4팀이 코드를 공유할 수 없습니다**(실제로 현재 4팀의 디바이스 ID는 겹치는 것이 하나도 없습니다).
+
+### 해결 방식: 이름을 코드에서 빼고 "슬롯 + 라벨"로 분리
+
+```
+[고정층]  백엔드 · DB · vision
+          슬롯 20개만 안다. 무엇이 꽂혀 있는지는 모른다. → 4팀 코드 100% 동일, 영구 불변
+              sensor_01 … sensor_10      (센서 최대 10개)
+              actuator_01 … actuator_10  (액추에이터 최대 10개)
+
+[매핑층]  DB의 메타데이터 (코드 아님, 데이터)
+          "actuator_01 = 알람 부저, 주파수 제어" ← 팀이 API·대시보드로 지정
+
+[팀층]    frontend (화면·시나리오) + pi (배선·드라이버)
+          팀이 자유롭게 수정
+```
+
+---
+
+## 2. 슬롯 규약 (불변)
+
+### 2-1. 슬롯 ID
+
+| 역할 | 슬롯 ID | 개수 | 비고 |
+|---|---|---|---|
+| 센서 | `sensor_01` ~ `sensor_10` | 10 | 두 자리 0 채움(`sensor_1` ❌) |
+| 액추에이터 | `actuator_01` ~ `actuator_10` | 10 | 동일 |
+
+- 20개 슬롯은 **DB에 처음부터 모두 생성**되어 있습니다. 팀이 추가·삭제하지 않습니다.
+- **사용하지 않는 슬롯은 `enabled = false`** 로 둡니다(삭제가 아니라 비활성).
+- 슬롯의 `role`(sensor/actuator)은 **절대 바뀌지 않습니다**. 센서가 부족하다고
+  `actuator_07`을 센서로 쓰지 않습니다.
+- 슬롯 ID를 코드에 직접 쓰는 것은 `pi/slot_map.py`와 프론트 시나리오 코드에서만 허용합니다.
+  백엔드·DB·vision에는 특정 슬롯 번호가 등장하지 않습니다.
+
+### 2-2. 카메라는 슬롯을 쓰지 않습니다
+
+웹캠·Pi Camera는 `vision/` 클라이언트가 담당하고, 결과는 `vision_events`로 들어옵니다
+(기존 계약 그대로). 대시보드에 "카메라 연결 상태"를 표시하고 싶을 때만
+센서 슬롯 하나에 `kind: "camera"`로 등록해 상태 표시용으로 씁니다.
+
+### 2-3. 4팀 슬롯 할당 워크시트 (현재 부품 기준)
+
+> 각 팀은 아래 표를 자기 브랜치의 `AGENTS.md`에 복사해 채우고, 같은 내용을
+> `pi/slot_map.py`에 반영합니다. 이 표와 `slot_map.py`가 **유일한 진실**입니다.
+
+**wakeup — 스마트 기상 시스템**
+
+| 슬롯 | 부품 | kind | control_type / 단위 |
+|---|---|---|---|
+| `actuator_01` | 알람 피에조 부저 | `buzzer` | `tonal` |
+| `sensor_01` | 기상 확인 버튼/터치센서 | `button` | — |
+| (vision) | 기상 감지 웹캠 | — | `vision_events` |
+| 미사용 | `actuator_02~10`, `sensor_02~10` | | `enabled=false` |
+
+**classroom — 스마트 교실 (액추에이터 5개, 가장 많음)**
+
+| 슬롯 | 부품 | kind | control_type |
+|---|---|---|---|
+| `actuator_01` | MG90S 서보모터(자동문) | `servo` | `servo` |
+| `actuator_02` | 좌석 LED | `led` | `onoff` |
+| `actuator_03` | 네오픽셀 | `neopixel` | `rgb` |
+| `actuator_04` | 부저 | `buzzer` | `tonal` |
+| `actuator_05` | 릴레이(교실 조명) | `relay` | `onoff` |
+| (vision) | FHD 출입 웹캠 | — | `vision_events` |
+
+**study — 스마트 학습 공간**
+
+| 슬롯 | 부품 | kind | control_type |
+|---|---|---|---|
+| `actuator_01` | RGB LED 바(스탠드) | `led` | `rgb` |
+| `actuator_02` | 진동 모터 A(등받이) | `vibrator` | `pwm` |
+| `actuator_03` | 진동 모터 B(방석) | `vibrator` | `pwm` |
+| `actuator_04` | 릴레이/MOSFET 모듈 | `relay` | `onoff` |
+| `sensor_01` | 매립형 터치 디스플레이 | `touch` | — |
+| (vision) | 정면 USB 웹캠 | — | `vision_events` |
+
+**subway — 지하철 혼잡도 시스템**
+
+| 슬롯 | 부품 | kind | control_type |
+|---|---|---|---|
+| `actuator_01` | 혼잡도 안내 LED | `led` | `level` (단계 표시) |
+| `actuator_02` | 배경 이동 컨베이어 | `motor` | `pwm` |
+| `sensor_01` | 임산부석 압력센서 | `pressure` | 단위 `kg` |
+| (vision) | 객차 Pi Camera 3 | — | `vision_events` |
+
+---
+
+## 3. 디바이스 메타데이터 (팀이 지정하는 값)
+
+슬롯에 "의미"를 붙이는 값입니다. **코드가 아니라 데이터**이므로 API나 대시보드 설정 화면에서 바꿉니다.
+
+| 필드 | 예시 | 설명 |
+|---|---|---|
+| `label` | `"알람 부저"` | 화면에 보이는 이름. 팀이 자유롭게 |
+| `kind` | `"buzzer"` | 아이콘·표시 방식 결정용 분류 |
+| `unit` | `"°C"`, `"kg"` | 센서 단위 (액추에이터는 비움) |
+| `control_type` | `"tonal"` | 액추에이터 제어 방식 → **프론트 위젯이 자동 결정됨** |
+| `value_schema` | `{"min":0,"max":180}` | 슬라이더·다이얼 범위 |
+| `enabled` | `true` / `false` | 사용 여부 (제거 = false) |
+| `display_order` | `1` | 대시보드 정렬 순서 |
+| `meta` | `{"pin":18,"note":"교실 앞문"}` | 팀 자유 확장 (핀 번호·설치 위치 등) |
+
+### 3-1. `control_type` 규약 — 이 값이 위젯과 값 형식을 결정합니다
+
+| control_type | `desired_state` | `value` 형식 | 프론트 위젯 | 쓰는 팀 |
+|---|---|---|---|---|
+| `onoff` | `"on"` / `"off"` | `null` | 토글 스위치 | classroom, study |
+| `pulse` | `"on"` / `"off"` | `{"on_time":0.25,"off_time":0.15}` | 토글 + 점멸 주기 | 경보등 |
+| `tonal` | `"on"` / `"off"` | `{"frequency":1000,"volume":80}` | 토글 + 주파수/볼륨 | wakeup, classroom |
+| `pwm` | `"on"` / `"off"` | `{"duty":0~100}` | 슬라이더 | study, subway |
+| `servo` | `"move"` / `"off"` | `{"angle":0~180}` | 각도 다이얼 | classroom |
+| `rgb` | `"on"` / `"off"` | `{"r":0-255,"g":0-255,"b":0-255}` | 컬러 피커 | classroom, study |
+| `level` | `"on"` / `"off"` | `{"level":0~N}` | 단계 선택 버튼 | subway |
+
+> `desired_state`는 **항상 문자열**이고, 세부 값은 **항상 `value` 객체**에 담습니다.
+> 이 규칙 덕분에 백엔드는 값의 의미를 몰라도 저장·중계할 수 있습니다.
+
+### 3-2. 센서 `kind`별 보고 값 형식
+
+| kind | `value` 형식 | 비고 |
+|---|---|---|
+| `button`, `touch` | `{"pressed": true}` | 눌림 이벤트 |
+| `presence`, `motion` | `{"detected": true}` | 재실·동작 감지 |
+| `temperature`, `humidity`, `distance`, `pressure`, `light` | `{"value": 24.5}` | **숫자는 반드시 `value` 키** |
+| `camera` | `{"connected": true, "fps": 15}` | 상태 표시용 |
+| 그 외 | 자유 JSON | 차트는 안 그려짐 |
+
+> ⚠️ **숫자 센서는 반드시 `{"value": 숫자}` 형태로 보고하세요.**
+> 백엔드가 이 키를 보고 `sensor_readings.value`(FLOAT)에 넣기 때문에,
+> 이것만 지키면 **차트·통계가 코드 수정 없이 자동으로** 동작합니다.
+> 복합 센서(온습도 동시)는 슬롯 2개로 나누는 것을 권장합니다.
+
+---
+
+## 4. DB 스키마 (확정 — 이후 변경하지 않습니다)
+
+```sql
+-- 1. 디바이스 슬롯 (20행 고정 시드. 추가·삭제 없음)
+CREATE TABLE IF NOT EXISTS devices (
+  slot_id       VARCHAR(20) PRIMARY KEY,   -- 'sensor_01' … 'actuator_10'
+  role          VARCHAR(10) NOT NULL,      -- 'sensor' | 'actuator'  (불변)
+  slot_index    TINYINT     NOT NULL,      -- 1~10
+  enabled       BOOLEAN     DEFAULT FALSE, -- 팀이 사용 여부 토글
+  label         VARCHAR(100) NULL,         -- 팀이 지정하는 표시 이름
+  kind          VARCHAR(30)  NULL,         -- 'buzzer','servo','temperature' …
+  unit          VARCHAR(20)  NULL,         -- '°C','kg','cm'
+  control_type  VARCHAR(20)  NULL,         -- 3-1절 표 참고 (액추에이터만)
+  value_schema  JSON         NULL,         -- {"min":0,"max":180,"step":1}
+  meta          JSON         NULL,         -- 팀 자유 확장 (핀 번호 등)
+  display_order TINYINT      DEFAULT 0,
+  desired_state VARCHAR(30)  NULL,         -- 백엔드가 내린 명령
+  current_state VARCHAR(30)  NULL,         -- pi가 보고한 실제 상태
+  desired_value JSON         NULL,
+  current_value JSON         NULL,
+  updated_at    DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  created_at    DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+-- 2~4. 기존과 동일 (이미 범용). device_id가 slot_id를 가리킨다
+--   sensor_readings (device_id, value FLOAT, unit, value_json, created_at)
+--   control_log     (device_id, action, value JSON, actor, created_at)
+--   vision_events   (event_type, detected, count, confidence, label, created_at)
+
+-- 5. 앱 설정 (기존)
+--   app_settings (setting_key, setting_value JSON, updated_at)
+
+-- 6. 자동화 규칙 (신규)
+CREATE TABLE IF NOT EXISTS rules (
+  id         INT AUTO_INCREMENT PRIMARY KEY,
+  name       VARCHAR(100) NOT NULL,
+  enabled    BOOLEAN DEFAULT TRUE,
+  priority   TINYINT DEFAULT 0,
+  definition JSON NOT NULL,        -- 7장의 규칙 JSON
+  last_fired_at DATETIME NULL,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+);
+```
+
+**확장 여유**: `meta`·`value_schema`·`definition`이 JSON이므로, 나중에 필드가 더 필요해도
+**스키마 변경 없이** 담을 수 있습니다. 이것이 "DB를 고치지 않는다"를 지키는 장치입니다.
+
+---
+
+## 5. API 계약
+
+### 5-1. 전체 목록
+
+| 메서드/경로 | 호출 주체 | 인증 | 용도 |
+|---|---|---|---|
+| `GET /api/devices` | 대시보드 | 사용자 | 슬롯 전체 + 메타데이터 (`?enabled=true` 필터) |
+| `GET /api/devices/{slot_id}` | 대시보드 | 사용자 | 슬롯 1개 상세 |
+| `POST /api/devices/{slot_id}/control` | 대시보드 | 사용자 | 액추에이터 목표 상태 지정 |
+| `PATCH /api/devices/{slot_id}` | 대시보드 | 사용자 | **메타데이터 수정** (label·kind·enabled…) |
+| `GET /api/devices/{slot_id}/readings` | 대시보드 | 사용자 | 센서 이력 (차트용, 최대 500) |
+| `GET /api/v1/devices/desired-states` | **pi** | 디바이스 키 | **전체 액추에이터 목표 상태 일괄 조회** |
+| `POST /api/v1/devices/states` | **pi** | 디바이스 키 | **센서값·반영상태 일괄 보고** |
+| `POST /api/v1/devices/register` | **pi** | 디바이스 키 | 부팅 시 슬롯 매핑 일괄 등록 |
+| `GET /api/v1/vision/config` | vision | 디바이스 키 | 감지 대상 목록 |
+| `POST /api/v1/vision/events` | vision | 디바이스 키 | 감지 이벤트 (기존 계약 유지) |
+| `GET/POST/PUT/DELETE /api/rules` | 대시보드 | 사용자 | 자동화 규칙 CRUD |
+| `POST /api/timers` | 대시보드 | 사용자 | N초 후 액션 예약 (시나리오용) |
+| `GET /api/logs/control`, `GET /api/events/vision`, `GET /health` | 대시보드 | 사용자 | 기존 그대로 |
+
+기존 단일 폴링(`GET /api/v1/devices/{slot_id}/desired-state`)과 단일 보고(`POST .../state`)도
+**호환을 위해 유지**합니다. 다만 pi는 배치 API를 쓰는 것을 기본으로 합니다.
+
+### 5-2. 배치 API가 필수인 이유
+
+슬롯이 20개로 늘어나므로, 기존처럼 디바이스마다 1초 주기로 따로 호출하면
+**팀당 초당 20요청**이 됩니다. 배치로 묶으면 **초당 1요청**입니다.
+
+**`GET /api/v1/devices/desired-states`** — 활성 액추에이터만 돌려줍니다.
+```json
+{
+  "data": {
+    "server_time": "2026-09-12T07:30:00+09:00",
+    "slots": {
+      "actuator_01": { "desired_state": "on", "value": {"frequency":1000,"volume":85},
+                       "control_type": "tonal", "updated_at": "..." },
+      "actuator_02": { "desired_state": "off", "value": null,
+                       "control_type": "onoff", "updated_at": "..." }
+    }
+  }
+}
+```
+
+**`POST /api/v1/devices/states`** — 액추에이터 반영 결과와 센서값을 한 번에 보고합니다.
+```json
+{
+  "reported_at": "2026-09-12T07:30:01+09:00",
+  "states": [
+    { "slot_id": "actuator_01", "state": "on",  "value": {"frequency":1000} },
+    { "slot_id": "sensor_01",   "value": {"pressed": true} },
+    { "slot_id": "sensor_02",   "value": {"value": 24.6}, "unit": "°C" }
+  ]
+}
+```
+- `state`가 있으면 **액추에이터 반영 결과**, 없으면 **센서 측정값**으로 처리합니다(기존 규칙과 동일).
+- 응답은 `{"data":{"accepted": 3, "rejected": []}}` 형식이며, 모르는 슬롯은 `rejected`에 담고
+  나머지는 정상 처리합니다(하나 틀렸다고 전체가 실패하지 않음).
+
+**`POST /api/v1/devices/register`** — 배선을 아는 pi가 메타데이터를 올립니다.
+```json
+{
+  "exclusive": true,
+  "slots": [
+    { "slot_id": "actuator_01", "label": "알람 부저", "kind": "buzzer",
+      "control_type": "tonal", "value_schema": {"frequency":{"min":200,"max":4000}},
+      "meta": {"pin": 18} },
+    { "slot_id": "sensor_01", "label": "기상 버튼", "kind": "button", "meta": {"pin": 24} }
+  ]
+}
+```
+`exclusive: true`면 목록에 없는 슬롯은 자동으로 `enabled=false`가 됩니다
+→ **부품을 떼면 pi의 `slot_map.py`에서 지우기만 하면 대시보드에서도 사라집니다.**
+
+### 5-3. 응답·에러 형식 (기존 유지)
+
+성공 `{"data": ...}` / 실패 `{"error": {"code": "...", "message": "..."}}`
+
+---
+
+## 6. WebSocket 이벤트 계약
+
+| 이벤트 | 언제 | 주요 필드 |
+|---|---|---|
+| `device_state` | 액추에이터 명령/반영 | `slot_id`, `desired_state`, `current_state`, `desired_value`, `current_value`, `actor` |
+| `sensor_reading` | 센서 보고 | `slot_id`, `value`, `unit`, `current_state` |
+| `slot_config` | 메타데이터 변경(등록·수정) | `slot_id`, 변경된 메타데이터 |
+| `vision_event` | 비전 감지 | `label`, `detected`, `confidence`, `count` |
+| `rule_fired` | 규칙 발동 | `rule_id`, `name`, `actions` |
+| `notify` | 규칙/시나리오 알림 | `level`, `message` |
+
+> `desired_state`와 `current_state`는 **항상 따로 보냅니다**(부록A 계약).
+> 둘이 다르면 대시보드는 "하드웨어 반영 대기"로 표시합니다 —
+> 배선이 빠졌는데 화면만 정상으로 보이는 사고를 막는 장치입니다.
+
+---
+
+## 7. 자동화 규칙 (최소 스펙)
+
+> **목적**: 반복적인 자동화(임계값·스케줄)를 **코드 없이** 처리해, 프론트 담당 학생이
+> 시나리오의 재미있는 부분에만 집중하게 합니다. 규칙은 **선택**이며,
+> 프론트에서 직접 제어해도 똑같이 동작합니다.
+
+### 7-1. 규칙 JSON
+
+```json
+{
+  "name": "더우면 조명 릴레이 끄기",
+  "enabled": true,
+  "when": { "type": "sensor_threshold", "slot_id": "sensor_02",
+            "op": ">", "value": 28, "for_seconds": 5 },
+  "then": [ { "action": "set_actuator", "slot_id": "actuator_05", "state": "off" } ],
+  "otherwise": [ { "action": "set_actuator", "slot_id": "actuator_05", "state": "on" } ],
+  "cooldown_seconds": 30
+}
+```
+
+### 7-2. 트리거 3종 (이것만 지원합니다)
+
+| type | 필드 | 예시 용도 |
+|---|---|---|
+| `schedule` | `at: "07:30"` 또는 `in_seconds: 5` | 알람 시각, 수업 시작 시각 |
+| `sensor_threshold` | `slot_id`, `field`(기본 `value`), `op`(`>` `>=` `<` `<=` `==` `!=`), `value`, `for_seconds` | 온도·압력·거리 자동 제어 |
+| `vision_label` | `label`, `min_confidence`, `count_at_least` | 사람 감지 시 조명 on |
+
+### 7-3. 액션 2종 + 지연 옵션
+
+| action | 필드 |
+|---|---|
+| `set_actuator` | `slot_id`, `state`, `value`(선택), `after_seconds`(선택 — N초 후 실행) |
+| `notify` | `level`(`info`/`warn`/`alert`), `message` |
+
+`after_seconds`가 **타이머 프리미티브** 역할을 합니다.
+예) wakeup의 2차 수면 방지: 미션 성공 후 `after_seconds: 60`으로 알림 → 미응답 시 부저 재동작.
+
+### 7-4. 규칙으로 하지 않는 것
+
+라운드·승수·AI 손패가 있는 **가위바위보 미션 같은 게임 로직은 규칙으로 표현하지 않습니다.**
+이런 시나리오는 다음 장의 프론트엔드 시나리오 SDK로 작성합니다.
+
+---
+
+## 8. pi 계약 — 팀이 고치는 파일은 `slot_map.py` 하나
+
+```
+pi/
+├── slot_map.py        ← ★ 팀이 편집하는 유일한 파일
+├── drivers/           ← 키트 제공 (필요 시 팀이 새 드라이버 추가)
+│   ├── digital_out.py     on/off 출력 (LED, 릴레이, 액티브 부저)
+│   ├── pwm_out.py         PWM (진동모터 세기, 패시브 부저, 모터 속도)
+│   ├── tonal_buzzer.py    주파수 지정 부저
+│   ├── servo.py           서보모터 각도
+│   ├── neopixel_out.py    RGB 스트립
+│   ├── level_out.py       단계 표시 (LED 여러 개를 단계로)
+│   ├── button_in.py       버튼·터치센서 (극성 설정)
+│   ├── analog_in.py       압력·조도 (ADC 경유)
+│   ├── dht_in.py          온습도
+│   ├── distance_in.py     초음파 거리
+│   └── mock_*.py          PC 개발용 (GPIO 없이 동작)
+└── daemon.py          ← 키트 제공 공통 루프 (수정 불필요)
+```
+
+### 8-1. `slot_map.py` 형식
+
+```python
+# 이 파일만 팀 하드웨어에 맞게 고칩니다.
+# 부품을 떼면 줄을 지우고, 붙이면 줄을 추가합니다. 그게 전부입니다.
+SLOTS = {
+    # --- 액추에이터 ---
+    "actuator_01": {
+        "label": "알람 부저", "kind": "buzzer",
+        "driver": "tonal_buzzer", "pin": 18,
+        "control_type": "tonal",
+    },
+    "actuator_02": {
+        "label": "경보 LED", "kind": "led",
+        "driver": "digital_out", "pin": 23,
+        "control_type": "onoff",
+    },
+    # --- 센서 ---
+    "sensor_01": {
+        "label": "기상 버튼", "kind": "button",
+        "driver": "button_in", "pin": 24, "pull_up": True,
+    },
+    "sensor_02": {
+        "label": "실내 온도", "kind": "temperature", "unit": "°C",
+        "driver": "dht_in", "pin": 4, "interval": 5.0,
+    },
+}
+```
+
+### 8-2. 데몬 동작 (키트 제공, 수정 불필요)
+
+1. 부팅 시 `SLOTS`를 `POST /api/v1/devices/register`로 등록 (`exclusive: true`)
+2. 1초 주기로 `GET /api/v1/devices/desired-states` → 드라이버에 반영
+3. 센서값·반영상태를 `POST /api/v1/devices/states`로 일괄 보고
+4. 보고 실패 시 다음 회차 재시도, 30초마다 재동기화
+5. 드라이버 로드 실패(PC 환경 등)는 자동으로 `mock_*`로 대체 — **프로그램이 죽지 않습니다**
+
+### 8-3. pi 담당 학생의 작업 범위
+
+| 하고 싶은 것 | 해야 하는 일 |
+|---|---|
+| 부품 추가 | `SLOTS`에 한 줄 추가 |
+| 부품 제거 | `SLOTS`에서 한 줄 삭제 |
+| 핀 변경 | `pin` 값 수정 |
+| 부저 종류 변경 | `driver`를 `digital_out` ↔ `tonal_buzzer`로 |
+| 키트에 없는 부품 | `drivers/`에 클래스 1개 추가 (`apply()`/`read()` 2개 메서드) |
+
+---
+
+## 9. frontend 계약 — 카드 자동 생성 + 시나리오 SDK
+
+```
+frontend/
+├── lib/
+│   ├── api.ts          기존 (apiFetch, parseJsonValue)
+│   ├── slots.ts        슬롯 메타데이터 → 위젯 결정 (키트 제공)
+│   └── scenario.ts     ★ 시나리오 SDK (키트 제공)
+├── components/kit/     키트 제공 범용 컴포넌트 (디자인은 팀이 수정)
+│   ├── SlotGrid.tsx        활성 슬롯 자동 배치
+│   ├── SensorSlotCard.tsx  kind·unit에 맞는 값 표시
+│   ├── ActuatorSlotCard.tsx control_type에 맞는 위젯 자동 선택
+│   ├── HardwareSetup.tsx   슬롯 20칸 설정 화면 (라벨·종류·사용여부)
+│   └── RuleEditor.tsx      규칙 편집기 (7장 스펙)
+└── app/page.tsx        팀이 자유롭게 구성
+```
+
+### 9-1. 카드 자동 생성
+
+`GET /api/devices`의 `control_type`만 보고 위젯이 결정됩니다(3-1절 표).
+**슬롯 구성을 바꿔도 화면 코드는 그대로**이고, 팀은 디자인만 손봅니다.
+
+### 9-2. 시나리오 SDK — 프론트가 "두뇌"를 맡는 방식
+
+WebSocket 배선·재연결·상태 동기화는 SDK가 처리합니다. 팀은 규칙을 쓰기만 합니다.
+
+```tsx
+const {
+  slots,                      // 현재 슬롯 상태 (실시간 갱신)
+  setActuator,                // setActuator("actuator_01", "on", {frequency: 1000})
+  onSensor,                   // onSensor("sensor_01", v => { ... })
+  onVision,                   // onVision("rock", e => { ... })
+  onSlotChange,               // 상태 변화 구독
+  after, cancel,              // after(60, cb) — 지연 실행 (취소 가능)
+  notify,                     // 화면 알림
+  serverTimer,                // 브라우저를 닫아도 살아있는 타이머 (POST /api/timers)
+} = useScenario();
+```
+
+예) wakeup의 가위바위보 미션을 프론트에서 작성하면 이런 모양이 됩니다:
+
+```tsx
+// 알람이 울리면 미션 시작
+onSlotChange("actuator_01", (s) => {
+  if (s.desired_state === "on") startRound();
+});
+
+// 손동작이 들어오면 승패 판정
+onVision(["rock", "paper", "scissors"], (e) => {
+  const result = judge(aiHand, e.label);
+  if (result === "win" && ++wins >= 2) {
+    setActuator("actuator_01", "off");          // 알람 해제
+    serverTimer(60, () => notify("기상 확인!")); // 2차 수면 방지
+  } else {
+    startRound();                                // 오답 → 재시도
+  }
+});
+```
+
+### 9-3. 브라우저를 닫으면?
+
+프론트가 두뇌이므로 **대시보드 탭이 닫히면 시나리오가 멈춥니다.** 전시회·시연에서는
+화면이 항상 열려 있으므로 문제가 없지만, 꼭 브라우저 없이 동작해야 하는 동작은
+**규칙(7장)** 이나 `serverTimer`로 백엔드에 맡기세요. 이 경계를 팀이 알고 있어야 합니다.
+
+---
+
+## 10. vision 계약 — 감지 대상을 설정으로
+
+`vision/main.py`는 **무엇을 감지할지 코드에 두지 않습니다.**
+`GET /api/v1/vision/config`로 대상 목록을 받아옵니다.
+
+```json
+{ "data": {
+    "object_labels": ["person", "bottle", "cup"],
+    "gesture_enabled": true,
+    "min_confidence": 0.6,
+    "cooldown_seconds": 2.5
+} }
+```
+
+- 이 설정은 규칙(`vision_label` 트리거)과 대시보드 설정에서 자동으로 산출됩니다.
+- 팀이 감지 대상을 바꿔도 **vision 코드는 수정하지 않습니다.**
+- 서버에 연결되지 않으면 기본값(전체 COCO 중 상위 신뢰도)으로 동작합니다.
+- 이벤트 전송 형식은 기존 그대로: `{"event_type","detected","count","confidence","label"}`
+
+---
+
+## 11. 적합성 체크리스트 (키트를 제대로 쓰고 있는가)
+
+P1에서 `backend/conformance_test.py`로 자동 검사할 항목입니다.
+
+- [ ] 백엔드·DB·vision 코드에 팀 고유 디바이스 이름이 **0개**인가
+- [ ] 20개 슬롯이 모두 DB에 존재하고 `role`이 고정되어 있는가
+- [ ] 미사용 슬롯이 `enabled=false`로만 처리되고 삭제되지 않았는가
+- [ ] pi가 배치 API(`desired-states` / `states`)를 쓰는가
+- [ ] pi가 부팅 시 `register`로 메타데이터를 올리는가
+- [ ] 액추에이터의 `current_state`를 백엔드가 직접 쓰지 않는가 (pi 보고만)
+- [ ] 숫자 센서가 `{"value": 숫자}` 형식으로 보고되는가 (차트 자동 동작 조건)
+- [ ] 자동화가 코드가 아니라 규칙·시나리오로 표현되어 있는가
+- [ ] DB를 꺼도 제어·폴링·시나리오가 500 없이 동작하는가
+- [ ] 팀 브랜치의 `backend/`·`vision/` diff가 공통 키트와 **동일**한가
+
+---
+
+## 12. 기존 코드 마이그레이션
+
+| 팀 | 기존 ID | → 슬롯 |
+|---|---|---|
+| wakeup | `buzzer_1` | `actuator_01` |
+| wakeup | `touch_pad_1` | `sensor_01` |
+| wakeup | `camera_1` | 슬롯 없음 (vision_events) |
+| classroom | `servo_door` / `seat_led` / `neopixel_seat` / `buzzer` / `relay_light` | `actuator_01` ~ `actuator_05` |
+| study | `rgb_led` / `vibration_motor_a` / `vibration_motor_b` / `relay_power` | `actuator_01` ~ `actuator_04` |
+| study | `touch_display` | `sensor_01` |
+| subway | `led_congestion` / `motor_conveyor` | `actuator_01`, `actuator_02` |
+| subway | `sensor_seat_pressure` | `sensor_01` |
+
+**이행 방법**: 기존 팀 브랜치는 이력 보존용으로 남기고, 공통 키트 브랜치에서 새로 분기한 뒤
+`pi/slot_map.py`와 프론트 화면만 옮깁니다(이식 대상이 작도록 설계한 이유입니다).
+wakeup 팀을 첫 검증 대상으로 삼습니다 — 기존 테스트 54개(스모크 36 + 미션 18)가 기준선입니다.
+
+---
+
+## 13. 다음 단계 (P1~P5)
+
+| 단계 | 내용 | 주 담당 |
+|---|---|---|
+| **P1** | 백엔드 코어: 슬롯 레지스트리, 배치 API, register/PATCH, 규칙 엔진, 적합성 테스트 | 키트(공통) |
+| **P2** | pi 프레임워크: `slot_map.py` + 드라이버 11종 + Mock + 공통 데몬 | 키트(공통) |
+| **P3** | 프론트 키트: SlotGrid·카드·HardwareSetup·RuleEditor·시나리오 SDK | 키트(공통) |
+| **P4** | vision 일반화: 설정 기반 감지 대상 | 키트(공통) |
+| **P5** | 4팀 배포: 팀별 `slot_map` 예시, 매뉴얼 갱신, wakeup 마이그레이션 검증 | 키트 + 각 팀 |
+
+P1~P4가 끝나면 각 팀의 2차 개발은 **`frontend/` + `pi/slot_map.py`** 작업만 남습니다.
+
+---
+
+## 14. 이 규약의 사전 검증 결과
+
+스키마를 확정하기 전에 실제 MariaDB에 올려 보고, 계약 로직을 최소 구현해 시뮬레이션했습니다.
+
+| 검증 항목 | 결과 |
+|---|---|
+| 4장 DB 스키마 6개 테이블 생성 | ✅ 문법 오류 없음 |
+| 슬롯 20개 시드 (`sensor_01`~`10`, `actuator_01`~`10`) | ✅ 정상 생성 |
+| classroom 구성(액추에이터 5개 + 센서 1개) 등록 → 폴링·제어·배치 보고 | ✅ |
+| 부품 제거(네오픽셀) → 폴링 대상 자동 제외, 나머지는 계속 동작 | ✅ |
+| subway 구성으로 전면 교체 → **같은 코드로** level·pwm 제어 | ✅ |
+| 규칙만으로 자동 제어 (압력 52kg → 혼잡 3단계, 12kg → 1단계) | ✅ 프론트 코드 0줄 |
+| 숫자 센서 이력이 `sensor_readings.value`에 적재 (차트 자동 동작 조건) | ✅ |
+| 비활성 슬롯 보고는 거부되지만 배치 전체가 실패하지 않음 | ✅ |
+
+총 14개 항목 전부 통과. **서로 다른 세 팀의 하드웨어 구성을 백엔드 코드 변경 없이 수용**함을
+확인했으므로, 이 규약대로 P1 구현을 진행할 수 있습니다.
