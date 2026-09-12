@@ -53,12 +53,23 @@ class MockDeviceProvider(DeviceProvider):
         액추에이터의 desired-state를 갱신합니다.
         Mock 모드에서는 가상 하드웨어가 즉시 반응하여 current_state도 함께 동기화됩니다.
         """
-        dev = self._devices.get(device_id)
-        if not dev:
+        # DB를 우선 조회한다 — 슬롯 메타데이터(enabled/role)는 DB가 기준이다.
+        target = await asyncio.to_thread(get_device, device_id) or self._devices.get(device_id)
+        if not target:
             raise ValueError(f"디바이스를 찾을 수 없습니다: {device_id}")
-
-        if not dev.get("is_actuator", False):
+        if not self.is_actuator(target):
             raise ValueError(f"디바이스 '{device_id}'는 액추에이터가 아닌 센서입니다.")
+        if self.is_disabled_slot(target):
+            raise ValueError(
+                f"슬롯 '{device_id}'이 비활성 상태입니다. "
+                "하드웨어 구성에서 사용 설정(enabled)을 먼저 켜 주세요."
+            )
+
+        dev = self._devices.get(device_id)
+        if dev is None:
+            # 메모리 캐시에 없는 디바이스(레거시 팀 데이터 등)도 DB 기준으로 제어한다
+            dev = dict(target)
+            self._devices[device_id] = dev
 
         now_iso = datetime.now(timezone.utc).isoformat()
         dev["desired_state"] = desired_state
@@ -172,4 +183,4 @@ class MockDeviceProvider(DeviceProvider):
         db_devices = await asyncio.to_thread(get_all_devices)
         if db_devices:
             return db_devices
-        return [dict(dev) for dev in self._devices.values()]
+        return self.visible_cached_devices()

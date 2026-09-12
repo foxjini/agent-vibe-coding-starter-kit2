@@ -164,15 +164,27 @@
 
 ## 4. DB 스키마 (확정 — 이후 변경하지 않습니다)
 
+> **실제 구현 메모 (P1)** — 1차 완성본을 이미 올린 팀의 DB를 **지우지 않고** 올라오도록,
+> `devices` 테이블을 새로 만들지 않고 **부족한 컬럼만 자동으로 추가**했습니다
+> (`db/database.py`의 `_ensure_column`). 그래서 두 가지가 아래 설계도와 다릅니다.
+>
+> | 설계도 | 실제 | 이유 |
+> |---|---|---|
+> | 기본키 `slot_id` | 기본키는 기존 이름 그대로 **`id`** | 기존 행·외래 관계를 깨지 않기 위해 |
+> | `kind NULL` | `kind NOT NULL`, 빈 슬롯은 `'unassigned'` | 기존 컬럼이 NOT NULL이라서 |
+>
+> **API·WebSocket에서는 언제나 `slot_id`로 주고받습니다** — 프론트엔드와 pi는 `id`를 몰라도
+> 됩니다. SQL을 직접 쓸 때만 `WHERE id = 'sensor_01'`로 적으세요.
+
 ```sql
 -- 1. 디바이스 슬롯 (20행 고정 시드. 추가·삭제 없음)
 CREATE TABLE IF NOT EXISTS devices (
-  slot_id       VARCHAR(20) PRIMARY KEY,   -- 'sensor_01' … 'actuator_10'
+  id            VARCHAR(20) PRIMARY KEY,   -- 'sensor_01' … 'actuator_10' (API에서는 slot_id)
   role          VARCHAR(10) NOT NULL,      -- 'sensor' | 'actuator'  (불변)
-  slot_index    TINYINT     NOT NULL,      -- 1~10
+  slot_index    TINYINT     NOT NULL,      -- 1~10, 레거시 행은 0
   enabled       BOOLEAN     DEFAULT FALSE, -- 팀이 사용 여부 토글
   label         VARCHAR(100) NULL,         -- 팀이 지정하는 표시 이름
-  kind          VARCHAR(30)  NULL,         -- 'buzzer','servo','temperature' …
+  kind          VARCHAR(30)  NOT NULL,     -- 'buzzer','servo','temperature' … (빈 슬롯은 'unassigned')
   unit          VARCHAR(20)  NULL,         -- '°C','kg','cm'
   control_type  VARCHAR(20)  NULL,         -- 3-1절 표 참고 (액추에이터만)
   value_schema  JSON         NULL,         -- {"min":0,"max":180,"step":1}
@@ -216,24 +228,44 @@ CREATE TABLE IF NOT EXISTS rules (
 
 ### 5-1. 전체 목록
 
-| 메서드/경로 | 호출 주체 | 인증 | 용도 |
-|---|---|---|---|
-| `GET /api/devices` | 대시보드 | 사용자 | 슬롯 전체 + 메타데이터 (`?enabled=true` 필터) |
-| `GET /api/devices/{slot_id}` | 대시보드 | 사용자 | 슬롯 1개 상세 |
-| `POST /api/devices/{slot_id}/control` | 대시보드 | 사용자 | 액추에이터 목표 상태 지정 |
-| `PATCH /api/devices/{slot_id}` | 대시보드 | 사용자 | **메타데이터 수정** (label·kind·enabled…) |
-| `GET /api/devices/{slot_id}/readings` | 대시보드 | 사용자 | 센서 이력 (차트용, 최대 500) |
-| `GET /api/v1/devices/desired-states` | **pi** | 디바이스 키 | **전체 액추에이터 목표 상태 일괄 조회** |
-| `POST /api/v1/devices/states` | **pi** | 디바이스 키 | **센서값·반영상태 일괄 보고** |
-| `POST /api/v1/devices/register` | **pi** | 디바이스 키 | 부팅 시 슬롯 매핑 일괄 등록 |
-| `GET /api/v1/vision/config` | vision | 디바이스 키 | 감지 대상 목록 |
-| `POST /api/v1/vision/events` | vision | 디바이스 키 | 감지 이벤트 (기존 계약 유지) |
-| `GET/POST/PUT/DELETE /api/rules` | 대시보드 | 사용자 | 자동화 규칙 CRUD |
-| `POST /api/timers` | 대시보드 | 사용자 | N초 후 액션 예약 (시나리오용) |
-| `GET /api/logs/control`, `GET /api/events/vision`, `GET /health` | 대시보드 | 사용자 | 기존 그대로 |
+| 메서드/경로 | 호출 주체 | 인증 | 용도 | 상태 |
+|---|---|---|---|---|
+| `GET /api/slots` | 대시보드 | 사용자 | **슬롯 20개 전체 + 메타데이터** (`?role=`, `?enabled_only=`) | ✅ P1 |
+| `PATCH /api/slots/{slot_id}` | 대시보드 | 사용자 | **메타데이터 수정** (label·kind·unit·control_type·enabled…) | ✅ P1 |
+| `GET /api/devices` | 대시보드 | 사용자 | 팀이 **실제로 쓰는** 디바이스 목록 (비활성 슬롯은 숨김) | ✅ 기존 |
+| `GET /api/devices/{slot_id}` | 대시보드 | 사용자 | 슬롯 1개 상세 | ✅ 기존 |
+| `POST /api/devices/{slot_id}/control` | 대시보드 | 사용자 | 액추에이터 목표 상태 지정 (비활성 슬롯은 400) | ✅ 기존 |
+| `GET /api/devices/{slot_id}/readings` | 대시보드 | 사용자 | 센서 이력 (차트용, 최대 500) | ✅ 기존 |
+| `GET /api/v1/devices/desired-states` | **pi** | 디바이스 키 | **전체 액추에이터 목표 상태 일괄 조회** | ✅ P1 |
+| `POST /api/v1/devices/states` | **pi** | 디바이스 키 | **센서값·반영상태 일괄 보고** | ✅ P1 |
+| `POST /api/v1/devices/register` | **pi** | 디바이스 키 | 부팅 시 슬롯 매핑 일괄 등록 | ✅ P1 |
+| `GET/POST /api/rules`, `PUT/DELETE /api/rules/{id}` | 대시보드 | 사용자 | 자동화 규칙 CRUD | ✅ P1 |
+| `POST /api/v1/vision/events` | vision | 디바이스 키 | 감지 이벤트 (기존 계약 유지) | ✅ 기존 |
+| `GET /api/logs/control`, `GET /api/events/vision`, `GET /health` | 대시보드 | 사용자 | 기존 그대로 | ✅ 기존 |
+| `GET /api/v1/vision/config` | vision | 디바이스 키 | 감지 대상 목록 | ⏳ P4 |
+
+**목록 두 개의 차이** — `GET /api/slots`는 빈 슬롯까지 20개를 모두 돌려주므로 '하드웨어 구성'
+설정 화면용이고, `GET /api/devices`는 활성 슬롯만 돌려주므로 대시보드 본화면용입니다.
+
+**타이머** — 별도의 `POST /api/timers`는 만들지 않았습니다. 규칙 액션의 `after_seconds`가
+같은 일(브라우저를 닫아도 살아있는 N초 후 동작)을 하므로 엔드포인트를 하나 줄였습니다(7-2절).
 
 기존 단일 폴링(`GET /api/v1/devices/{slot_id}/desired-state`)과 단일 보고(`POST .../state`)도
 **호환을 위해 유지**합니다. 다만 pi는 배치 API를 쓰는 것을 기본으로 합니다.
+
+### 5-1-1. DB가 꺼져 있을 때 (수업 중 실제로 자주 생기는 상황)
+
+XAMPP를 켜지 않아도 키트는 멈추지 않습니다. 슬롯 목록·배치 폴링·배치 보고·제어는
+메모리 캐시로 동작하고, **기록이 필요한 것만** 솔직하게 거부합니다.
+
+| 상황 | 응답 |
+|---|---|
+| `GET /api/slots`, `GET /api/v1/devices/desired-states` | 메모리 캐시로 정상 응답 (빈 목록이 아님) |
+| `POST /api/v1/devices/register` | 200 + `"persisted": false` (그 세션 동안만 유효) |
+| `GET /api/devices/{slot_id}/readings` | 빈 목록 `[]` (500이 아님) |
+| `POST /api/rules` 등 규칙 저장 | **503 `DB_UNAVAILABLE`** — 규칙은 DB에만 저장되므로 |
+
+현재 DB 상태는 `GET /health`의 `database.connected`로 확인합니다.
 
 ### 5-2. 배치 API가 필수인 이유
 
@@ -457,7 +489,7 @@ const {
   onSlotChange,               // 상태 변화 구독
   after, cancel,              // after(60, cb) — 지연 실행 (취소 가능)
   notify,                     // 화면 알림
-  serverTimer,                // 브라우저를 닫아도 살아있는 타이머 (POST /api/timers)
+  serverTimer,                // 브라우저를 닫아도 살아있는 타이머 (규칙 액션의 after_seconds)
 } = useScenario();
 ```
 
@@ -512,18 +544,32 @@ onVision(["rock", "paper", "scissors"], (e) => {
 
 ## 11. 적합성 체크리스트 (키트를 제대로 쓰고 있는가)
 
-P1에서 `backend/conformance_test.py`로 자동 검사할 항목입니다.
+`backend/conformance_test.py`가 자동으로 검사합니다. 서버를 따로 띄우지 않아도 됩니다.
 
-- [ ] 백엔드·DB·vision 코드에 팀 고유 디바이스 이름이 **0개**인가
-- [ ] 20개 슬롯이 모두 DB에 존재하고 `role`이 고정되어 있는가
-- [ ] 미사용 슬롯이 `enabled=false`로만 처리되고 삭제되지 않았는가
-- [ ] pi가 배치 API(`desired-states` / `states`)를 쓰는가
-- [ ] pi가 부팅 시 `register`로 메타데이터를 올리는가
-- [ ] 액추에이터의 `current_state`를 백엔드가 직접 쓰지 않는가 (pi 보고만)
-- [ ] 숫자 센서가 `{"value": 숫자}` 형식으로 보고되는가 (차트 자동 동작 조건)
-- [ ] 자동화가 코드가 아니라 규칙·시나리오로 표현되어 있는가
-- [ ] DB를 꺼도 제어·폴링·시나리오가 500 없이 동작하는가
-- [ ] 팀 브랜치의 `backend/`·`vision/` diff가 공통 키트와 **동일**한가
+```bash
+cd backend
+python conformance_test.py      # DB를 켜고 한 번, 끄고 한 번 돌려 보세요
+```
+
+| 항목 | 자동 검사 |
+|---|---|
+| 20개 슬롯이 모두 DB에 존재하고 `role`이 고정되어 있는가 | ✅ 1번 |
+| 부품을 추가·교체할 때 코드 수정 없이 반영되는가 | ✅ 2번 |
+| pi가 배치 API(`desired-states` / `states`)로 통신하는가 | ✅ 3번 |
+| 미사용 슬롯이 `enabled=false`로만 처리되고 삭제되지 않았는가 | ✅ 4번 |
+| 비활성 슬롯 제어·보고가 거부되는가 (배치 전체는 살아남는가) | ✅ 4번 |
+| 액추에이터의 `current_state`를 백엔드가 직접 쓰지 않는가 (pi 보고만) | ✅ 3번 |
+| 숫자 센서가 `{"value": 숫자}` 형식으로 보고되어 차트가 동작하는가 | ✅ 6번 |
+| 자동화가 코드가 아니라 규칙으로 표현되는가 (트리거 3종·액션 2종) | ✅ 7번 |
+| DB를 꺼도 제어·폴링·목록이 500 없이 동작하는가 | ✅ DB를 끄고 실행 |
+| 백엔드·vision 코드에 **다른 팀** 디바이스 이름이 0개인가 | ✅ 8번 |
+| 팀 브랜치의 `backend/`·`vision/` diff가 공통 키트와 **동일**한가 | 수동 (`git diff platform -- backend vision`) |
+
+검사 결과(P1 시점, `platform` 브랜치): **DB 켠 상태 38건 전부 통과 / DB 끈 상태 32건 전부 통과**.
+기존 wakeup 회귀 검사(`smoke_test.py` 36건, `test_mission.py` 18건)도 두 상태 모두 통과합니다.
+
+> 8번 검사는 **다른 팀** 이름만 실패로 셉니다. wakeup 레거시 이름(`buzzer_1` 등)은
+> P3.5에서 한꺼번에 교체할 예정이므로, 남아 있는 개수를 참고용으로만 알려 줍니다.
 
 ---
 

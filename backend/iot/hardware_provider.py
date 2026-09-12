@@ -47,12 +47,22 @@ class HardwareDeviceProvider(DeviceProvider):
         하드웨어 모드에서는 current_state를 즉시 변경하지 않고,
         라즈베리파이 5 데몬이 폴링 후 실기기 반영 결과를 보고할 때까지 대기합니다.
         """
-        dev = self._devices.get(device_id)
-        if not dev:
+        # DB를 우선 조회한다 — 슬롯 메타데이터(enabled/role)는 DB가 기준이다.
+        target = await asyncio.to_thread(get_device, device_id) or self._devices.get(device_id)
+        if not target:
             raise ValueError(f"디바이스를 찾을 수 없습니다: {device_id}")
-
-        if not dev.get("is_actuator", False):
+        if not self.is_actuator(target):
             raise ValueError(f"디바이스 '{device_id}'는 액추에이터가 아닌 센서입니다.")
+        if self.is_disabled_slot(target):
+            raise ValueError(
+                f"슬롯 '{device_id}'이 비활성 상태입니다. "
+                "하드웨어 구성에서 사용 설정(enabled)을 먼저 켜 주세요."
+            )
+
+        dev = self._devices.get(device_id)
+        if dev is None:
+            dev = dict(target)
+            self._devices[device_id] = dev
 
         now_iso = datetime.now(timezone.utc).isoformat()
         dev["desired_state"] = desired_state
@@ -106,4 +116,4 @@ class HardwareDeviceProvider(DeviceProvider):
         db_devices = await asyncio.to_thread(get_all_devices)
         if db_devices:
             return db_devices
-        return [dict(dev) for dev in self._devices.values()]
+        return self.visible_cached_devices()

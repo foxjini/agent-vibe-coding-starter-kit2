@@ -1,3 +1,4 @@
+import asyncio
 import logging
 import os
 import sys
@@ -26,7 +27,9 @@ from routers.alarm import alarm_scheduler
 from routers.alarm import router as alarm_router
 from routers.devices import router as devices_router
 from routers.logs import router as logs_router
+from routers.slots import router as slots_router
 from routers.vision import router as vision_router
+from services.rule_engine import rule_engine
 from websocket_manager import ws_manager
 
 
@@ -69,8 +72,14 @@ async def lifespan(app: FastAPI):
     except Exception as exc:
         logger.warning(f"저장된 알람 예약 복원 실패: {exc}")
 
+    # 플랫폼 키트 규칙 엔진의 스케줄 트리거 점검 루프
+    rule_task = asyncio.create_task(
+        rule_engine.run_scheduler(float(os.getenv("RULE_TICK_SECONDS", "20")))
+    )
+
     yield
 
+    rule_task.cancel()
     alarm_scheduler.cancel()
 
 
@@ -144,6 +153,7 @@ app.include_router(devices_router)
 app.include_router(alarm_router)
 app.include_router(vision_router)
 app.include_router(logs_router)
+app.include_router(slots_router)   # 플랫폼 키트 (슬롯·배치 통신·규칙)
 
 
 @app.get("/health")
