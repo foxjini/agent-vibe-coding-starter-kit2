@@ -33,3 +33,6 @@ dist/
 Thumbs.db
 .vscode/
 .idea/
+
+# 컨텍스트 팩 — 채팅형 AI에 올릴 생성물 (tools/context_pack.py로 언제든 다시 만듭니다)
+context_packs/

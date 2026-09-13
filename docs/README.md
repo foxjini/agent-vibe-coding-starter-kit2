@@ -10,6 +10,18 @@
 
 > 아래 목록은 **필요할 때만** 펼치는 참고 자료입니다. 처음부터 다 읽지 마세요.
 
+### 🤖 AI와 일하는 방법 — 컨텍스트 팩
+
+우리는 **채팅형 AI**(Claude.ai · ChatGPT · Gemini)로 개발합니다. 채팅창에는 폴더 구조를
+유지한 채 수십 개 파일을 올릴 수 없으므로, **내 담당 일에 필요한 것만 파일 하나로 묶어** 올립니다.
+
+```bash
+python tools/context_pack.py pi        # 또는 frontend · vision · all
+```
+
+`context_packs/` 폴더에 파일이 생깁니다 (14~23KB). 올리는 방법과 요청 예시는
+**[00 매뉴얼 8장](00-2차개발-통합-매뉴얼.md)** 에 있습니다.
+
 ---
 
 ## 한 장 요약 — 우리가 고치는 곳
@@ -58,6 +70,7 @@
 - `.agents/` : AI 에이전트용 하네스 (rules, skills, workflows)
 - `run_system.ps1` : 백엔드·대시보드·비전·하드웨어 데몬 일괄 실행 스크립트
 - `pi/examples/` : 팀별 배치표 예시 4종 (복사해서 `pi/slot_map.py`로 쓰세요)
+- `tools/context_pack.py` : 채팅형 AI에 올릴 컨텍스트 팩 생성기 (8장)
 
 ---
 
@@ -75,3 +88,4 @@ AI에게 묻기 전에 이것부터 돌리세요. 전부 **서버·DB·GPIO·웹
 | `vision/test_vision_config.py` | `cd vision` | 감지 대상이 설정에서 오는지 · 검출기 플러그인 계약 | 38 |
 | `frontend/scenarios/wakeupEngine.test.ts` | `cd frontend` | 미션 판정 규칙 (`node --experimental-strip-types`) | 30 |
 | `npx eslint . && npm run build` | `cd frontend` | 화면 코드 | — |
+| `tools/context_pack.py` | 최상위 | (점검 아님) 채팅형 AI에 올릴 컨텍스트 팩 생성 | — |
