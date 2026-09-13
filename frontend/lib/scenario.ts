@@ -40,8 +40,15 @@ export interface VisionEvent {
   event_type?: string;
   label?: string | null;
   detected?: boolean;
+  /** 감지를 얼마나 확신하는가 (0~1). 측정 점수는 여기가 아니라 extra에 있습니다 */
   confidence?: number | null;
   count?: number | null;
+  /**
+   * 라벨 하나로 표현하기 어려운 값 — 예: `{ seat: 3, focus_score: 0.88 }`.
+   * 검출기가 실어 보낸 것이 실시간으로 그대로 옵니다.
+   * **기록(`GET /api/events/vision`)에는 없습니다** — 지금 판정에 쓰는 값입니다.
+   */
+  extra?: Record<string, unknown> | null;
   created_at?: string | null;
 }
 
@@ -271,6 +278,8 @@ export function useScenario(): ScenarioApi {
           detected: Boolean(message.detected),
           confidence: (message.confidence as number) ?? null,
           count: (message.count as number) ?? null,
+          // 검출기가 실어 보낸 값 (좌석 번호·측정 점수 등). 기록에는 없고 실시간에만 옵니다.
+          extra: asObject(message.extra),
           created_at: (message.created_at as string) ?? null,
         };
         const label = String(event.label ?? "").toLowerCase();

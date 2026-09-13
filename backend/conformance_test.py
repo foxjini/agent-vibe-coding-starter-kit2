@@ -490,6 +490,37 @@ def main_test() -> int:
                   res.status_code == 503, f"{res.status_code} {res.text[:120]}")
 
         # ---------------------------------------------------------------
+        section("7-4. 라벨 하나로 부족할 때 — extra (부록F 10장)")
+        # study 팀처럼 '좌석 6개 × 상태·점수'를 봐야 하는 경우, 라벨은 '어디'를,
+        # extra는 '어떤'을 담습니다. extra는 실시간에만 가고 기록에는 남지 않습니다.
+        res = client.post("/api/v1/vision/events", headers=HEADERS, json={
+            "event_type": "seat_state", "detected": True, "count": 1, "confidence": 0.92,
+            "label": "seat_3", "extra": {"state": "drowsy", "focus_score": 0.21},
+        })
+        check("extra를 실은 이벤트가 200", res.status_code == 200, res.text[:160])
+
+        res = client.post("/api/v1/vision/events", headers=HEADERS, json={
+            "event_type": "seat_state", "detected": True, "label": "seat_1",
+            "extra": {"landmarks": [[i, i + 1] for i in range(300)]},
+        })
+        check("너무 큰 extra는 조용히 버리지 않고 거절", res.status_code == 422, str(res.status_code))
+        check("거절 사유를 사람이 읽을 수 있게 알려 줌",
+              "너무 큽니다" in res.text, res.text[:200])
+
+        res = client.post("/api/v1/vision/events", headers=HEADERS, json={
+            "event_type": "seat_state", "detected": True, "label": "seat_1",
+            "extra": {f"k{i}": i for i in range(25)},
+        })
+        check("키가 너무 많은 extra도 거절", res.status_code == 422, str(res.status_code))
+
+        if db_on:
+            history = client.get("/api/events/vision?limit=5").json().get("data", [])
+            seat_rows = [r for r in history if str(r.get("label", "")).startswith("seat_")]
+            check("기록에는 라벨이 남음", bool(seat_rows), str(history[:1])[:160])
+            check("기록에는 extra가 없음 (실시간 전용 — 부록F 10장)",
+                  all("extra" not in r for r in seat_rows), str(seat_rows[:1])[:160])
+
+        # ---------------------------------------------------------------
         section("8. 코드 격리 (팀 고유 이름이 고정층에 없어야 함)")
         root = Path(CURRENT_DIR).parent
         team_names = [

@@ -612,6 +612,56 @@ class Detector(FrameDetector):
   **나머지는 그대로 동작합니다** — MediaPipe가 없다고 사물 감지까지 멈추면 수업이 멈춥니다.
 - 검출기는 **판정하지 않습니다.** 이겼는지·혼잡한지·졸고 있는지는 프론트엔드 시나리오의 몫입니다(9-2절).
 
+#### 무엇을 어디에 담나
+
+| 담을 것 | 어디에 | 예 |
+|---|---|---|
+| 무엇을/어디를 봤나 | `label` | `"person"` · `"seat_3"` |
+| 보였나 / 사라졌나 | `detected` | `True` / `False` |
+| **얼마나 확신**하나 | `confidence` | `0.91` |
+| 같은 것이 몇 개인가 | `count` | `7` |
+| 그 밖의 값 | `extra` | `{"state": "drowsy", "focus_score": 0.21}` |
+
+> ⚠️ **`confidence`에 측정 점수를 넣지 마세요.** 이 값은 "얼마나 확신하는가"입니다.
+> 집중도·밝기 같은 측정값을 넣으면 자동화 규칙의 `min_confidence`가 낮은 값을 걸러내
+> **조용히 무시됩니다**(7-2절). 측정값은 `extra`에 담습니다.
+
+#### 여러 곳을 따로 볼 때 — 라벨은 '어디', extra는 '어떤'
+
+study 팀처럼 **좌석 6개를 각각** 보고 자리마다 상태·점수를 말해야 하는 경우가 있습니다.
+라벨에 상태까지 욱여넣으면(`seat_3_drowsy`) 자리 수 × 상태 수만큼 라벨이 불어나고
+화면에서 문자열을 쪼개야 합니다. **자리는 라벨, 상태는 extra**로 나눕니다.
+
+```python
+labels = ("seat_1", "seat_2", "seat_3", "seat_4", "seat_5", "seat_6")   # 어디
+DetectionEvent(label="seat_3", detected=True, confidence=0.92,
+               extra={"state": "drowsy", "focus_score": 0.21})          # 어떤
+```
+
+```tsx
+onVision(["seat_1", "seat_2", "seat_3"], (e) => {
+  const seat  = e.label;                 // "seat_3"
+  const state = e.extra?.state;          // "drowsy"
+  const focus = e.extra?.focus_score;    // 0.21
+});
+```
+
+#### `extra`가 가는 곳과 가지 않는 곳
+
+`extra`는 **검출기 → 백엔드 → 화면(WebSocket)** 까지 그대로 전달됩니다.
+**DB에는 저장되지 않습니다** — 나중에 다시 볼 이력은 `label`로 남기세요.
+시나리오 판정은 프론트엔드가 하므로 '지금 값'의 실시간 전달이 핵심이고,
+이력까지 담으면 스키마가 팀마다 달라져 4팀 공통 계약이 깨집니다.
+
+| | 실시간(WebSocket) | 기록(`GET /api/events/vision`) |
+|---|---|---|
+| `label` · `detected` · `count` · `confidence` | ✅ | ✅ |
+| `extra` | ✅ | ❌ (설계상 저장하지 않음) |
+
+크기는 **JSON 2KB · 키 20개**까지이고, 넘으면 **422로 분명히 거절**합니다 —
+조용히 버리면 "보냈는데 왜 화면에 안 오지?"로 한참 헤매기 때문입니다.
+좌표 배열이나 이미지가 아니라 **요약된 값**을 보내세요.
+
 ### 10-2. 검출기 신고 — 백엔드는 라벨 이름을 모릅니다
 
 비전 클라이언트는 부팅할 때 자기 검출기를 한 번 신고합니다.
@@ -704,7 +754,7 @@ python conformance_test.py      # DB를 켜고 한 번, 끄고 한 번 돌려 �
 | 팀 고유 검출기가 `detectors/` 안에만 있는가 | ✅ 8번 |
 | 팀 브랜치의 `backend/`·`vision/` 공통층 diff가 공통 키트와 **동일**한가 | 수동 (`git diff platform -- backend vision/main.py vision/camera.py vision/detectors/base.py vision/detectors/__init__.py vision/detectors/objects.py`) |
 
-검사 결과(P6 시점, `platform` 브랜치): **DB 켠 상태 69건 전부 통과 / DB 끈 상태 51건 전부 통과**.
+검사 결과(P6 시점, `platform` 브랜치): **DB 켠 상태 75건 전부 통과 / DB 끈 상태 55건 전부 통과**.
 
 전체 자가 점검 목록:
 

@@ -51,6 +51,9 @@ async def receive_vision_event(
 
     **무엇을 감지했는지에 대한 판단은 하지 않습니다.** 승패·성공 여부 같은 시나리오 판정은
     프론트엔드가 이 브로드캐스트를 받아서 처리합니다 (docs/부록F 9-2절).
+
+    `extra`는 라벨 하나로 표현하기 어려운 값(좌석 번호·측정 점수 등)을 함께 보내는 곳입니다.
+    **실시간 중계로만 가고 DB에는 저장되지 않습니다** — 나중에 다시 볼 이력은 `label`로 남기세요.
     """
     # 1. DB 기록 (DB가 없으면 inserted_id가 None이고, 시스템은 계속 동작한다)
     inserted_id = await asyncio.to_thread(
@@ -64,6 +67,8 @@ async def receive_vision_event(
 
     # 2. WebSocket 실시간 브로드캐스트 (비전 이벤트)
     now_iso = datetime.now(timezone.utc).isoformat()
+    # `extra`는 여기까지만 옵니다 — DB에는 저장하지 않고 화면으로 바로 넘깁니다.
+    # 시나리오 판정은 프론트엔드가 하므로 '지금 값'이 필요하고, 이력은 라벨로 남습니다.
     await ws_manager.broadcast({
         "type": "vision_event",
         "id": inserted_id,
@@ -72,6 +77,7 @@ async def receive_vision_event(
         "detected": payload.detected,
         "count": payload.count,
         "confidence": payload.confidence,
+        "extra": payload.extra,
         "created_at": now_iso,
     })
 

@@ -93,10 +93,10 @@ HOW_TO_ANSWER = """\
 5. 마지막에 **제가 확인할 명령**을 알려 주세요 (아래 중 해당되는 것).
    ```
    cd backend  && python smoke_test.py            # 32항목
-   cd backend  && python conformance_test.py      # 69항목
+   cd backend  && python conformance_test.py      # 75항목
    cd pi       && python daemon.py --check
    cd pi       && python test_slot_daemon.py      # 39항목
-   cd vision   && python test_vision_config.py    # 38항목
+   cd vision   && python test_vision_config.py    # 43항목
    cd frontend && npx eslint . && npm run build
    ```
 6. 위 "지켜야 할 제약"의 **고치지 않는 파일을 고쳐야 한다면, 고치지 말고 먼저 이유를 설명**해 주세요.

@@ -69,7 +69,7 @@
 | 슬롯 목록·메타데이터 수정 API | `routers/slots.py` (`/api/slots`) | ✅ |
 | pi 배치 통신 (폴링 1회 / 보고 1회 / 부팅 등록) | `services/slot_service.py` | ✅ |
 | 자동화 규칙 엔진 (트리거 3종 · 액션 2종) | `services/rule_engine.py` | ✅ |
-| 적합성 검사 스크립트 | `backend/conformance_test.py` | ✅ 38건 (DB 끈 상태 32건) |
+| 적합성 검사 스크립트 | `backend/conformance_test.py` | ✅ 43건 (DB 끈 상태 32건) |
 
 검증 결과: **적합성 38/38, wakeup 회귀 `smoke_test.py` 36/36 · `test_mission.py` 18/18**
 — DB를 켠 상태와 끈 상태 양쪽 모두 통과. `GET /api/devices`는 여전히 wakeup의 3개만
@@ -175,8 +175,8 @@ subway는 혼잡도 — 그러니 **vision을 통째로 공통화할 수는 없�
 
 | 항목 | 검증 |
 |---|---|
-| 적합성 테스트 (격리 검사 포함) | ✅ 69건 (DB 연결) / 51건 (DB 차단) |
-| 비전 자가 점검 (검출기 계층 포함) | ✅ 38건 |
+| 적합성 테스트 (격리 검사 포함) | ✅ 75건 (DB 연결) / 55건 (DB 차단) |
+| 비전 자가 점검 (검출기 계층 포함) | ✅ 43건 |
 | 브라우저 종단 — 처음 보는 검출기가 화면에 나타나는지 | ✅ 21건 |
 | wakeup 시나리오 회귀 | ✅ 22건 |
 
@@ -209,7 +209,8 @@ subway는 혼잡도 — 그러니 **vision을 통째로 공통화할 수는 없�
 | **P3.5** | wakeup 고유 코드 일괄 교체 (알람·미션·레거시 디바이스 정리) | ✅ 완료 (이식 검증 후 제거, 브라우저 22건) |
 | **P4** | vision 감지 **대상**을 설정으로 | ✅ 완료 (브라우저 11건) — 감지 **방법**은 남아 있었음(P6에서 정정) |
 | **P5** | 4팀 배포: 팀별 `slot_map` 예시, 착수 가이드, 팀 브랜치 분기 | ✅ 완료 (4팀 배치표 종단 검증) |
-| **P6** | vision 감지 **방법**을 플러그인으로: `detectors/` + 검출기 신고 + `camera.py` | ✅ 완료 (적합성 69건 · 자가 점검 38건 · 브라우저 21건) |
+| **P6** | vision 감지 **방법**을 플러그인으로: `detectors/` + 검출기 신고 + `camera.py` | ✅ 완료 (적합성 75건 · 자가 점검 43건 · 브라우저 21건) |
+| **P7** | 라벨 하나로 부족한 감지: `extra`를 실시간 경로로 전달 (좌석·구역별 상태·점수) | ✅ 완료 (적합성 75건 · 자가 점검 43건 · 브라우저 19건) |
 
 ---
 
@@ -250,9 +251,9 @@ git merge origin/platform     # 충돌은 frontend/ pi/slot_map.py 에서만 발
 3. 변경 후 반드시 통과해야 하는 검사:
    ```bash
    cd backend  && python smoke_test.py              # 백엔드 기본 동작 (32항목)
-   cd backend  && python conformance_test.py        # 키트 적합성 (69항목)
+   cd backend  && python conformance_test.py        # 키트 적합성 (75항목)
    cd pi       && python test_slot_daemon.py        # 드라이버·배치표 (39항목)
-   cd vision   && python test_vision_config.py      # 감지 설정·검출기 (38항목)
+   cd vision   && python test_vision_config.py      # 감지 설정·검출기 (43항목)
    cd frontend && node --experimental-strip-types scenarios/wakeupEngine.test.ts   # 30항목
    cd frontend && npx eslint . && npm run build
    ```
