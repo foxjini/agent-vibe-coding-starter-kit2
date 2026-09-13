@@ -84,11 +84,11 @@ AI에게 묻기 전에 이것부터 돌리세요. 전부 **서버·DB·GPIO·웹
 | 스크립트 | 실행 위치 | 무엇을 확인하나 | 항목 |
 |---|---|---|---|
 | `backend/smoke_test.py` | `cd backend` | 서버 기동·DB 상태·제어·폴링·보고·에러 형식 | 32 |
-| `backend/conformance_test.py` | `cd backend` | "부품을 바꿔도 코드를 안 고친다"는 키트 약속 (DB 켜고/끄고 각각) | 69 |
+| `backend/conformance_test.py` | `cd backend` | "부품을 바꿔도 코드를 안 고친다"는 키트 약속 (DB 켜고/끄고 각각) | 75 |
 | `pi/daemon.py --check` | `cd pi` | 배치표·백엔드 주소·핀 충돌을 GPIO 없이 점검 | — |
 | `pi/test_slot_daemon.py` | `cd pi` | 드라이버·배치표·부품 추가/제거 | 39 |
 | `pi/test_team_examples.py` | `cd pi` | 4팀 배치표 예시가 바로 쓸 수 있는 상태인지 | 32 |
-| `vision/test_vision_config.py` | `cd vision` | 감지 대상이 설정에서 오는지 · 검출기 플러그인 계약 | 38 |
+| `vision/test_vision_config.py` | `cd vision` | 감지 대상이 설정에서 오는지 · 검출기 플러그인 계약 | 43 |
 | `frontend/scenarios/wakeupEngine.test.ts` | `cd frontend` | 미션 판정 규칙 (`node --experimental-strip-types`) | 30 |
 | `npx eslint . && npm run build` | `cd frontend` | 화면 코드 | — |
 | `tools/context_pack.py` | 최상위 | (점검 아님) 채팅형 AI에 올릴 컨텍스트 팩 생성 | — |

@@ -85,6 +85,7 @@ def make_client(session: FakeSession) -> "vision.BackendClient":
     client._session = session          # type: ignore[attr-defined]
     client._running = True             # type: ignore[attr-defined]
     client._detectors = []             # type: ignore[attr-defined]
+    client._queue = vision.queue.Queue(maxsize=32)   # type: ignore[attr-defined]
     client.last_send_ok = None
     client.config = dict(vision.FALLBACK_CONFIG)
     client.config_source = "기본값(서버 연결 전)"
@@ -218,6 +219,35 @@ def main_test() -> int:
     check("못 쓰면 이유와 함께 꺼짐",
           demo.available is False and "테스트" in demo.unavailable_reason,
           str(demo.describe()))
+
+    # 좌석·구역처럼 여러 곳을 따로 볼 때: 라벨은 '어디', extra는 '어떤' (부록F 10장)
+    class SeatDetector(FrameDetector):
+        name = "seats"
+        labels = ("seat_1", "seat_2")
+
+        def detect(self, frame_bgr, config):
+            return [DetectionEvent(label="seat_2", detected=True, confidence=0.92,
+                                   event_type="seat_state",
+                                   extra={"state": "drowsy", "focus_score": 0.21})]
+
+    seat_event = SeatDetector().detect(None, {})[0]
+    check("라벨에 '어디'를 담을 수 있음", seat_event.label == "seat_2")
+    check("extra에 '어떤 상태'와 점수를 담을 수 있음",
+          seat_event.extra.get("state") == "drowsy"
+          and seat_event.extra.get("focus_score") == 0.21, str(seat_event.extra))
+    check("confidence는 '확신'으로 따로 남음", seat_event.confidence == 0.92)
+
+    sender = make_client(FakeSession({}))
+    sender.send_event(event_type="seat_state", detected=True, label="seat_2",
+                      confidence=0.92, extra={"state": "drowsy", "focus_score": 0.21})
+    with_extra = sender._queue.get_nowait()            # type: ignore[attr-defined]
+    check("extra가 전송 내용에 실제로 실림 (조용히 사라지지 않음)",
+          with_extra.get("extra", {}).get("focus_score") == 0.21, str(with_extra))
+
+    sender.send_event(event_type="object_detected", detected=True, label="cup")
+    without_extra = sender._queue.get_nowait()         # type: ignore[attr-defined]
+    check("extra가 없으면 보내지 않음 (전송 내용을 부풀리지 않음)",
+          "extra" not in without_extra, str(without_extra))
 
     loaded = load_detectors()
     check("로더가 검출기를 만들어 돌려줌", bool(loaded), str(list(loaded)))

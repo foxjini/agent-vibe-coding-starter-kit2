@@ -161,8 +161,14 @@ class BackendClient:
         label: Optional[str] = None,
         count: int = 0,
         confidence: Optional[float] = None,
+        extra: Optional[Dict[str, Any]] = None,
     ) -> None:
-        """이벤트를 큐에 넣습니다 (즉시 반환 — 영상 루프를 막지 않음)."""
+        """
+        이벤트를 큐에 넣습니다 (즉시 반환 — 영상 루프를 막지 않음).
+
+        `extra`는 라벨 하나로 표현하기 어려운 값(좌석 번호·측정 점수 등)을 함께 보냅니다.
+        **화면까지 실시간으로만 갑니다 — DB에는 저장되지 않습니다**(부록F 10장).
+        """
         payload = {
             "event_type": event_type,
             "detected": detected,
@@ -170,6 +176,8 @@ class BackendClient:
             "confidence": round(float(confidence), 2) if confidence is not None else None,
             "label": label,
         }
+        if extra:
+            payload["extra"] = extra
         try:
             self._queue.put_nowait(payload)
         except queue.Full:
@@ -192,7 +200,8 @@ class BackendClient:
                     )
                 else:
                     self.last_send_ok = False
-                    logger.warning(f"[이벤트 응답 오류] {res.status_code} - {res.text[:120]}")
+                    # 거절 사유를 넉넉히 보여 줍니다 — 잘라 버리면 왜 안 가는지 알 수 없습니다.
+                    logger.warning(f"[이벤트 응답 오류] {res.status_code} - {res.text[:400]}")
             except requests.exceptions.RequestException as exc:
                 self.last_send_ok = False
                 logger.warning(f"[백엔드 통신 실패] {url}: {exc}")
@@ -394,6 +403,7 @@ def main() -> int:
                         label=event.label,
                         count=event.count,
                         confidence=event.confidence,
+                        extra=event.extra or None,
                     )
 
             # ---- 화면 ----

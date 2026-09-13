@@ -19,6 +19,15 @@
 라벨 이름은 팀이 마음대로 정하면 됩니다. 백엔드도 대시보드도 그 이름을 모르는 상태로
 시작해서, 이 `labels` 신고를 받고 배웁니다 — 그래서 공통 코드를 고칠 일이 없습니다.
 
+**여러 곳(좌석·구역)을 따로 봐야 한다면** 라벨을 자리 이름으로 두고, 자세한 값은 extra에 담습니다.
+
+    labels = ("seat_1", "seat_2", "seat_3")      # 라벨은 '어디'
+    return [DetectionEvent(label="seat_3", detected=True, confidence=0.9,
+                           extra={"state": "drowsy", "focus_score": 0.21})]   # extra는 '어떤'
+
+라벨에 상태까지 욱여넣으면(`seat_3_drowsy`) 자리 수 × 상태 수만큼 라벨이 불어나고
+화면에서 문자열을 쪼개야 합니다. 자리와 상태를 나누면 둘 다 깔끔해집니다.
+
 pi의 `drivers/`와 같은 구조입니다 — 부품을 추가하면 드라이버 파일 하나,
 감지를 추가하면 검출기 파일 하나.
 """
@@ -36,16 +45,21 @@ class DetectionEvent:
 
     label       무엇을 봤는지 (COCO 클래스명, 손동작 이름 등)
     detected    보였는지 / 사라졌는지
-    confidence  0~1. 없으면 None
+    confidence  **얼마나 확신하는가** 0~1. 없으면 None.
+                측정 점수(집중도·밝기 등)를 여기 넣지 마세요 — 자동화 규칙의
+                min_confidence가 낮은 값을 걸러내서 조용히 무시됩니다. 점수는 extra로.
     count       같은 것이 몇 개 보이는지 (혼잡도·인원수 계산에 씁니다)
     event_type  백엔드 기록용 분류. 비우면 검출기 기본값을 씁니다
+    extra       라벨 하나로 표현하기 어려운 값 — 예: 좌석 번호, 측정 점수.
+                **화면까지 실시간으로 전달됩니다. 다만 DB에는 저장되지 않습니다**
+                (나중에 다시 볼 이력은 label로 남기세요). JSON 2KB·키 20개까지.
     """
     label: str
     detected: bool
     confidence: Optional[float] = None
     count: int = 0
     event_type: Optional[str] = None
-    #: 화면에 그릴 정보 (검출기가 알아서 그리므로 보통 비워 둡니다)
+    #: 화면 시나리오가 바로 쓰는 값 (예: {"seat": 3, "focus_score": 0.88})
     extra: Dict[str, Any] = field(default_factory=dict)
 
 
