@@ -12,8 +12,12 @@ detectors/
   objects.py             공통 — 사물 탐지(YOLO). 4팀이 같이 씀 (고치지 않음)
   hands_rps.py           ★ wakeup 팀 — 가위바위보 손동작
   _hands_rps_engine.py     `_`로 시작하면 검출기가 아닌 보조 모듈
+  study_seats.py         ★ study 팀 — 좌석 6개 점유·집중도
   <우리팀>.py             ★ 여기에 파일 하나 추가하면 끝
 ```
+
+다른 팀은 자기 것이 아닌 팀 파일(`hands_rps*`, `study_seats.py`)을 지워도 됩니다.
+다만 **본보기로 남겨 두는 편이 편합니다** — 구조를 볼 때 씁니다.
 
 ## 규칙 두 가지
 
@@ -83,6 +87,22 @@ onVision(["seat_1", "seat_2", "seat_3", "seat_4", "seat_5", "seat_6"], (e) => {
 > 화면에서 문자열을 쪼개야 합니다. 자리와 상태를 나누면 둘 다 깔끔해집니다.
 
 ---
+
+## 화면을 나눠 볼 때는 `find_people()`을 쓰세요
+
+좌석·구간처럼 화면을 나눠 보려면 사람 상자가 필요합니다.
+**YOLO 모델을 새로 올리지 마세요** — 이미 올라와 있는 것을 함께 씁니다.
+
+```python
+from .objects import find_people
+
+for person in find_people(frame_bgr, min_confidence=0.5):
+    x1, y1, x2, y2 = person["box"]      # 이 상자가 어느 구역에 드는지 보면 됩니다
+    person["confidence"]                # 0.93
+```
+
+돌아가는 예시가 `study_seats.py`에 있습니다 — 화면을 좌석 구역으로 나누고
+구역마다 점유를 봅니다. 좌석 위치는 파일 맨 위 `SEATS`에서 **화면 비율**로 고칩니다.
 
 ## 라이브러리가 없을 때
 

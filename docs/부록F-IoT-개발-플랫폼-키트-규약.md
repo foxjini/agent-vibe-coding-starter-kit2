@@ -646,6 +646,17 @@ onVision(["seat_1", "seat_2", "seat_3"], (e) => {
 });
 ```
 
+구역을 나눠 볼 때 사람 상자는 키트가 찾아 줍니다 — **모델을 두 번 올리지 않습니다.**
+
+```python
+from .objects import find_people
+for person in find_people(frame_bgr):
+    x1, y1, x2, y2 = person["box"]
+```
+
+돌아가는 예시: `vision/detectors/study_seats.py` (좌석 위치는 파일 맨 위 `SEATS`에서
+화면 비율로 지정). 학생용 절차는 docs/00 매뉴얼 6-3절.
+
 #### `extra`가 가는 곳과 가지 않는 곳
 
 `extra`는 **검출기 → 백엔드 → 화면(WebSocket)** 까지 그대로 전달됩니다.

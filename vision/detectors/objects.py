@@ -9,7 +9,7 @@ objects — YOLOv8로 사물·사람을 찾습니다. **모든 팀이 공통으�
 """
 import logging
 import os
-from typing import Any, Dict, List, Sequence
+from typing import Any, Dict, List, Optional, Sequence
 
 import cv2
 import numpy as np
@@ -54,6 +54,11 @@ class Detector(FrameDetector):
     def __init__(self, model_path: str = None, conf_threshold: float = 0.45,
                  iou_threshold: float = 0.45):
         super().__init__()
+        # 구역별로 나눠 보는 팀 검출기(좌석·구간 등)가 같은 엔진을 쓰도록 자기를 등록합니다.
+        # 모델을 두 번 올리면 메모리도 두 배, 프레임도 느려집니다.
+        global _SHARED
+        if _SHARED is None:
+            _SHARED = self
         self.conf_threshold = conf_threshold
         self.iou_threshold = iou_threshold
         self.input_size = (640, 640)
@@ -222,3 +227,46 @@ class Detector(FrameDetector):
         if not seen:
             return "대상을 찾는 중..."
         return "감지됨: " + ", ".join(f"{label_ko(e.label)}×{e.count}" for e in seen)
+
+
+# ==============================================================================
+# 구역별로 나눠 보는 팀 검출기를 위한 공개 도우미
+# ==============================================================================
+#
+# study 팀의 좌석 6개, subway 팀의 객차 구간처럼 **화면을 나눠서 각각** 봐야 할 때가
+# 있습니다. 그때마다 YOLO 모델을 새로 올리면 느려지므로, 이미 올라와 있는 엔진을
+# 함께 쓰라고 아래 함수를 공개합니다. (이 파일 자체는 고치지 않습니다.)
+
+_SHARED: Optional["Detector"] = None
+
+
+def shared_detector() -> "Detector":
+    """이미 올라와 있는 사물 탐지 엔진을 돌려줍니다 (없으면 그때 하나 만듭니다)."""
+    global _SHARED
+    if _SHARED is None:
+        _SHARED = Detector()
+    return _SHARED
+
+
+def find_people(frame_bgr, min_confidence: float = 0.5) -> List[Dict[str, Any]]:
+    """
+    화면에서 **사람 상자**를 찾아 돌려줍니다.
+
+    좌석·구간처럼 화면을 나눠 보는 검출기가 쓰라고 만든 함수입니다.
+    돌려주는 것: `[{"box": [x1, y1, x2, y2], "confidence": 0.93}, ...]`
+    엔진이 준비되지 않았으면 빈 목록을 돌려줍니다(그 검출기만 조용히 쉽니다).
+
+        from .objects import find_people
+
+        for person in find_people(frame_bgr):
+            x1, y1, x2, y2 = person["box"]
+    """
+    detector = shared_detector()
+    if not detector.available or frame_bgr is None:
+        return []
+    person_class = CLASS_INDEX.get("person")
+    if person_class is None:
+        return []
+    found = detector._raw_detect(frame_bgr, [person_class])
+    return [{"box": item["box"], "confidence": item["confidence"]}
+            for item in found if item["confidence"] >= min_confidence]
