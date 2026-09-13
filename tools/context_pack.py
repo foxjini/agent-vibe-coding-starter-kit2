@@ -347,6 +347,16 @@ def pack_frontend() -> str:
         "이 파일은 제 프로젝트에서 **프론트엔드 담당이 필요한 부분만** 묶은 것입니다.",
         "키트가 주는 SDK는 구현을 빼고 **쓰는 법만** 담았습니다 (고치지 않으니까요).",
         "", RULES, "",
+        "## 화면은 셋입니다",
+        "",
+        "| 파일 | 주소 | 무엇 |",
+        "|---|---|---|",
+        "| `app/page.tsx` | `/` | ★ 우리 팀 화면 — 4팀 공통 출발점, 제가 고치는 곳 |",
+        "| `app/kit/page.tsx` | `/kit` | 키트 제공 (하드웨어 구성·자동화 규칙·영상인식 설정) |",
+        "| `app/wakeup/page.tsx` | `/wakeup` | wakeup 팀 완성 화면 — 본보기 |",
+        "",
+        "화면 제목은 코드가 아니라 `frontend/.env.local`의 `NEXT_PUBLIC_TEAM_NAME`에서 옵니다.",
+        "",
         "## 우리 팀 현재 배치표 (화면에 이 슬롯들이 카드로 나옵니다)",
         "", current_slots(), "",
         "## 제가 고치는 파일",
@@ -356,7 +366,21 @@ def pack_frontend() -> str:
     page_lines = read_lines(page)
     if page_lines:
         sections.append(code_block(
-            page, page_lines, "★ 우리 팀 화면입니다. 여기서 시작합니다."))
+            page, page_lines,
+            "★ 우리 팀 화면(`/`)입니다. 4팀 공통 출발점이며, 여기를 우리 팀 화면으로 바꿉니다. "
+            "`ScenarioPlaceholder`는 시나리오를 만들면 지우는 안내 카드입니다."))
+
+    # 팀이 이미 만든 시나리오가 있으면 함께 담습니다 (wakeup 본보기는 제외)
+    scenario_dir = ROOT / "frontend" / "scenarios"
+    mine = sorted(f for f in scenario_dir.glob("*.ts")
+                  if scenario_dir.exists()
+                  and not f.name.startswith("wakeup")
+                  and not f.name.startswith("useWakeup")
+                  and not f.name.endswith(".test.ts")) if scenario_dir.exists() else []
+    for path in mine:
+        lines = read_lines(path)
+        if lines:
+            sections.append(code_block(path, lines, "★ 우리 팀이 만든 시나리오입니다."))
 
     sections += ["", "## 제가 호출하는 키트 SDK (쓰는 법만 — 고치지 않습니다)"]
 
@@ -379,15 +403,27 @@ def pack_frontend() -> str:
             slots_lib, slots_lines,
             "슬롯 타입과 도움 함수들입니다. Slot 구조와 함수 이름만 알면 됩니다."))
 
-    sections += ["", "## 본보기 — wakeup 팀의 판정 규칙 (우리 팀 것이 아니면 구조만 참고)"]
+    sections += ["", "## 본보기 — wakeup 팀 완성 화면 (우리 팀 것이 아니면 구조만 참고)",
+                 "",
+                 "`/wakeup` 주소에서 직접 볼 수 있는 화면입니다. 시나리오가 있는 화면이 "
+                 "어떻게 생겼는지 보여 주는 본보기이고, 베껴 쓰는 것이 아닙니다."]
 
     engine = ROOT / "frontend" / "scenarios" / "wakeupEngine.ts"
     engine_lines = read_lines(engine)
     if engine_lines:
         sections.append(signatures_only(
             engine, engine_lines,
-            "React 없는 순수 함수로 판정 규칙을 쓰면 브라우저 없이 테스트할 수 있습니다. "
+            "판정 규칙을 React 없는 순수 함수로 쓰면 브라우저 없이 테스트할 수 있습니다. "
             "우리 팀 시나리오도 이 구조로 만듭니다 (전문이 필요하면 따로 올리겠습니다)."))
+
+    wakeup_page = ROOT / "frontend" / "app" / "wakeup" / "page.tsx"
+    wakeup_lines = read_lines(wakeup_page)
+    if wakeup_lines:
+        # 화면 컴포넌트는 '구조'가 핵심이라 시그니처만 담으면 쓸모없습니다.
+        sections.append(code_block(
+            wakeup_page, wakeup_lines,
+            "시나리오 훅을 받아 화면에 그리는 방법을 보세요 — `useWakeup()` 한 줄로 상태를 받고, "
+            "`<SlotGrid>`는 그대로 두고, 팀 카드만 얹었습니다. 우리 팀 화면도 이 모양이 됩니다."))
 
     sections += [
         "",

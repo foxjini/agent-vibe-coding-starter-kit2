@@ -36,3 +36,7 @@ Thumbs.db
 
 # 컨텍스트 팩 — 채팅형 AI에 올릴 생성물 (tools/context_pack.py로 언제든 다시 만듭니다)
 context_packs/
+
+# 브라우저 검증 중 생기는 스크린샷 (저장소에 올리지 않습니다)
+*.png
+!docs/**/*.png

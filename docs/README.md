@@ -35,7 +35,10 @@ python tools/context_pack.py pi        # 또는 frontend · vision · all
 | 카메라 감지 **방법** | `vision/detectors/<우리팀>.py` 파일 하나 |
 
 **`backend/` · `backend/db/` · `vision/` 공통 파일은 고치지 않습니다** (4팀 공통 코드).
-화면은 `/`(우리 팀 시나리오)와 `/kit`(하드웨어 구성·규칙·영상인식 설정) 둘입니다.
+
+화면은 셋입니다 — `/`(★ 우리 팀 화면, 4팀 공통 출발점) ·
+`/kit`(하드웨어 구성·규칙·영상인식 설정, 키트 제공) · `/wakeup`(wakeup 팀 완성 본보기).
+`/` 화면 제목은 `frontend/.env.local`의 `NEXT_PUBLIC_TEAM_NAME`에서 바꿉니다.
 
 ---
 
