@@ -485,14 +485,18 @@ def pack_vision() -> str:
             "wakeup 팀 손동작 검출기입니다. 라이브러리가 없을 때 disable()로 "
             "자기만 꺼지는 부분을 보세요 — 사물 감지는 계속 돌아야 합니다."))
 
-    mine = team_detectors()
-    mine = [p for p in mine if p.name != "hands_rps.py"]
+    mine = [f for f in team_detectors() if f.name != "hands_rps.py"]
     if mine:
-        sections += ["", "## 우리 팀이 이미 만든 검출기"]
+        # 폴더에 있는 팀 검출기를 담습니다. 우리 팀 것이면 고칠 파일이고,
+        # 다른 팀 것이면 본보기입니다(지워도 됩니다) — AI가 헷갈리지 않게 그대로 적습니다.
+        sections += ["", "## 폴더에 있는 팀 검출기",
+                     "",
+                     "우리 팀 것이면 **제가 고치는 파일**이고, 다른 팀 것이면 **본보기**입니다",
+                     "(지워도 되지만 구조를 볼 때 편해서 남겨 둡니다)."]
         for path in mine:
             lines = read_lines(path)
             if lines:
-                sections.append(code_block(path, lines, "★ 제가 만든 파일입니다."))
+                sections.append(code_block(path, lines))
 
     sections += [
         "",
