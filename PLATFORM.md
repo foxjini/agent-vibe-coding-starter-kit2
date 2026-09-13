@@ -40,7 +40,7 @@
 |---|---|---|
 | 센서·액추에이터 추가/제거 | `pi/slot_map.py` 한 줄 | backend, db, vision |
 | 부품 종류 변경 (부저→서보) | `pi/slot_map.py`의 `driver` | backend, db, vision |
-| 화면 디자인·UX | `frontend/` | backend, db, vision |
+| 화면 디자인·UX | `frontend/app/page.tsx` (4팀 공통 출발점) | backend, db, vision |
 | 시나리오·게임 로직 | `frontend/` (시나리오 SDK) | backend, db, vision |
 | 단순 자동화 (임계값·스케줄) | 대시보드 규칙 편집 (데이터) | 코드 전부 |
 | 감지 **대상** 변경 (사람→컵) | 대시보드 영상인식 설정 (데이터) | 코드 전부 |
