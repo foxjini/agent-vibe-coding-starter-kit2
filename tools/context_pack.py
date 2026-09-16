@@ -67,7 +67,13 @@ RULES = """\
 
 ### 기술 스택
 - 백엔드 FastAPI(Python 3.12) + WebSocket · DB MariaDB
-- 프론트엔드 Next.js 16 (React 19, TypeScript, Tailwind)
+- 프론트엔드 Next.js 16 (React 19, TypeScript, **Tailwind CSS v4**)
+  ⚠️ **v4입니다. v3 방식은 조용히 실패합니다** (빌드는 되는데 스타일이 안 먹습니다):
+    · `tailwind.config.js`를 쓰지 않습니다 — 설정은 `app/globals.css`의 `@theme`에 씁니다
+    · 색·모서리 토큰을 `:root`에 적으면 유틸리티 클래스가 **만들어지지 않습니다**.
+      반드시 `@theme { --color-brand: ... }` 안에 적어야 `bg-brand`가 생깁니다
+    · 실행 중에 값을 바꾸려면 `@theme inline { --color-brand: var(--ui-brand); }` 로 쓰고
+      `--ui-brand`를 `:root` / `[data-style="..."]`에서 바꿉니다
 - 영상인식 YOLOv8 ONNX(onnxruntime, ultralytics 미사용) + MediaPipe, OpenCV, Pillow(한글)
   ⛔ `dlib` · `face_recognition`은 쓰지 않습니다 (Windows 컴파일 오류)
 - 하드웨어 라즈베리파이 5 (gpiozero + lgpio). PC에서는 자동으로 흉내내기로 대체됩니다.
@@ -98,6 +104,7 @@ HOW_TO_ANSWER = """\
    cd pi       && python test_slot_daemon.py      # 39항목
    cd vision   && python test_vision_config.py    # 43항목
    cd frontend && npx eslint . && npm run build
+   cd frontend && grep -o '\.bg-brand{[^}]*}' .next/static/chunks/*.css   # 토큰이 살아 있는지
    ```
 6. 위 "지켜야 할 제약"의 **고치지 않는 파일을 고쳐야 한다면, 고치지 말고 먼저 이유를 설명**해 주세요.
    거의 항상 다른 방법이 있습니다.
