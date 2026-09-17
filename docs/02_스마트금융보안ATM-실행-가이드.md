@@ -120,9 +120,21 @@ curl -X POST http://localhost:8100/qr \
 (`git clone` 또는 `backend/`와 `pi/`를 같은 상위 폴더에 나란히 둔다).
 `pi/`만 옮기면 실행하자마자 `ModuleNotFoundError: No module named 'iot'`가 난다.
 
+**GPIO 라이브러리는 `pip`가 아니라 `apt`로 넣는다.** 파이 5는 GPIO 칩이 달라(RP1)
+`lgpio` 핀 팩토리가 필요한데, `pip install lgpio`는 Bookworm에서 빌드에 실패하는
+일이 잦다. 그리고 `apt`로 깐 것은 **`--system-site-packages`로 만든 venv에서만
+보인다** — 파이에서 가장 자주 걸리는 함정이 이것이다.
+
 ```bash
-pip install gpiozero lgpio        # Pi 5는 RP1 칩이라 lgpio 핀 팩토리가 필요하다
+sudo apt install -y python3-gpiozero python3-lgpio
+
+cd pi
+rm -rf venv                                    # PC에서 만든 venv가 남아 있으면 지운다
+python3 -m venv --system-site-packages venv    # ← 이 옵션이 없으면 lgpio를 못 본다
+source venv/bin/activate
+pip install -r requirements.txt
 ```
+
 `pi/.env`를 바꾼다.
 ```
 DEVICE_MODE=hardware
@@ -134,6 +146,27 @@ SERVO_PUSHER_PIN=19
 ```
 MG996R은 **별도 5V 전원**으로 공급하고 파이는 신호선만 연결한다. 배선 변경은 반드시
 전원을 끈 상태에서, 실기기 첫 연결은 교사 입회 하에 진행한다.
+
+### 4-2-1. 데몬을 켜기 전에 한 번 점검한다
+
+`python main.py`가 안 뜰 때 트레이스백만 봐서는 원인을 찾기 어렵다. 켜기 전에
+아래를 먼저 돌리면 파이썬 환경 · 폴더 구조 · `.env` · GPIO · 카메라 · 백엔드 연결을
+한 줄씩 확인해 준다. **서보는 움직이지 않는다.**
+
+```bash
+cd pi
+python check_hardware.py
+```
+
+`[실패]` 줄 아래에 무엇을 고쳐야 하는지가 함께 나온다. 전부 통과하면
+`python main.py`로 넘어간다.
+
+서보 배선까지 확인하려면 `--servo`를 붙인다. **실제로 움직이므로 교사 입회 하에,
+손이 배출구에 없는 것을 확인하고** 실행한다.
+
+```bash
+python check_hardware.py --servo
+```
 
 ### 4-3. 7인치 화면
 파이의 브라우저를 키오스크 모드로 `/atm`에 띄운다.
@@ -218,4 +251,11 @@ python scripts/demo_e2e.py
 | 파이에서 `ModuleNotFoundError: No module named 'iot'` | `pi/`만 복사했다. `backend/`가 같은 상위 폴더에 나란히 있어야 한다 (4-2 참고) |
 | `gpiozero` 오류 | Pi 5는 `lgpio`가 필요하다. `pip install lgpio` 후 `GPIOZERO_PIN_FACTORY=lgpio` |
 | 카메라를 못 연다 | `ENABLE_CAMERA=false`로 두고 `POST /qr`로 먼저 로직을 검증한다 |
+| **파이에서** `python main.py`가 바로 죽는다 | `cd pi && python check_hardware.py` 를 먼저 돌린다. 원인과 고치는 방법이 한 줄씩 나온다 |
+| `No module named 'gpiozero'` (설치했는데도) | venv가 apt 패키지를 못 보는 것이다. `python3 -m venv --system-site-packages venv`로 다시 만든다 |
+| `BadPinFactory` / `Unable to load any default pin factory` | 파이 5에 `lgpio`가 없다. `sudo apt install -y python3-lgpio`, `.env`에 `GPIOZERO_PIN_FACTORY=lgpio` |
+| GPIO 열 때 권한 오류 | `sudo usermod -aG gpio $USER` 후 **다시 로그인**한다 |
+| `ImportError: libGL.so.1` (cv2) | `sudo apt install -y libgl1 libglib2.0-0`. 그래도 안 되면 `pip install opencv-python-headless`로 바꾼다 |
+| 파이 카메라 모듈(CSI)이 안 잡힌다 | Bookworm에서는 `cv2.VideoCapture`로 CSI 카메라를 열 수 없다. USB 웹캠을 쓴다 |
+| 파이에서 `pip install`이 거부된다 | Bookworm의 `externally-managed-environment`다. venv 안에서 설치한다 |
 | QR이 잘 안 읽힌다 | 휴대폰 화면 밝기를 올리고 QR을 크게 표시한다. 초점 거리를 20cm 이상 둔다 |

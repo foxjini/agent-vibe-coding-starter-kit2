@@ -91,6 +91,7 @@ cd frontend && npm install && npm run dev   # http://localhost:3000
 ```bash
 pytest                      # 89 passed 가 나오면 정상 (서버를 안 띄워도 된다)
 python scripts/demo_e2e.py  # 백엔드·ATM 데몬을 띄운 상태에서 전 구간 자동 검증
+cd pi && python check_hardware.py   # 라즈베리파이 실기기에서 켜기 전에 한 번
 ```
 
 ## 문서

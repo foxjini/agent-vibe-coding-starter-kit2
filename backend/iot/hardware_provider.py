@@ -31,8 +31,12 @@ class HardwareDeviceProvider(DeviceProvider):
             from gpiozero import AngularServo, Buzzer
         except ImportError as exc:  # 예외를 조용히 삼키지 않는다
             raise RuntimeError(
-                "gpiozero를 불러오지 못했습니다. 라즈베리파이 5에서 "
-                "'pip install gpiozero lgpio' 후 GPIOZERO_PIN_FACTORY=lgpio 로 실행하세요."
+                "gpiozero를 불러오지 못했습니다.\n"
+                "  라즈베리파이 5:  sudo apt install -y python3-gpiozero python3-lgpio\n"
+                "  venv를 쓴다면 시스템 패키지를 볼 수 있게 만들어야 합니다 —\n"
+                "    rm -rf venv && python3 -m venv --system-site-packages venv\n"
+                "  (apt로 깔아 놓고 venv가 못 보는 경우가 파이에서 가장 흔합니다)\n"
+                "  자세한 진단:  cd pi && python check_hardware.py"
             ) from exc
 
         gate_pin = int(os.getenv("SERVO_GATE_PIN", "18"))
@@ -40,12 +44,29 @@ class HardwareDeviceProvider(DeviceProvider):
         buzzer_pin = os.getenv("BUZZER_PIN", "").strip()
 
         # MG996R 2개: 배출구 게이트 + 지폐 밀대
-        self._gate = AngularServo(gate_pin, min_angle=0, max_angle=180)
-        self._pusher = AngularServo(pusher_pin, min_angle=0, max_angle=180)
-        self._buzzer = Buzzer(int(buzzer_pin)) if buzzer_pin else None
-
-        self._gate.angle = SERVO_CLOSED_ANGLE
-        self._pusher.angle = SERVO_CLOSED_ANGLE
+        #
+        # 여기서 나는 오류는 import 실패보다 종류가 많다 — 핀 팩토리를 못 고르거나
+        # (파이 5에 lgpio가 없다), 권한이 없거나(gpio 그룹), 앞서 띄운 데몬이 같은
+        # 핀을 아직 잡고 있거나. 트레이스백만 던지면 부스에서 원인을 못 찾으므로
+        # 무엇을 확인해야 하는지까지 적어 준다.
+        try:
+            self._gate = AngularServo(gate_pin, min_angle=0, max_angle=180)
+            self._pusher = AngularServo(pusher_pin, min_angle=0, max_angle=180)
+            self._buzzer = Buzzer(int(buzzer_pin)) if buzzer_pin else None
+            self._gate.angle = SERVO_CLOSED_ANGLE
+            self._pusher.angle = SERVO_CLOSED_ANGLE
+        except Exception as exc:  # noqa: BLE001
+            raise RuntimeError(
+                f"GPIO를 열지 못했습니다 (gate=GPIO{gate_pin}, pusher=GPIO{pusher_pin}, "
+                f"buzzer={buzzer_pin or '없음'}).\n"
+                f"  원인: {type(exc).__name__}: {exc}\n"
+                "  1) 핀 팩토리 — 파이 5는 lgpio가 필요합니다.\n"
+                "     .env에 GPIOZERO_PIN_FACTORY=lgpio 를 넣고, python3-lgpio를 설치하세요.\n"
+                "  2) 권한 — sudo usermod -aG gpio $USER  (그 뒤 다시 로그인)\n"
+                "  3) 핀 중복 — 앞서 띄운 ATM 데몬이 아직 떠 있으면 같은 핀을 열 수 없습니다.\n"
+                "  4) 핀 번호 — .env의 SERVO_GATE_PIN / SERVO_PUSHER_PIN이 실제 배선과 같은지.\n"
+                "  자세한 진단:  cd pi && python check_hardware.py"
+            ) from exc
         self._dispenser_state = DISPENSER_IDLE
         self._buzzer_state = "OFF"
         self.dispense_count = 0
