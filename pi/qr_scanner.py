@@ -27,6 +27,20 @@ FRAME_INTERVAL_SECONDS = 0.1
 CAMERA_BACKEND_ENV = "CAMERA_BACKEND"
 CAMERA_BACKEND_AUTO = "auto"
 
+# 인식에 쓸 해상도. **카메라 기본값에 맡기지 않는다.**
+#
+# QR 검출 비용은 화소 수에 거의 비례한다. 실측(같은 CPU, 프레임 한 장 기준):
+#     640x480 → 6~12ms,  1280x720 → 24~41ms,  1920x1080 → 52~62ms
+# 0.1초마다 한 장을 보므로 640x480이면 한 코어의 10~30% 정도만 쓰지만,
+# 1080p로 들어오는 웹캠을 만나면 한 장 처리가 루프 주기에 육박해 인식이 밀린다.
+# QR은 화면의 1/3만 차지해도 640x480에서 충분히 읽히므로 굳이 키울 이유가 없다.
+CAMERA_WIDTH = int(os.getenv("CAMERA_WIDTH", "640"))
+CAMERA_HEIGHT = int(os.getenv("CAMERA_HEIGHT", "480"))
+
+# 드라이버가 쌓아 두는 프레임 수. 1로 두면 항상 '가장 최근 화면'을 본다 —
+# 우리는 초당 10장만 꺼내 쓰므로, 버퍼가 깊으면 이미 치운 QR을 뒤늦게 읽는다.
+CAPTURE_BUFFER_FRAMES = 1
+
 
 def decode_image_file(path: str) -> str | None:
     """이미지 파일 한 장에서 QR 문자열을 읽는다. 없으면 None."""
@@ -71,6 +85,32 @@ def _backend_candidates(cv2_module: ModuleType) -> list[tuple[str, int]]:
     return [("any", cv2_module.CAP_ANY)]
 
 
+def _tune_capture(cv2_module: ModuleType, capture: "cv2.VideoCapture") -> tuple[int, int]:
+    """해상도와 버퍼 깊이를 지정하고, 카메라가 실제로 준 해상도를 돌려준다.
+
+    지원하지 않는 백엔드/드라이버가 있으므로 실패해도 그냥 넘어간다 —
+    인식이 조금 느려질 뿐, 카메라를 못 쓰게 만들 일은 아니다.
+    """
+    for prop, value in (
+        (cv2_module.CAP_PROP_FRAME_WIDTH, CAMERA_WIDTH),
+        (cv2_module.CAP_PROP_FRAME_HEIGHT, CAMERA_HEIGHT),
+        (getattr(cv2_module, "CAP_PROP_BUFFERSIZE", None), CAPTURE_BUFFER_FRAMES),
+    ):
+        if prop is None:
+            continue
+        try:
+            capture.set(prop, value)
+        except Exception as exc:  # noqa: BLE001
+            logger.debug("카메라 속성 설정 실패(무시): %s", exc)
+
+    try:
+        width = int(capture.get(cv2_module.CAP_PROP_FRAME_WIDTH))
+        height = int(capture.get(cv2_module.CAP_PROP_FRAME_HEIGHT))
+    except Exception:  # noqa: BLE001
+        return (0, 0)
+    return (width, height)
+
+
 def open_camera(camera_index: int = 0) -> "cv2.VideoCapture":
     """웹캠을 연다. 백엔드를 순서대로 시도하고 모두 실패하면 RuntimeError."""
     import cv2
@@ -79,7 +119,16 @@ def open_camera(camera_index: int = 0) -> "cv2.VideoCapture":
     for name, api in _backend_candidates(cv2):
         capture = cv2.VideoCapture(camera_index, api)
         if capture.isOpened():
-            logger.info("카메라 열림 (index=%d, backend=%s)", camera_index, name)
+            width, height = _tune_capture(cv2, capture)
+            logger.info(
+                "카메라 열림 (index=%d, backend=%s, %dx%d)", camera_index, name, width, height
+            )
+            if width * height > CAMERA_WIDTH * CAMERA_HEIGHT * 2:
+                # 요청을 무시하는 카메라가 있다. 느려지는 이유를 로그에 남겨 둔다.
+                logger.warning(
+                    "카메라가 요청한 %dx%d 대신 %dx%d로 열렸습니다 — QR 인식이 느려질 수 있습니다.",
+                    CAMERA_WIDTH, CAMERA_HEIGHT, width, height,
+                )
             return capture
         capture.release()
         tried.append(name)

@@ -279,3 +279,4 @@ python scripts/demo_e2e.py
 | 파이 카메라 모듈(CSI)이 안 잡힌다 | 최근 라즈베리파이 OS에서는 `cv2.VideoCapture`로 CSI 카메라를 열 수 없다. USB 웹캠을 쓴다 |
 | 파이에서 `pip install`이 거부된다 | `externally-managed-environment`(Bookworm·Trixie)다. venv 안에서 설치한다 |
 | QR이 잘 안 읽힌다 | 휴대폰 화면 밝기를 올리고 QR을 크게 표시한다. 초점 거리를 20cm 이상 둔다 |
+| QR 인식이 **느리거나 밀린다** (치웠는데 뒤늦게 읽힘) | 해상도가 크게 열린 것이다. 검출 비용은 화소 수에 거의 비례한다. `python check_hardware.py`가 이 기기에서 한 장에 몇 ms 걸리는지 재 주고, `.env`의 `CAMERA_WIDTH=640` · `CAMERA_HEIGHT=480`으로 줄인다 |
