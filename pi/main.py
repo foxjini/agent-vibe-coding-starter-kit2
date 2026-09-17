@@ -49,7 +49,25 @@ DAEMON_PORT = int(os.getenv("ATM_DAEMON_PORT", "8100"))
 CAMERA_INDEX = int(os.getenv("CAMERA_INDEX", "0"))
 ENABLE_CAMERA = os.getenv("ENABLE_CAMERA", "true").strip().lower() != "false"
 
-provider = create_provider()
+def _build_provider():
+    """장치 Provider를 만든다. 실기기에서 실패하면 **뜨지 않는 쪽**을 택한다.
+
+    여기서 mock으로 되돌아가면 서보는 가만히 있는데 화면과 서버에는 '배출했다'고
+    기록된다 — 현금에 대해 거짓말을 하는 ATM이 된다. 그럴 바에는 안 켜지는 게 낫다.
+    대신 무엇을 고쳐야 하는지는 트레이스백 대신 사람이 읽을 수 있는 형태로 알린다.
+    """
+    try:
+        return create_provider()
+    except Exception as exc:  # noqa: BLE001
+        print("\n" + "=" * 64, file=sys.stderr)
+        print(" ATM 데몬을 시작할 수 없습니다 (장치 제어 준비 실패)", file=sys.stderr)
+        print("=" * 64, file=sys.stderr)
+        print(exc, file=sys.stderr)
+        print("=" * 64 + "\n", file=sys.stderr)
+        raise SystemExit(1) from exc
+
+
+provider = _build_provider()
 controller = AtmController(provider, BackendClient())
 
 _stop = threading.Event()
