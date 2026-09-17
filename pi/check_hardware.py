@@ -253,11 +253,44 @@ def check_camera() -> None:
         capture.release()
         if ok and frame is not None:
             report(OK, f"카메라 영상 읽기 성공 (CAMERA_INDEX={index})", f"{frame.shape[1]}x{frame.shape[0]}")
+            _measure_qr_speed(cv2, frame)
         else:
             report(FAIL, "카메라는 열렸지만 영상이 안 들어옴",
                    fix="다른 프로그램이 카메라를 쓰고 있는지 확인하세요.")
     except Exception as exc:  # noqa: BLE001
         report(FAIL, "카메라 점검 중 오류", f"{type(exc).__name__}: {exc}")
+
+
+def _measure_qr_speed(cv2, frame) -> None:
+    """이 파이에서 QR 검출 한 장에 몇 ms가 걸리는지 직접 잰다.
+
+    스캔 루프는 0.1초에 한 장을 본다. 한 장 처리가 그 안에 들어와야 '들이대면
+    바로 읽힌다'가 되고, 넘어서면 인식이 밀리기 시작한다. 검출 비용은 화소 수에
+    거의 비례하므로, 느리다면 십중팔구 해상도가 크게 열린 것이다.
+    """
+    import time
+
+    detector = cv2.QRCodeDetector()
+    detector.detectAndDecode(frame)  # 워밍업
+    rounds = 15
+    start = time.perf_counter()
+    for _ in range(rounds):
+        detector.detectAndDecode(frame)
+    per_frame_ms = (time.perf_counter() - start) / rounds * 1000
+
+    budget_ms = 100  # qr_scanner.FRAME_INTERVAL_SECONDS
+    detail = f"{per_frame_ms:.0f}ms/장 (여유 {budget_ms}ms)"
+    if per_frame_ms < budget_ms * 0.5:
+        report(OK, "QR 검출 속도 넉넉함", detail)
+    elif per_frame_ms < budget_ms:
+        report(WARN, "QR 검출 속도 빠듯함", detail,
+               fix="해상도를 줄이면 거의 비례해서 빨라집니다 —\n"
+                   ".env에 CAMERA_WIDTH=640, CAMERA_HEIGHT=480")
+    else:
+        report(FAIL, "QR 검출이 루프 주기보다 느림", detail,
+               fix="이대로면 QR을 들이대고도 한참 뒤에 읽힙니다.\n"
+                   ".env에 CAMERA_WIDTH=640, CAMERA_HEIGHT=480 을 넣고 데몬을 다시 켜세요.\n"
+                   "(위 '카메라 영상 읽기 성공' 줄의 해상도가 실제로 줄었는지 확인)")
 
 
 # ── 6. 백엔드 연결 ──────────────────────────────────────────────────────────
