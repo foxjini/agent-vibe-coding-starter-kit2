@@ -8,6 +8,7 @@ import time
 
 import pytest
 
+import atm_controller
 from atm_controller import (
     STATE_CALL_CENTER,
     STATE_READY,
@@ -18,7 +19,7 @@ from atm_controller import (
     parse_qr_payload,
 )
 from fakes import CAUTION_SESSION, DANGER_SESSION, SAFE_SESSION, FakeBackend
-from iot.mock_provider import MockDeviceProvider
+from iot.mock_provider import DISPENSER_DISPENSING, MockDeviceProvider
 
 
 @pytest.fixture
@@ -577,3 +578,79 @@ def test_auto_reset_can_be_turned_off(
     assert controller.snapshot()["idle_reset_in"] is None
     time.sleep(0.2)
     assert controller.reset_if_idle() is False
+
+
+# ── 실기기에서만 드러나는 것들 (Mock은 문자열만 바꾸므로 조용히 지나간다) ────
+class RecordingProvider(MockDeviceProvider):
+    """부저에 실제로 어떤 명령이 갔는지 순서대로 기록한다."""
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.buzzer_calls: list[str] = []
+
+    async def set_actuator_state(self, device_id, desired_state, value=None, operator="user"):
+        if device_id == "buzzer_1":
+            self.buzzer_calls.append(desired_state)
+        return await super().set_actuator_state(device_id, desired_state, value, operator)
+
+
+class SlowDispenser(MockDeviceProvider):
+    """배출에 시간이 걸리는 장치 — 실기기의 서보처럼 동작한다."""
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.active = 0
+        self.max_active = 0
+
+    async def set_actuator_state(self, device_id, desired_state, value=None, operator="user"):
+        if device_id == "cash_dispenser_1" and desired_state == DISPENSER_DISPENSING:
+            self.active += 1
+            self.max_active = max(self.max_active, self.active)
+            try:
+                await asyncio.sleep(0.05)  # 게이트 열고 밀대 밀고 닫는 시간
+                return await super().set_actuator_state(device_id, desired_state, value, operator)
+            finally:
+                self.active -= 1
+        return await super().set_actuator_state(device_id, desired_state, value, operator)
+
+
+def test_warning_beep_always_ends_silent(
+    backend: FakeBackend, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """경고음은 울리고 **꺼져야** 한다.
+
+    켜기만 하고 끄지 않으면 데몬을 끌 때까지 계속 울린다. Mock에서는 상태
+    문자열만 바뀌어 아무도 눈치채지 못하지만, 실기기에서는 전시장 전체가 안다.
+    실제로 가짜 gpiozero로 돌려 보니 ON만 있고 OFF가 없었다.
+    """
+    monkeypatch.setattr(atm_controller, "WARN_BEEP_SECONDS", 0.01)
+    provider = RecordingProvider()
+    controller = AtmController(provider, backend)
+
+    asyncio.run(controller.handle_qr(f'{{"session_id": "{DANGER_SESSION}"}}'))
+
+    assert "ON" in provider.buzzer_calls, "위험을 알리기는 해야 한다"
+    assert provider.buzzer_calls[-1] == "OFF", "마지막은 반드시 꺼져 있어야 한다"
+    assert asyncio.run(provider.get_device_status("buzzer_1"))["state"] == "OFF"
+
+
+def test_double_tap_does_not_overlap_dispensing(backend: FakeBackend) -> None:
+    """출금 버튼을 빠르게 두 번 눌러도 배출 동작이 겹치면 안 된다.
+
+    겹치면 게이트가 열린 채로 다른 쪽이 닫아 버려서, 화면에는 '배출했습니다'가
+    두 번 뜨는데 지폐는 한 번만 제대로 나간다. 실기기 시뮬레이션에서 재현됐다.
+    """
+    provider = SlowDispenser()
+    controller = AtmController(provider, backend)
+
+    async def double_tap() -> None:
+        await controller.handle_qr(f'{{"session_id": "{SAFE_SESSION}"}}')
+        await asyncio.gather(
+            controller.request_withdraw(50000),
+            controller.request_withdraw(50000),
+        )
+
+    asyncio.run(double_tap())
+
+    assert provider.max_active == 1, "한 번에 하나씩 배출해야 한다"
+    assert provider.dispense_count == 2, "두 번 눌렀으면 두 번 다 제대로 나가야 한다"
