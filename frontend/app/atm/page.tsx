@@ -30,6 +30,10 @@ export default function AtmScreen() {
   const [notice, setNotice] = useState<string | null>(null);
   // '처음으로'가 거절당했을 때만 직원 해제 버튼을 꺼내 놓는다 (평소에는 없다)
   const [askStaff, setAskStaff] = useState(false);
+  // 실기기에서는 배출에 1.4초가 걸린다(게이트 열고·밀고·닫고). Mock에서는 즉시라
+  // 눈치채지 못했지만, 파이에서는 그동안 화면이 아무 말도 하지 않으면 관람객이
+  // 버튼을 다시 누른다.
+  const [busy, setBusy] = useState(false);
   const speech = useSpeech();
   const lastStateRef = useRef<string | null>(null);
 
@@ -79,7 +83,10 @@ export default function AtmScreen() {
   }, [notice, state, speech]);
 
   const withdraw = async (amount: number) => {
-    setNotice(null);
+    if (busy) return;
+    setBusy(true);
+    // 나올지 안 나올지 아직 모르므로 결과를 앞질러 말하지 않는다
+    setNotice("잠시만 기다려 주세요");
     try {
       const next = await atmDaemon.post<AtmDaemonState & { dispensed: boolean }>("/withdraw", {
         amount,
@@ -92,6 +99,8 @@ export default function AtmScreen() {
       );
     } catch (err) {
       setNotice(err instanceof ApiError ? err.message : "출금 요청을 처리하지 못했습니다.");
+    } finally {
+      setBusy(false);
     }
   };
 
@@ -171,7 +180,7 @@ export default function AtmScreen() {
         <>
           <Banknote size={80} className="text-emerald-600" aria-hidden />
           <p className="text-4xl font-bold text-slate-900 break-keep">{state.guidance}</p>
-          <AmountGrid onSelect={withdraw} />
+          <AmountGrid onSelect={withdraw} disabled={busy} />
 
           {/* 아직 아무 QR도 읽지 않은 평상시에만, 이 기계가 무엇을 더 할 수 있는지 알린다 */}
           {state.state === "READY" && (
@@ -202,7 +211,7 @@ export default function AtmScreen() {
 
           {/* 출금 버튼은 그대로 둔다 — 눌러도 현금이 나오지 않는 것을 보여주는 것이
               이 프로젝트의 핵심 시연 장면이다 (PRD 9.2 / FR-09) */}
-          <AmountGrid onSelect={withdraw} />
+          <AmountGrid onSelect={withdraw} disabled={busy} />
 
           {/* 상담원이 이미 결론을 냈다면 다시 요청하게 두지 않는다 */}
           {state.state === "WITHDRAW_BLOCKED" && !state.callcenter_resolution && (
@@ -299,7 +308,13 @@ function IdleCountdown({ seconds }: { seconds: number }) {
   );
 }
 
-function AmountGrid({ onSelect }: { onSelect: (amount: number) => void }) {
+function AmountGrid({
+  onSelect,
+  disabled = false,
+}: {
+  onSelect: (amount: number) => void;
+  disabled?: boolean;
+}) {
   return (
     <div className="grid w-full grid-cols-2 gap-4">
       {AMOUNTS.map((amount) => (
@@ -307,7 +322,8 @@ function AmountGrid({ onSelect }: { onSelect: (amount: number) => void }) {
           key={amount}
           type="button"
           onClick={() => onSelect(amount)}
-          className="cursor-pointer rounded-2xl border-4 border-slate-800 bg-white px-4 py-7 text-3xl font-bold text-slate-900 transition-colors duration-200 hover:bg-slate-100"
+          disabled={disabled}
+          className="cursor-pointer rounded-2xl border-4 border-slate-800 bg-white px-4 py-7 text-3xl font-bold text-slate-900 transition-colors duration-200 hover:bg-slate-100 disabled:cursor-not-allowed disabled:border-slate-300 disabled:text-slate-400 disabled:hover:bg-white"
         >
           {amount.toLocaleString("ko-KR")}원
         </button>

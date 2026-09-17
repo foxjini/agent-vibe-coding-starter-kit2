@@ -11,6 +11,7 @@ qr-recognition-integration 스킬의 '로컬 판단 원칙':
   이어간다 (PRD 11.3 '핵심 기능이 인터넷 연결 하나에만 의존하지 않는다').
 """
 import asyncio
+import contextlib
 import json
 import logging
 import math
@@ -109,6 +110,12 @@ HINT_VERIFY_FAILED = "서버 응답을 처리하지 못했습니다 — ATM 데�
 # 잠긴 기계를 사람이 아닌 방법으로 열려고 했을 때
 ERROR_OTHER_QR = "다른 QR로는 잠금이 풀리지 않습니다. 상담원 확인을 받아 주세요"
 
+# 경고음은 짧게 두 번 "삑삑". **끄는 것까지가 경고다** — 켜 두기만 하면 데몬을 끌
+# 때까지 계속 울린다. 전시장에서 그것만큼 빨리 민폐가 되는 것도 없고, 어렵게 넣은
+# 음성 안내도 그 소리에 묻힌다. 0으로 두면 부저를 아예 쓰지 않는다.
+WARN_BEEP_SECONDS = float(os.getenv("WARN_BEEP_SECONDS", "0.2"))
+WARN_BEEP_COUNT = int(os.getenv("WARN_BEEP_COUNT", "2"))
+
 
 @dataclass
 class QrPayload:
@@ -172,6 +179,10 @@ class AtmController:
             IDLE_RESET_SECONDS if idle_reset_seconds is None else idle_reset_seconds
         )
         self._last_touch: float = time.monotonic()
+        # 배출은 한 번에 하나씩. 화면을 두 번 빠르게 누르면 배출 동작 두 개가
+        # 겹쳐서, 게이트가 열린 채로 다른 쪽이 닫아 버린다 (실제로 재현된다).
+        # 그러면 '배출했습니다'는 두 번 뜨는데 지폐는 한 번만 제대로 나간다.
+        self._dispense_lock = asyncio.Lock()
         self.state: str = STATE_READY
         self.session_id: str | None = None
         self.risk_level: str | None = None
@@ -431,18 +442,22 @@ class AtmController:
         평상시(READY)에는 보통 ATM처럼 돈이 나온다.
         """
         self.touch()
-        if not self.can_dispense:
-            # 액추에이터를 아예 건드리지 않는다 — 배출 장치는 움직이지 않는다
-            logger.info("출금 차단 (state=%s, session=%s)", self.state, self.session_id)
-            await self._report_withdraw(dispensed=False)
-            return {"dispensed": False, **self.snapshot()}
+        # 판단과 배출을 한 덩어리로 묶는다. 기다리는 동안 상담원이 다시 막았다면
+        # 그 결정이 이깁니다 — 잠금 안에서 다시 확인하는 이유다.
+        async with self._dispense_lock:
+            dispensed = self.can_dispense
+            if dispensed:
+                await self._provider.set_actuator_state(
+                    CASH_DISPENSER_DEVICE_ID, DISPENSER_DISPENSING, value=amount, operator="user"
+                )
+                logger.info("현금 배출 (session=%s, amount=%s)", self.session_id, amount)
+            else:
+                # 액추에이터를 아예 건드리지 않는다 — 배출 장치는 움직이지 않는다
+                logger.info("출금 차단 (state=%s, session=%s)", self.state, self.session_id)
 
-        await self._provider.set_actuator_state(
-            CASH_DISPENSER_DEVICE_ID, DISPENSER_DISPENSING, value=amount, operator="user"
-        )
-        logger.info("현금 배출 (session=%s, amount=%s)", self.session_id, amount)
-        await self._report_withdraw(dispensed=True)
-        return {"dispensed": True, **self.snapshot()}
+        # 서버 보고는 잠금 밖에서 한다 — 백엔드가 느릴 때 다음 사람이 그만큼 기다리게 된다
+        await self._report_withdraw(dispensed=dispensed)
+        return {"dispensed": dispensed, **self.snapshot()}
 
     # ── 콜센터 확인 폴링 ────────────────────────────────────────────────────
     async def enter_call_center(self) -> dict[str, Any]:
@@ -512,8 +527,27 @@ class AtmController:
             logger.warning("출금 시도 보고 실패(무시하고 계속): %s", exc)
 
     async def _warn(self) -> None:
-        """위험 상태에서 부저를 울린다 (선택 기능 — 부저가 없으면 조용히 넘어간다)."""
+        """위험을 알리는 짧은 경고음 (부저가 없으면 조용히 넘어간다).
+
+        켜기만 하고 끄지 않으면 데몬을 끌 때까지 계속 울린다. Mock에서는 상태
+        문자열만 바뀌어 아무도 눈치채지 못하지만, 실기기에서는 전시장 전체가 안다.
+        그래서 어떤 경로로 빠져나가든 마지막에는 OFF를 보낸다.
+        """
+        if WARN_BEEP_SECONDS <= 0 or WARN_BEEP_COUNT <= 0:
+            return
         try:
-            await self._provider.set_actuator_state(BUZZER_DEVICE_ID, "ON", operator="device")
+            for index in range(WARN_BEEP_COUNT):
+                if index:
+                    await asyncio.sleep(WARN_BEEP_SECONDS)  # 삑과 삑 사이의 쉼
+                await self._set_buzzer("ON")
+                await asyncio.sleep(WARN_BEEP_SECONDS)
+                await self._set_buzzer("OFF")
         except Exception as exc:  # noqa: BLE001
             logger.debug("부저 없음 또는 제어 실패: %s", exc)
+        finally:
+            # 위에서 어디서 끊겼든 마지막 한 번은 반드시 끄려고 시도한다
+            with contextlib.suppress(Exception):
+                await self._set_buzzer("OFF")
+
+    async def _set_buzzer(self, state: str) -> None:
+        await self._provider.set_actuator_state(BUZZER_DEVICE_ID, state, operator="device")

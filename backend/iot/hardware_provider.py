@@ -21,6 +21,18 @@ logger = logging.getLogger("hardware_provider")
 SERVO_CLOSED_ANGLE = 0
 SERVO_OPEN_ANGLE = 90
 DISPENSE_HOLD_SECONDS = 1.0
+# 각도 명령을 준 뒤 서보가 실제로 그 자리에 갈 때까지 기다리는 시간
+SERVO_SETTLE_SECONDS = 0.4
+
+# 자세를 잡은 뒤 PWM 펄스를 끊을 것인가.
+#
+# gpiozero는 각도를 준 뒤에도 펄스를 계속 내보낸다. MG996R은 그동안 토크를
+# 유지하느라 전류를 계속 먹고 미세하게 떨린다("지지직" 소리). 배출구는 잠깐만
+# 움직이면 되는데 몇 시간짜리 전시 내내 그러고 있으면 발열과 전압 강하로
+# 이어지고, 5V를 나눠 쓰는 배선에서는 파이가 리부팅되기도 한다.
+#
+# 그래서 기본값은 '쉬게 한다'이다. 다만 게이트가 제 무게로 흘러내린다면
+# .env에 SERVO_HOLD=true 를 넣어 잡고 있게 할 수 있다 (전류는 더 먹는다).
 
 
 class HardwareDeviceProvider(DeviceProvider):
@@ -42,6 +54,7 @@ class HardwareDeviceProvider(DeviceProvider):
         gate_pin = int(os.getenv("SERVO_GATE_PIN", "18"))
         pusher_pin = int(os.getenv("SERVO_PUSHER_PIN", "19"))
         buzzer_pin = os.getenv("BUZZER_PIN", "").strip()
+        self._hold = os.getenv("SERVO_HOLD", "false").strip().lower() == "true"
 
         # MG996R 2개: 배출구 게이트 + 지폐 밀대
         #
@@ -55,6 +68,7 @@ class HardwareDeviceProvider(DeviceProvider):
             self._buzzer = Buzzer(int(buzzer_pin)) if buzzer_pin else None
             self._gate.angle = SERVO_CLOSED_ANGLE
             self._pusher.angle = SERVO_CLOSED_ANGLE
+            self._rest()
         except Exception as exc:  # noqa: BLE001
             raise RuntimeError(
                 f"GPIO를 열지 못했습니다 (gate=GPIO{gate_pin}, pusher=GPIO{pusher_pin}, "
@@ -71,7 +85,21 @@ class HardwareDeviceProvider(DeviceProvider):
         self._buzzer_state = "OFF"
         self.dispense_count = 0
 
-        logger.info("하드웨어 Provider 시작 (gate=GPIO%d, pusher=GPIO%d)", gate_pin, pusher_pin)
+        logger.info(
+            "하드웨어 Provider 시작 (gate=GPIO%d, pusher=GPIO%d, 대기 시 펄스=%s)",
+            gate_pin, pusher_pin, "유지" if self._hold else "끊음",
+        )
+
+    def _rest(self) -> None:
+        """자세를 잡은 뒤 펄스를 끊어 서보를 쉬게 한다 (SERVO_HOLD=true면 잡고 있는다)."""
+        if self._hold:
+            return
+        for servo in (self._gate, self._pusher):
+            try:
+                servo.detach()
+            except Exception as exc:  # noqa: BLE001
+                # detach가 없는 구현도 있다. 못 쉬게 하는 것뿐이라 배출은 계속된다.
+                logger.debug("서보를 쉬게 하지 못했습니다(무시): %s", exc)
 
     async def _dispense_once(self) -> None:
         """게이트를 열고 밀대를 밀었다가 원위치시킨다."""
@@ -80,6 +108,10 @@ class HardwareDeviceProvider(DeviceProvider):
         await asyncio.sleep(DISPENSE_HOLD_SECONDS)
         self._pusher.angle = SERVO_CLOSED_ANGLE
         self._gate.angle = SERVO_CLOSED_ANGLE
+        # 원위치까지 실제로 움직일 시간을 준 뒤에 펄스를 끊는다 —
+        # 바로 끊으면 닫히다 만 자리에서 멈춘다
+        await asyncio.sleep(SERVO_SETTLE_SECONDS)
+        self._rest()
         self.dispense_count += 1
 
     async def get_device_status(self, device_id: str) -> Optional[dict[str, Any]]:
@@ -107,7 +139,7 @@ class HardwareDeviceProvider(DeviceProvider):
 
         if device_id == "buzzer_1":
             if self._buzzer is None:
-                logger.warning("BUZZER_PIN이 설정되지 않아 부저 명령을 무시합니다.")
+                logger.debug("BUZZER_PIN이 없어 부저 명령을 넘깁니다 (선택 기능).")
             elif desired_state == "ON":
                 self._buzzer.on()
             else:
