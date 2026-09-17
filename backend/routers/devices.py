@@ -180,8 +180,16 @@ async def report_device_state(
 
     # 1. 액추에이터 반영 결과 보고 처리
     if request.state is not None:
-        db.update_current_state(device_id, request.state, request.value)
-        db.log_control_action(device_id, request.state, request.value, actor="device")
+        # DB가 잠깐 끊겨도 파이의 보고를 500으로 되돌려주면 안 된다.
+        # 파이는 재시도 로직이 단순해서 500을 받으면 그 보고를 잃어버리고,
+        # 대시보드는 영영 확정 상태를 받지 못한다. 다른 조회 엔드포인트와
+        # 마찬가지로 기록만 실패하고 흐름은 계속 이어간다.
+        try:
+            db.update_current_state(device_id, request.state, request.value)
+            db.log_control_action(device_id, request.state, request.value, actor="device")
+        except Exception as exc:
+            logger.warning(f"DB write failed for state report {device_id}: {exc}")
+        await provider.apply_reported_state(device_id, request.state, request.value)
 
         await ws_manager.broadcast({
             "type": "device_state",
@@ -203,13 +211,16 @@ async def report_device_state(
         elif isinstance(request.value, dict):
             val_json = request.value
 
-        db.log_sensor_reading(
-            device_id=device_id,
-            value=val_float,
-            unit=request.unit,
-            value_json=val_json
-        )
-        db.update_current_state(device_id, "reported", request.value)
+        try:
+            db.log_sensor_reading(
+                device_id=device_id,
+                value=val_float,
+                unit=request.unit,
+                value_json=val_json
+            )
+            db.update_current_state(device_id, "reported", request.value)
+        except Exception as exc:
+            logger.warning(f"DB write failed for sensor report {device_id}: {exc}")
 
         await ws_manager.broadcast({
             "type": "sensor_reading",

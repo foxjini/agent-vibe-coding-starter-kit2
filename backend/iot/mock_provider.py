@@ -210,6 +210,22 @@ class MockDeviceProvider(DeviceProvider):
 
         return reading_result
 
+    async def apply_reported_state(
+        self,
+        device_id: str,
+        state: Optional[str],
+        value: Optional[Any] = None
+    ) -> None:
+        """파이가 보고한 확정 상태를 메모리에도 적어 둔다 (DB 장애 시의 최후 보루)."""
+        dev = self._devices.get(device_id)
+        if not dev:
+            return
+        if state is not None:
+            dev["current_state"] = state
+        if value is not None:
+            dev["current_value"] = value
+        dev["updated_at"] = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+
     async def get_all_statuses(self) -> List[Dict[str, Any]]:
         """
         모든 디바이스의 최신 상태 목록을 반환합니다.
