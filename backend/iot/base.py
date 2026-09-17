@@ -42,3 +42,18 @@ class DeviceProvider(ABC):
         등록된 모든 디바이스의 현재 상태 목록을 반환합니다.
         """
         pass
+
+    async def apply_reported_state(
+        self,
+        device_id: str,
+        state: Optional[str],
+        value: Optional[Any] = None
+    ) -> None:
+        """
+        라즈베리파이가 보고한 실제 반영 결과를 메모리 상태에 반영합니다.
+
+        DB가 살아 있으면 DB가 유일한 진실이므로 이 메서드는 사실상 거들 뿐이지만,
+        DB가 잠깐 끊긴 동안에도 파이의 보고가 사라지지 않게 하려면 필요합니다.
+        (추상 메서드가 아니라 기본 동작이 없는 구상 메서드입니다.)
+        """
+        return None

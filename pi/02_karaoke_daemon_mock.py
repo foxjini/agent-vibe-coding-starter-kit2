@@ -31,6 +31,13 @@ load_dotenv()
 BACKEND_URL = os.getenv("BACKEND_URL", "http://127.0.0.1:8000")
 DEVICE_API_KEY = os.getenv("DEVICE_API_KEY", "KARAOKE_2026_09_05_v1_0_0")
 
+# 폴링 주기(초). 매뉴얼과 pi/.env.example에 적힌 POLL_INTERVAL_SEC을 실제로 읽는다.
+# 너무 짧으면 백엔드에 부담이 되고, 너무 길면 버튼을 눌러도 실기기가 늦게 반응한다.
+try:
+    POLL_INTERVAL_SEC = max(0.5, float(os.getenv("POLL_INTERVAL_SEC", "3.0")))
+except ValueError:
+    POLL_INTERVAL_SEC = 3.0
+
 HEADERS = {
     "X-Device-Api-Key": DEVICE_API_KEY,
     "Content-Type": "application/json",
@@ -52,13 +59,45 @@ my_current_states = {
     "speaker_1": "idle",
 }
 
+# 보고(POST state)가 실패한 부품을 담아 두고 다음 루프에서 다시 보낸다.
+# 예전에는 보고가 실패해도 그냥 넘어갔다. 그러면 실기기는 이미 움직였는데
+# 대시보드는 영영 예전 상태로 남아, 둘이 다시는 일치하지 않는다.
+pending_reports = {}
+
 print("=" * 70)
 print("🎤 [라즈베리파이 5] 학교 노래방 부스 제어 데몬 시작 (Mock 모드)")
 print(f"📍 카운터(백엔드) 주소: {BACKEND_URL}")
 print(f"🔑 출입증(API 키): {DEVICE_API_KEY[:8]}********")
 print(f"🏷️ 감시 대상 디바이스: {[a['id'] for a in ACTUATORS]}")
-print("⏱️ 폴링 주기: 3초 (종료하려면 터미널에서 Ctrl + C 를 누르세요)")
+print(f"⏱️ 폴링 주기: {POLL_INTERVAL_SEC}초 (종료하려면 터미널에서 Ctrl + C 를 누르세요)")
 print("=" * 70)
+
+
+def send_report(device_id, state, value):
+    """반영 결과를 카운터에 보고한다. 성공하면 True."""
+    report_url = f"{BACKEND_URL}/api/v1/devices/{device_id}/state"
+    try:
+        res = requests.post(
+            report_url, headers=HEADERS, json={"state": state, "value": value}, timeout=3
+        )
+    except requests.exceptions.RequestException as exc:
+        print(f"   ⚠️ [보고 실패] 카운터에 닿지 못했습니다: {exc}")
+        return False
+
+    if res.status_code == 200:
+        print(f"   📤 [보고 완료] 카운터에 '{state}' 보고 성공! (대시보드 실시간 반영)")
+        return True
+
+    print(f"   ⚠️ [보고 실패] 상태 보고 실패 코드: {res.status_code}")
+    return False
+
+
+def retry_pending_reports():
+    """지난 루프에서 보고하지 못한 것들을 다시 보낸다."""
+    for device_id, (state, value) in list(pending_reports.items()):
+        print(f"\n🔁 [재보고] {device_id} → '{state}'")
+        if send_report(device_id, state, value):
+            del pending_reports[device_id]
 
 
 def poll_and_execute(actuator):
@@ -117,16 +156,9 @@ def poll_and_execute(actuator):
             my_current_states[device_id] = desired_state
 
             # 4. 카운터에 완료 보고서 전송 (POST)
-            report_url = f"{BACKEND_URL}/api/v1/devices/{device_id}/state"
-            report_body = {
-                "state": desired_state,
-                "value": desired_value,
-            }
-            rep_res = requests.post(report_url, headers=HEADERS, json=report_body, timeout=3)
-            if rep_res.status_code == 200:
-                print(f"   📤 [보고 완료] 카운터에 '{desired_state}' 보고 성공! (대시보드 실시간 반영)")
-            else:
-                print(f"   ⚠️ [보고 실패] 상태 보고 실패 코드: {rep_res.status_code}")
+            if not send_report(device_id, desired_state, desired_value):
+                pending_reports[device_id] = (desired_state, desired_value)
+                print("   🔁 다음 폴링 때 다시 보고합니다.")
             print("-" * 60 + "\n")
 
     except requests.exceptions.ConnectionError:
@@ -142,6 +174,8 @@ def main():
     while True:
         try:
             loop_count += 1
+            # 지난 루프에서 실패한 보고부터 정리한다
+            retry_pending_reports()
             # 4개 액추에이터 순차 폴링
             for actuator in ACTUATORS:
                 poll_and_execute(actuator)
@@ -150,7 +184,7 @@ def main():
             sys.stdout.write(f"\r💓 폴링 루프 작동 중... (#{loop_count}회차) [Ctrl+C 종료]")
             sys.stdout.flush()
 
-            time.sleep(3)
+            time.sleep(POLL_INTERVAL_SEC)
 
         except KeyboardInterrupt:
             print("\n\n👋 프로그램을 종료합니다. 수고하셨습니다!")

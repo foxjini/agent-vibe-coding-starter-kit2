@@ -61,11 +61,22 @@ PIR_PIN = 24         # 인체 감지 센서 (PIR)
 KEYPAD_ROW_PINS = [5, 6, 13, 19]     # 4x4 매트릭스 키패드 행
 KEYPAD_COL_PINS = [26, 16, 20, 21]   # 4x4 매트릭스 키패드 열
 
+# ⚠️ 릴레이 보드 극성 — 배선 전에 반드시 확인할 것.
+#
+# 시중 릴레이 모듈 상당수는 LOW-level trigger(LOW일 때 릴레이 ON)다.
+# 그런 보드에 active_high=True를 쓰면, 스크립트가 켜지는 순간 GPIO가 LOW라서
+# 도어락과 220V 전원이 곧바로 붙어 버린다. 문이 열린 채로 시작하거나
+# 반주기에 전원이 들어간 채로 시작한다는 뜻이라 위험하다.
+#
+# 보드 설명서에 'Low Level Trigger'라고 적혀 있거나, 아래 테스트에서 동작이
+# 반대로 나오면 pi/.env에 RELAY_ACTIVE_HIGH=false 를 넣는다.
+RELAY_ACTIVE_HIGH = os.getenv("RELAY_ACTIVE_HIGH", "true").strip().lower() != "false"
+
 
 def test_door_lock():
     print(f"\n[1/5] 솔레노이드 도어락 릴레이 테스트 (GPIO {DOOR_LOCK_PIN})...")
     try:
-        door = OutputDevice(DOOR_LOCK_PIN, active_high=True, initial_value=False)
+        door = OutputDevice(DOOR_LOCK_PIN, active_high=RELAY_ACTIVE_HIGH, initial_value=False)
         print("  🚪 철컥! 도어락 해제 (HIGH - 부스 문 열림, 1.5초간 유지)...")
         door.on()
         time.sleep(1.5)
@@ -80,7 +91,7 @@ def test_door_lock():
 def test_power_relay():
     print(f"\n[2/5] 반주기/앰프 기기 전원 릴레이 테스트 (GPIO {RELAY_POWER_PIN})...")
     try:
-        relay = OutputDevice(RELAY_POWER_PIN, active_high=True, initial_value=False)
+        relay = OutputDevice(RELAY_POWER_PIN, active_high=RELAY_ACTIVE_HIGH, initial_value=False)
         print("  ⚡ 릴레이 작동! 노래방 반주기 전원 공급 (HIGH - 1.5초간 유지)...")
         relay.on()
         time.sleep(1.5)
@@ -140,6 +151,9 @@ def test_keypad_pins():
 
 if __name__ == "__main__":
     print(f"[*] GPIOZERO_PIN_FACTORY = {os.environ.get('GPIOZERO_PIN_FACTORY')}")
+    print(f"[*] RELAY_ACTIVE_HIGH     = {RELAY_ACTIVE_HIGH}"
+          f"  (동작이 반대로 나오면 pi/.env에 RELAY_ACTIVE_HIGH=false)")
+    print("[!] 220V 기기는 이 자가진단이 정상으로 나온 뒤에 연결하세요.")
     test_door_lock()
     test_power_relay()
     test_booth_led()
