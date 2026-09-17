@@ -120,20 +120,39 @@ curl -X POST http://localhost:8100/qr \
 (`git clone` 또는 `backend/`와 `pi/`를 같은 상위 폴더에 나란히 둔다).
 `pi/`만 옮기면 실행하자마자 `ModuleNotFoundError: No module named 'iot'`가 난다.
 
-**GPIO 라이브러리는 `pip`가 아니라 `apt`로 넣는다.** 파이 5는 GPIO 칩이 달라(RP1)
-`lgpio` 핀 팩토리가 필요한데, `pip install lgpio`는 Bookworm에서 빌드에 실패하는
-일이 잦다. 그리고 `apt`로 깐 것은 **`--system-site-packages`로 만든 venv에서만
-보인다** — 파이에서 가장 자주 걸리는 함정이 이것이다.
+`backend/` 전체가 부담스러우면 **`backend/iot/` 하나만 옮겨도 된다.** `iot/`는
+표준 라이브러리만 쓰기 때문이다. 다만 자리는 정해져 있다 — `pi/main.py`가
+`../backend`를 보므로 아래 구조여야 한다.
+
+```
+<상위폴더>/
+├── pi/            ← 여기서 python main.py
+└── backend/
+    └── iot/       ← 이것만 있으면 된다
+```
+
+**GPIO 라이브러리는 대개 이미 깔려 있다. 설치보다 `venv`가 문제다.**
+라즈베리파이 OS 데스크톱 이미지에는 `python3-gpiozero`와 `python3-lgpio`가 처음부터
+들어 있다. 그런데 이것들은 **시스템 파이썬**에 있고, `--system-site-packages` 없이
+만든 venv 안에서는 **보이지 않는다**. 파이에서 가장 자주 걸리는 함정이 이것이다.
 
 ```bash
-sudo apt install -y python3-gpiozero python3-lgpio
+# 1) 정말 있는지부터 확인한다 (venv 밖, 시스템 파이썬으로)
+/usr/bin/python3 -c "import gpiozero, lgpio; print('있음')"
+#    → '있음'이 나오면 설치할 필요 없다. 아래 2)로 간다.
+#    → ModuleNotFoundError가 나올 때만: sudo apt install -y python3-gpiozero python3-lgpio
 
+# 2) venv를 시스템 패키지가 보이게 다시 만든다
 cd pi
 rm -rf venv                                    # PC에서 만든 venv가 남아 있으면 지운다
 python3 -m venv --system-site-packages venv    # ← 이 옵션이 없으면 lgpio를 못 본다
 source venv/bin/activate
 pip install -r requirements.txt
 ```
+
+`pip install lgpio`는 권하지 않는다 — 최근 라즈베리파이 OS(Bookworm·Trixie)에서
+빌드에 실패하는 일이 잦고, apt 쪽이 그 기기에 맞게 이미 준비되어 있다.
+파이 5는 GPIO 칩이 달라(RP1) 예전 `RPi.GPIO`로는 동작하지 않는다.
 
 `pi/.env`를 바꾼다.
 ```
@@ -252,10 +271,11 @@ python scripts/demo_e2e.py
 | `gpiozero` 오류 | Pi 5는 `lgpio`가 필요하다. `pip install lgpio` 후 `GPIOZERO_PIN_FACTORY=lgpio` |
 | 카메라를 못 연다 | `ENABLE_CAMERA=false`로 두고 `POST /qr`로 먼저 로직을 검증한다 |
 | **파이에서** `python main.py`가 바로 죽는다 | `cd pi && python check_hardware.py` 를 먼저 돌린다. 원인과 고치는 방법이 한 줄씩 나온다 |
-| `No module named 'gpiozero'` (설치했는데도) | venv가 apt 패키지를 못 보는 것이다. `python3 -m venv --system-site-packages venv`로 다시 만든다 |
+| `No module named 'iot'` | `backend/iot/`가 없다. `pi/`와 같은 상위 폴더 아래 `backend/iot/`를 둔다 (`iot/`만 옮겨도 된다) |
+| `No module named 'gpiozero'` (설치했는데도) | venv가 apt 패키지를 못 보는 것이다. `/usr/bin/python3 -c "import gpiozero"`로 시스템에는 있는지 먼저 확인하고, `python3 -m venv --system-site-packages venv`로 다시 만든다 |
 | `BadPinFactory` / `Unable to load any default pin factory` | 파이 5에 `lgpio`가 없다. `sudo apt install -y python3-lgpio`, `.env`에 `GPIOZERO_PIN_FACTORY=lgpio` |
 | GPIO 열 때 권한 오류 | `sudo usermod -aG gpio $USER` 후 **다시 로그인**한다 |
 | `ImportError: libGL.so.1` (cv2) | `sudo apt install -y libgl1 libglib2.0-0`. 그래도 안 되면 `pip install opencv-python-headless`로 바꾼다 |
-| 파이 카메라 모듈(CSI)이 안 잡힌다 | Bookworm에서는 `cv2.VideoCapture`로 CSI 카메라를 열 수 없다. USB 웹캠을 쓴다 |
-| 파이에서 `pip install`이 거부된다 | Bookworm의 `externally-managed-environment`다. venv 안에서 설치한다 |
+| 파이 카메라 모듈(CSI)이 안 잡힌다 | 최근 라즈베리파이 OS에서는 `cv2.VideoCapture`로 CSI 카메라를 열 수 없다. USB 웹캠을 쓴다 |
+| 파이에서 `pip install`이 거부된다 | `externally-managed-environment`(Bookworm·Trixie)다. venv 안에서 설치한다 |
 | QR이 잘 안 읽힌다 | 휴대폰 화면 밝기를 올리고 QR을 크게 표시한다. 초점 거리를 20cm 이상 둔다 |

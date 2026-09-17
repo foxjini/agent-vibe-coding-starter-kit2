@@ -39,7 +39,33 @@ from pydantic import BaseModel  # noqa: E402
 
 from atm_controller import AtmController  # noqa: E402
 from backend_client import BackendClient  # noqa: E402
-from iot.provider_factory import create_provider  # noqa: E402
+
+try:
+    from iot.provider_factory import create_provider  # noqa: E402
+except ModuleNotFoundError as exc:  # noqa: E402
+    # 파이로 옮길 때 가장 먼저 걸리는 곳이다. 'No module named iot' 한 줄만 보고는
+    # 무엇을 어디에 둬야 하는지 알 수 없으므로, 폴더 구조를 그림으로 보여 준다.
+    if exc.name != "iot":
+        raise
+    raise SystemExit(
+        "\n" + "=" * 64 + "\n"
+        " ATM 데몬을 시작할 수 없습니다 (장치 제어 모듈을 찾지 못함)\n"
+        + "=" * 64 + "\n"
+        f"'{BACKEND_DIR}' 에서 iot 패키지를 찾지 못했습니다.\n"
+        "pi/main.py는 장치 제어 Provider를 backend/iot/ 에서 가져옵니다 —\n"
+        "pi/ 폴더만 옮기면 이 오류가 납니다. 아래 둘 중 하나로 맞추세요.\n"
+        "\n"
+        "  1) 저장소를 통째로 받는다 (권장):\n"
+        "       git clone <저장소 주소>\n"
+        "\n"
+        "  2) backend/iot/ 만 같은 자리에 둔다:\n"
+        "       <상위폴더>/pi/           ← 지금 이 폴더\n"
+        "       <상위폴더>/backend/iot/  ← 이게 있어야 합니다\n"
+        "     iot/ 는 표준 라이브러리만 쓰므로 backend/ 전체를 옮길 필요는 없습니다.\n"
+        "\n"
+        "자세한 진단:  python check_hardware.py\n"
+        + "=" * 64 + "\n"
+    ) from exc
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 logger = logging.getLogger("pi.main")

@@ -50,14 +50,15 @@ def check_python() -> None:
     if sys.version_info < (3, 10):
         report(FAIL, f"파이썬 {version}", "3.10 미만",
                fix="이 코드는 `int | None` 문법을 쓰므로 3.10 이상이 필요합니다.\n"
-                   "라즈베리파이 OS Bookworm의 python3(3.11)로 실행하세요.")
+                   "라즈베리파이 OS(Bookworm 3.11 / Trixie 3.13)의 python3로 실행하세요.")
     else:
         report(OK, f"파이썬 {version}", sys.executable)
 
     in_venv = sys.prefix != sys.base_prefix
     if not in_venv:
         report(WARN, "가상환경(venv) 밖에서 실행 중", sys.prefix,
-               fix="Bookworm은 시스템 파이썬에 pip 설치를 막습니다(externally-managed-environment).")
+               fix="최근 라즈베리파이 OS(Bookworm·Trixie)는 시스템 파이썬에 pip 설치를 막습니다\n"
+                   "(externally-managed-environment).")
         return
 
     # 파이 5에서 가장 흔한 함정: apt로 깐 lgpio를 venv가 못 본다
@@ -83,7 +84,10 @@ def check_layout() -> None:
     if not BACKEND_DIR.exists():
         report(FAIL, "backend/ 폴더를 찾을 수 없음", str(BACKEND_DIR),
                fix="pi/ 폴더만 복사하면 안 됩니다. 저장소를 통째로 받으세요.\n"
-                   "  git clone <저장소 주소>")
+                   "  git clone <저장소 주소>\n"
+                   "backend/ 전체가 부담스러우면 iot/ 하나만 옮겨도 됩니다 —\n"
+                   "iot/ 는 표준 라이브러리만 쓰므로 아래 구조면 충분합니다:\n"
+                   "  <상위폴더>/pi/ 와 <상위폴더>/backend/iot/")
         return
     try:
         from iot.provider_factory import create_provider  # noqa: F401
@@ -145,8 +149,13 @@ def check_gpio(move_servo: bool) -> None:
         report(OK, f"gpiozero {gpiozero.__version__}")
     except ImportError as exc:
         report(FAIL, "gpiozero 미설치", str(exc),
-               fix="sudo apt install -y python3-gpiozero python3-lgpio\n"
-                   "(venv를 쓴다면 --system-site-packages로 만들어야 보입니다)")
+               fix="라즈베리파이 OS 데스크톱 이미지에는 보통 이미 깔려 있습니다.\n"
+                   "먼저 venv 밖에서 보이는지 확인하세요:\n"
+                   "  /usr/bin/python3 -c 'import gpiozero, lgpio; print(\"있음\")'\n"
+                   "→ '있음'이 나오면 설치 문제가 아니라 venv가 못 보는 것입니다:\n"
+                   "  rm -rf venv && python3 -m venv --system-site-packages venv\n"
+                   "→ 거기서도 안 되면 그때 설치합니다:\n"
+                   "  sudo apt install -y python3-gpiozero python3-lgpio")
         return
 
     try:
@@ -154,7 +163,8 @@ def check_gpio(move_servo: bool) -> None:
         report(OK, "lgpio 사용 가능")
     except ImportError as exc:
         report(FAIL, "lgpio 미설치", str(exc),
-               fix="sudo apt install -y python3-lgpio\n"
+               fix="위와 같습니다 — venv가 시스템 패키지를 보는지 먼저 확인하세요.\n"
+                   "정말 없을 때만:  sudo apt install -y python3-lgpio\n"
                    "파이 5는 GPIO 칩이 달라(RP1) 예전 RPi.GPIO로는 동작하지 않습니다.")
 
     try:
@@ -221,7 +231,7 @@ def check_camera() -> None:
         report(OK, "비디오 장치 발견", ", ".join(devices))
     else:
         report(WARN, "/dev/video* 장치가 없음",
-               fix="파이 카메라 모듈(CSI)은 Bookworm에서 cv2.VideoCapture로 열리지 않습니다.\n"
+               fix="파이 카메라 모듈(CSI)은 최근 라즈베리파이 OS에서 cv2.VideoCapture로 열리지 않습니다.\n"
                    "USB 웹캠을 쓰거나, 카메라 없이 시연하려면 .env에 ENABLE_CAMERA=false")
 
     no_device_fix = (
