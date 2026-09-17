@@ -53,24 +53,18 @@ except ImportError as e:
         print("💡 (안내: 현재 Windows PC 환경입니다. 실제 GPIO 배선 테스트는 라즈베리파이 5에서 실행하세요.)\n")
     sys.exit(1)
 
-# 2. 노래방 부스 핀 번호 정의 (핸드오버 가이드 BCM 기준)
-DOOR_LOCK_PIN = 17   # 솔레노이드 도어락 (1채널 릴레이/MOSFET)
-RELAY_POWER_PIN = 27 # 반주기/앰프 220V 기기 전원 릴레이
-LED_PIN = 22         # 부스 실내 LED 조명 바
-PIR_PIN = 24         # 인체 감지 센서 (PIR)
-KEYPAD_ROW_PINS = [5, 6, 13, 19]     # 4x4 매트릭스 키패드 행
-KEYPAD_COL_PINS = [26, 16, 20, 21]   # 4x4 매트릭스 키패드 열
-
-# ⚠️ 릴레이 보드 극성 — 배선 전에 반드시 확인할 것.
-#
-# 시중 릴레이 모듈 상당수는 LOW-level trigger(LOW일 때 릴레이 ON)다.
-# 그런 보드에 active_high=True를 쓰면, 스크립트가 켜지는 순간 GPIO가 LOW라서
-# 도어락과 220V 전원이 곧바로 붙어 버린다. 문이 열린 채로 시작하거나
-# 반주기에 전원이 들어간 채로 시작한다는 뜻이라 위험하다.
-#
-# 보드 설명서에 'Low Level Trigger'라고 적혀 있거나, 아래 테스트에서 동작이
-# 반대로 나오면 pi/.env에 RELAY_ACTIVE_HIGH=false 를 넣는다.
-RELAY_ACTIVE_HIGH = os.getenv("RELAY_ACTIVE_HIGH", "true").strip().lower() != "false"
+# 2. 노래방 부스 핀 번호 — booth_pins.py 한 곳에만 적는다.
+#    여기에 복사해 두면 main.py와 어긋나서, GPIO27을 LED로 알고 배선했다가
+#    220V 전원 릴레이를 건드리는 사고가 난다. (그 설명은 booth_pins.py 참고)
+from booth_pins import (
+    DOOR_LOCK_PIN,
+    RELAY_POWER_PIN,
+    LED_PIN,
+    PIR_PIN,
+    KEYPAD_ROW_PINS,
+    KEYPAD_COL_PINS,
+    RELAY_ACTIVE_HIGH,
+)
 
 
 def test_door_lock():
