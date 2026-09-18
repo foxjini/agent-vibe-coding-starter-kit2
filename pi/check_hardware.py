@@ -39,6 +39,41 @@ def report(status: str, title: str, detail: str = "", fix: str = "") -> None:
         problems.append(title)
 
 
+def module_version(module: object, dist_name: str) -> str:
+    """모듈 버전을 알아낸다. 못 알아내도 점검을 멈추지 않는다.
+
+    gpiozero처럼 `__version__`을 내놓지 않는 패키지가 있다. 버전 한 줄 때문에
+    진단이 죽으면, 정작 원인이 그 뒤 항목에 있어도 영영 못 본다.
+    """
+    version = getattr(module, "__version__", None)
+    if version:
+        return str(version)
+    try:
+        from importlib.metadata import version as dist_version
+
+        return dist_version(dist_name)
+    except Exception:  # noqa: BLE001
+        return "버전 확인 불가"
+
+
+def run_check(label: str, check, *args) -> None:
+    """점검 하나가 터져도 나머지는 계속한다.
+
+    진단 도구가 중간에 죽으면 남은 항목을 아예 못 본다. 카메라나 백엔드 문제를
+    보러 왔는데 GPIO 줄에서 멈춰 버리면 도구가 제 일을 못 한 것이다.
+    """
+    try:
+        check(*args)
+    except Exception as exc:  # noqa: BLE001
+        report(
+            FAIL,
+            f"'{label}' 점검 중 예기치 못한 오류",
+            f"{type(exc).__name__}: {exc}",
+            fix="점검 도구 자체의 문제일 수 있습니다. 이 줄을 그대로 팀에 공유하세요.\n"
+                "나머지 항목은 계속 확인했으니 아래도 함께 보세요.",
+        )
+
+
 def head(title: str) -> None:
     print(f"\n── {title} " + "─" * max(0, 58 - len(title)))
 
@@ -146,7 +181,7 @@ def check_gpio(move_servo: bool) -> None:
 
     try:
         import gpiozero
-        report(OK, f"gpiozero {gpiozero.__version__}")
+        report(OK, f"gpiozero {module_version(gpiozero, 'gpiozero')}")
     except ImportError as exc:
         report(FAIL, "gpiozero 미설치", str(exc),
                fix="라즈베리파이 OS 데스크톱 이미지에는 보통 이미 깔려 있습니다.\n"
@@ -217,7 +252,7 @@ def check_camera() -> None:
 
     try:
         import cv2
-        report(OK, f"opencv {cv2.__version__}")
+        report(OK, f"opencv {module_version(cv2, 'opencv-python')}")
     except ImportError as exc:
         report(FAIL, "cv2를 불러오지 못함", str(exc),
                fix="libGL.so.1 같은 시스템 라이브러리가 없을 때 자주 납니다:\n"
@@ -343,12 +378,12 @@ def main() -> int:
         print(" ⚠ --servo: 서보를 실제로 움직입니다. 교사 입회 하에 진행하세요.")
     print("=" * 64)
 
-    check_python()
-    check_layout()
-    check_env()
-    check_gpio(move_servo)
-    check_camera()
-    check_backend()
+    run_check("파이썬 실행 환경", check_python)
+    run_check("저장소 구조", check_layout)
+    run_check("pi/.env 설정", check_env)
+    run_check("GPIO", check_gpio, move_servo)
+    run_check("카메라", check_camera)
+    run_check("백엔드 연결", check_backend)
 
     print("\n" + "=" * 64)
     if problems:
