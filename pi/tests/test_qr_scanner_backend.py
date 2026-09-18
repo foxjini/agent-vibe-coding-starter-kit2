@@ -14,6 +14,8 @@ from qr_scanner import (
     CAMERA_BACKEND_ENV,
     _backend_candidates,
     _tune_capture,
+    find_capture_indices,
+    grabs_a_frame,
 )
 
 # 실제 OpenCV 상수값 (cv2.CAP_*)
@@ -124,3 +126,60 @@ def test_tune_survives_a_backend_without_these_properties() -> None:
     old_cv2 = SimpleNamespace(CAP_PROP_FRAME_WIDTH=3, CAP_PROP_FRAME_HEIGHT=4)
 
     assert _tune_capture(old_cv2, StubbornCapture()) == (0, 0)
+
+
+# ── 번호가 있다고 카메라는 아니다 ───────────────────────────────────────────
+class FrameSource:
+    """영상을 줄 수도, 안 줄 수도 있는 가짜 장치.
+
+    리눅스에서 UVC 웹캠 하나를 꽂으면 /dev/video0(영상)과 /dev/video1(메타데이터)이
+    함께 생긴다. 메타데이터 쪽도 isOpened()는 True지만 프레임은 한 장도 안 온다.
+    """
+
+    def __init__(self, *, opens: bool = True, frames: bool = True) -> None:
+        self._opens, self._frames = opens, frames
+        self.released = False
+
+    def isOpened(self) -> bool:  # noqa: N802  (cv2 이름 그대로)
+        return self._opens
+
+    def read(self):
+        return (True, object()) if self._frames else (False, None)
+
+    def set(self, prop, value): return True
+    def get(self, prop): return 0
+    def release(self): self.released = True
+
+
+def test_a_device_without_frames_is_not_a_camera() -> None:
+    """열렸다고 카메라가 아니다 — 한 장 받아 봐야 안다."""
+    assert grabs_a_frame(FrameSource(frames=True)) is True
+    assert grabs_a_frame(FrameSource(frames=False)) is False
+
+
+def test_grabs_a_frame_survives_a_throwing_device() -> None:
+    """read()에서 예외를 던지는 장치도 있다. 데몬을 죽이지는 않는다."""
+
+    class Throws(FrameSource):
+        def read(self):
+            raise RuntimeError("Not a video capture device")
+
+    assert grabs_a_frame(Throws()) is False
+
+
+def test_finds_only_indices_that_actually_deliver_frames() -> None:
+    """'몇 번으로 맞춰야 하나'에 답할 수 있어야 한다.
+
+    0번은 영상, 1번은 같은 웹캠의 메타데이터 장치인 흔한 상황을 흉내 낸다.
+    """
+    devices = {
+        0: FrameSource(opens=True, frames=True),    # 진짜 웹캠
+        1: FrameSource(opens=True, frames=False),   # 메타데이터 장치
+        2: FrameSource(opens=False, frames=False),  # 없음
+    }
+    fake_cv2 = SimpleNamespace(
+        VideoCapture=lambda index: devices.get(index, FrameSource(opens=False, frames=False))
+    )
+
+    assert find_capture_indices(fake_cv2, limit=3) == [0]
+    assert all(d.released for d in devices.values()), "확인한 장치는 모두 닫아야 한다"
