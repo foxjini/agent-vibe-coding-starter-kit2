@@ -56,11 +56,15 @@ def test_windows_tries_dshow_first_then_falls_back(monkeypatch: pytest.MonkeyPat
     assert _backend_candidates(FAKE_CV2) == [("dshow", 700), ("any", 0)]
 
 
-def test_linux_keeps_opencv_default(monkeypatch: pytest.MonkeyPatch) -> None:
-    """라즈베리파이/리눅스는 기존 동작(기본 백엔드) 그대로 둔다."""
+def test_linux_tries_v4l2_first(monkeypatch: pytest.MonkeyPatch) -> None:
+    """리눅스에서는 V4L2가 정식 경로다 — 먼저 이름 붙여 시도한다.
+
+    로그의 backend= 값만 보고 '제대로 된 영상 장치인가'를 알 수 있어야 한다.
+    V4L2가 거부한 장치를 다른 백엔드가 억지로 여는 일이 실제로 있었다.
+    """
     monkeypatch.setattr("qr_scanner.sys.platform", "linux")
 
-    assert _backend_candidates(FAKE_CV2) == [("any", 0)]
+    assert _backend_candidates(FAKE_CV2) == [("v4l2", 200), ("any", 0)]
 
 
 def test_env_forces_single_backend(monkeypatch: pytest.MonkeyPatch) -> None:

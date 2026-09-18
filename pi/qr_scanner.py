@@ -44,6 +44,11 @@ CAPTURE_BUFFER_FRAMES = 1
 # 어느 번호가 진짜 카메라인지 찾을 때 훑어볼 범위
 CAMERA_PROBE_MAX = 6
 
+# '진짜 영상인가'를 확인할 때 연속으로 받아 볼 장 수.
+# 한 장만 보면 속는다 — V4L2가 거부한 장치를 다른 백엔드가 억지로 열면 첫 장은
+# 그럴듯하게 주고 그 뒤로 아무것도 안 오는 경우가 있다.
+CAMERA_TEST_FRAMES = 3
+
 
 def decode_image_file(path: str) -> str | None:
     """이미지 파일 한 장에서 QR 문자열을 읽는다. 없으면 None."""
@@ -85,6 +90,14 @@ def _backend_candidates(cv2_module: ModuleType) -> list[tuple[str, int]]:
     dshow = named["dshow"]
     if sys.platform == "win32" and dshow is not None:
         return [("dshow", dshow), ("any", cv2_module.CAP_ANY)]
+
+    # 리눅스(라즈베리파이)에서는 V4L2가 정식 경로다. 먼저 이름 붙여 시도하면
+    # 로그의 backend= 값만 보고 "제대로 된 영상 장치인가"를 바로 알 수 있다.
+    # V4L2가 거부하면 다른 백엔드가 억지로 여는 수가 있는데, 그건 대개 영상
+    # 장치가 아니다 (그래서 아래에서 경고를 남긴다).
+    v4l2 = named["v4l2"]
+    if v4l2 is not None:
+        return [("v4l2", v4l2), ("any", cv2_module.CAP_ANY)]
     return [("any", cv2_module.CAP_ANY)]
 
 
@@ -115,7 +128,7 @@ def _tune_capture(cv2_module: ModuleType, capture: "cv2.VideoCapture") -> tuple[
 
 
 def grabs_a_frame(capture: "cv2.VideoCapture") -> bool:
-    """정말 영상이 들어오는지 한 장 받아 본다.
+    """정말 영상이 들어오는지 연속으로 몇 장 받아 본다.
 
     **`isOpened()`가 True라고 영상이 오는 것은 아니다.** 리눅스에서 UVC 웹캠 하나를
     꽂으면 장치 노드가 둘 생긴다 — `/dev/video0`(영상)과 `/dev/video1`(메타데이터).
@@ -124,13 +137,19 @@ def grabs_a_frame(capture: "cv2.VideoCapture") -> bool:
 
     그대로 두면 데몬은 "카메라 열림"이라고 로그를 남긴 채 조용히 돌기만 하고 QR을
     영영 못 읽는다. 오류도 안 나므로 전시장에서 원인을 찾을 길이 없다.
+
+    한 장만 보지 않는 이유: V4L2가 거부한 장치를 FFmpeg 같은 다른 백엔드가 억지로
+    열면, 첫 장은 그럴듯하게 돌려주고 그 뒤로는 빈 것만 오는 경우가 있다.
     """
-    try:
-        ok, frame = capture.read()
-    except Exception as exc:  # noqa: BLE001
-        logger.debug("테스트 프레임을 읽지 못했습니다: %s", exc)
-        return False
-    return bool(ok) and frame is not None
+    for _ in range(CAMERA_TEST_FRAMES):
+        try:
+            ok, frame = capture.read()
+        except Exception as exc:  # noqa: BLE001
+            logger.debug("테스트 프레임을 읽지 못했습니다: %s", exc)
+            return False
+        if not ok or frame is None or getattr(frame, "size", 1) == 0:
+            return False
+    return True
 
 
 def find_capture_indices(cv2_module: ModuleType, limit: int = CAMERA_PROBE_MAX) -> list[int]:
@@ -172,6 +191,14 @@ def open_camera(camera_index: int = 0) -> "cv2.VideoCapture":
         logger.info(
             "카메라 열림 (index=%d, backend=%s, %dx%d)", camera_index, name, width, height
         )
+        if sys.platform != "win32" and name != "v4l2":
+            # V4L2로는 안 열렸다는 뜻이다. 영상이 오긴 왔지만 정식 영상 장치가
+            # 아닐 수 있으므로, QR이 안 읽히면 여기부터 의심한다.
+            logger.warning(
+                "V4L2로 열리지 않아 %s 백엔드로 열었습니다 (index=%d). 정식 영상 장치가 "
+                "아닐 수 있습니다 — QR이 안 읽히면 python check_hardware.py 로 "
+                "쓸 수 있는 번호를 확인하세요.", name, camera_index,
+            )
         if width * height > CAMERA_WIDTH * CAMERA_HEIGHT * 2:
             # 요청을 무시하는 카메라가 있다. 느려지는 이유를 로그에 남겨 둔다.
             logger.warning(
