@@ -168,7 +168,7 @@ def __init__(self) -> None:
 
 ```bash
 cd vision && python test_vision_config.py     # 검출기 계약 자가 점검 (45항목)
-cd vision && python test_study_focus.py       # 집중도 측정 자가 점검 (53항목, 웹캠 없이)
+cd vision && python test_study_focus.py       # 집중도 측정 자가 점검 (63항목, 웹캠 없이)
 python -c "import sys; sys.path.insert(0,'.'); from detectors import available_detectors; print(available_detectors())"
 ```
 

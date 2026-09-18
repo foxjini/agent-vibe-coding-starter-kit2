@@ -58,7 +58,7 @@
 | 에러 응답 규격 통일 `{"error":{code,message}}` | ✅ |
 | desired/current 상태 계약 (하드웨어 반영 여부 구분) | ✅ |
 | 시간대 인식 스케줄러 + DB 영속화 | ✅ |
-| 자가 점검 스크립트 `backend/smoke_test.py` (36항목) | ✅ |
+| 자가 점검 스크립트 `backend/smoke_test.py` (32항목) | ✅ |
 | 문서 부록A(파이 연동 계약) · 부록F(키트 규약) | ✅ |
 
 ### P1에서 추가된 백엔드 코어 (기존 동작을 깨지 않는 **덧붙이기**)
@@ -253,8 +253,11 @@ git merge origin/platform     # 충돌은 frontend/ pi/slot_map.py 에서만 발
    cd backend  && python smoke_test.py              # 백엔드 기본 동작 (32항목)
    cd backend  && python conformance_test.py        # 키트 적합성 (75항목)
    cd pi       && python test_slot_daemon.py        # 드라이버·배치표 (39항목)
-   cd vision   && python test_vision_config.py      # 감지 설정·검출기 (43항목)
+   cd vision   && python test_vision_config.py      # 감지 설정·검출기 (45항목)
+   cd vision   && python test_study_focus.py        # study 집중도 (63항목)
    cd frontend && node --experimental-strip-types scenarios/wakeupEngine.test.ts   # 30항목
+   cd frontend && node --experimental-strip-types scenarios/studyEngine.test.ts    # 56항목
    cd frontend && npx eslint . && npm run build
+   python tools/check_docs.py --run              # 문서 정합성
    ```
 4. 액추에이터의 `current_state`는 **하드웨어 보고로만** 바뀝니다. 백엔드가 직접 쓰지 않습니다.
