@@ -288,6 +288,9 @@ def check_camera() -> None:
         if ok and frame is not None:
             report(OK, f"카메라 영상 읽기 성공 (CAMERA_INDEX={index})", f"{frame.shape[1]}x{frame.shape[0]}")
             _measure_qr_speed(cv2, frame)
+            capture.release()
+            _report_usable_indices(cv2, index)
+            return
         else:
             # 번호가 있다고 카메라는 아니다. UVC 웹캠은 영상 장치와 메타데이터
             # 장치를 둘 다 만드는데, 메타데이터 쪽도 '열리기는' 한다.
@@ -295,6 +298,37 @@ def check_camera() -> None:
                    fix=_which_index_fix(cv2))
     except Exception as exc:  # noqa: BLE001
         report(FAIL, "카메라 점검 중 오류", f"{type(exc).__name__}: {exc}")
+
+
+def _report_usable_indices(cv2, current: int) -> None:
+    """지금 영상이 들어오는 번호를 모두 보여 준다.
+
+    한 번호가 통과했다고 그게 최선은 아니다. 같은 웹캠이 영상 노드와 메타데이터
+    노드를 함께 만들기 때문에, 둘 다 '되는 것처럼' 보이는 순간이 있다.
+    무엇을 고를 수 있는지 눈으로 보여 주는 편이 낫다.
+    """
+    try:
+        from qr_scanner import find_capture_indices
+
+        working = find_capture_indices(cv2)
+    except Exception as exc:  # noqa: BLE001
+        report(WARN, "쓸 수 있는 카메라 번호를 확인하지 못함", f"{type(exc).__name__}")
+        return
+    if not working:
+        return
+    listed = ", ".join(str(i) for i in working)
+    if current in working and working[0] == current:
+        report(OK, f"영상이 들어오는 번호: {listed}", f"지금 설정({current})이 첫 번째입니다")
+    elif current in working:
+        report(WARN, f"영상이 들어오는 번호: {listed}",
+               f"지금 설정은 {current}입니다",
+               fix=f"QR이 잘 안 읽히면 CAMERA_INDEX={working[0]} 도 시험해 보세요.\n"
+                   "같은 웹캠이 영상 장치와 메타데이터 장치를 함께 만들면\n"
+                   "둘 다 되는 것처럼 보일 수 있습니다.")
+    else:
+        report(WARN, f"영상이 들어오는 번호: {listed}",
+               f"지금 설정({current})은 목록에 없습니다",
+               fix=f"CAMERA_INDEX={working[0]} 으로 바꾸는 것을 권합니다.")
 
 
 def _which_index_fix(cv2) -> str:
