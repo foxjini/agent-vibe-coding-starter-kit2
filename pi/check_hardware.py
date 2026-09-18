@@ -274,7 +274,6 @@ def check_camera() -> None:
         "파이 카메라 모듈(CSI)은 cv2.VideoCapture로 열리지 않습니다.\n"
         "카메라 없이 먼저 시연하려면 .env에 ENABLE_CAMERA=false 를 넣고 POST /qr 로 진행합니다."
     )
-    index_fix = "CAMERA_INDEX를 1, 2로 바꿔 보세요. 위 장치 목록의 번호와 맞춥니다."
 
     index = int(os.getenv("CAMERA_INDEX", "0"))
     try:
@@ -282,7 +281,7 @@ def check_camera() -> None:
         if not capture.isOpened():
             capture.release()
             report(FAIL, f"카메라를 열지 못함 (CAMERA_INDEX={index})",
-                   fix=index_fix if devices else no_device_fix)
+                   fix=_which_index_fix(cv2) if devices else no_device_fix)
             return
         ok, frame = capture.read()
         capture.release()
@@ -290,10 +289,29 @@ def check_camera() -> None:
             report(OK, f"카메라 영상 읽기 성공 (CAMERA_INDEX={index})", f"{frame.shape[1]}x{frame.shape[0]}")
             _measure_qr_speed(cv2, frame)
         else:
-            report(FAIL, "카메라는 열렸지만 영상이 안 들어옴",
-                   fix="다른 프로그램이 카메라를 쓰고 있는지 확인하세요.")
+            # 번호가 있다고 카메라는 아니다. UVC 웹캠은 영상 장치와 메타데이터
+            # 장치를 둘 다 만드는데, 메타데이터 쪽도 '열리기는' 한다.
+            report(FAIL, f"카메라는 열렸지만 영상이 안 들어옴 (CAMERA_INDEX={index})",
+                   fix=_which_index_fix(cv2))
     except Exception as exc:  # noqa: BLE001
         report(FAIL, "카메라 점검 중 오류", f"{type(exc).__name__}: {exc}")
+
+
+def _which_index_fix(cv2) -> str:
+    """실제로 영상이 들어오는 번호를 찾아 알려 준다 (추측하게 두지 않는다)."""
+    try:
+        from qr_scanner import find_capture_indices
+
+        working = find_capture_indices(cv2)
+    except Exception as exc:  # noqa: BLE001
+        return f"쓸 수 있는 번호를 찾지 못했습니다 ({type(exc).__name__})."
+    if not working:
+        return ("영상이 들어오는 장치를 하나도 찾지 못했습니다.\n"
+                "웹캠이 꽂혀 있는지(lsusb), 다른 프로그램이 쓰고 있지 않은지 확인하세요.")
+    return (f"지금 영상이 들어오는 번호: {', '.join(str(i) for i in working)}\n"
+            f".env에 CAMERA_INDEX={working[0]} 을 넣고 다시 실행하세요.\n"
+            "번호가 있다고 카메라는 아닙니다 — /dev/video1은 같은 웹캠의\n"
+            "메타데이터 장치라 열리기는 해도 영상이 오지 않습니다.")
 
 
 def _measure_qr_speed(cv2, frame) -> None:

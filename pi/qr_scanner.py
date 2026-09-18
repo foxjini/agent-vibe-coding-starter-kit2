@@ -41,6 +41,9 @@ CAMERA_HEIGHT = int(os.getenv("CAMERA_HEIGHT", "480"))
 # 우리는 초당 10장만 꺼내 쓰므로, 버퍼가 깊으면 이미 치운 QR을 뒤늦게 읽는다.
 CAPTURE_BUFFER_FRAMES = 1
 
+# 어느 번호가 진짜 카메라인지 찾을 때 훑어볼 범위
+CAMERA_PROBE_MAX = 6
+
 
 def decode_image_file(path: str) -> str | None:
     """이미지 파일 한 장에서 QR 문자열을 읽는다. 없으면 None."""
@@ -111,6 +114,42 @@ def _tune_capture(cv2_module: ModuleType, capture: "cv2.VideoCapture") -> tuple[
     return (width, height)
 
 
+def grabs_a_frame(capture: "cv2.VideoCapture") -> bool:
+    """정말 영상이 들어오는지 한 장 받아 본다.
+
+    **`isOpened()`가 True라고 영상이 오는 것은 아니다.** 리눅스에서 UVC 웹캠 하나를
+    꽂으면 장치 노드가 둘 생긴다 — `/dev/video0`(영상)과 `/dev/video1`(메타데이터).
+    메타데이터 쪽을 열어도 `isOpened()`는 True가 되고, 그러고는 프레임이 한 장도
+    오지 않는다.
+
+    그대로 두면 데몬은 "카메라 열림"이라고 로그를 남긴 채 조용히 돌기만 하고 QR을
+    영영 못 읽는다. 오류도 안 나므로 전시장에서 원인을 찾을 길이 없다.
+    """
+    try:
+        ok, frame = capture.read()
+    except Exception as exc:  # noqa: BLE001
+        logger.debug("테스트 프레임을 읽지 못했습니다: %s", exc)
+        return False
+    return bool(ok) and frame is not None
+
+
+def find_capture_indices(cv2_module: ModuleType, limit: int = CAMERA_PROBE_MAX) -> list[int]:
+    """실제로 **영상이 들어오는** 카메라 번호만 골라 돌려준다.
+
+    "몇 번으로 맞춰야 하나"에 답하기 위한 것이다. 번호가 있다고 카메라는 아니므로
+    여는 것만으로는 알 수 없고, 한 장 받아 봐야 한다.
+    """
+    found: list[int] = []
+    for index in range(limit):
+        capture = cv2_module.VideoCapture(index)
+        try:
+            if capture.isOpened() and grabs_a_frame(capture):
+                found.append(index)
+        finally:
+            capture.release()
+    return found
+
+
 def open_camera(camera_index: int = 0) -> "cv2.VideoCapture":
     """웹캠을 연다. 백엔드를 순서대로 시도하고 모두 실패하면 RuntimeError."""
     import cv2
@@ -118,25 +157,42 @@ def open_camera(camera_index: int = 0) -> "cv2.VideoCapture":
     tried: list[str] = []
     for name, api in _backend_candidates(cv2):
         capture = cv2.VideoCapture(camera_index, api)
-        if capture.isOpened():
-            width, height = _tune_capture(cv2, capture)
-            logger.info(
-                "카메라 열림 (index=%d, backend=%s, %dx%d)", camera_index, name, width, height
-            )
-            if width * height > CAMERA_WIDTH * CAMERA_HEIGHT * 2:
-                # 요청을 무시하는 카메라가 있다. 느려지는 이유를 로그에 남겨 둔다.
-                logger.warning(
-                    "카메라가 요청한 %dx%d 대신 %dx%d로 열렸습니다 — QR 인식이 느려질 수 있습니다.",
-                    CAMERA_WIDTH, CAMERA_HEIGHT, width, height,
-                )
-            return capture
-        capture.release()
-        tried.append(name)
+        if not capture.isOpened():
+            capture.release()
+            tried.append(name)
+            continue
 
+        width, height = _tune_capture(cv2, capture)
+        if not grabs_a_frame(capture):
+            # 열리기는 했는데 영상이 안 온다 — 영상 장치가 아니다
+            capture.release()
+            tried.append(f"{name}(영상 없음)")
+            continue
+
+        logger.info(
+            "카메라 열림 (index=%d, backend=%s, %dx%d)", camera_index, name, width, height
+        )
+        if width * height > CAMERA_WIDTH * CAMERA_HEIGHT * 2:
+            # 요청을 무시하는 카메라가 있다. 느려지는 이유를 로그에 남겨 둔다.
+            logger.warning(
+                "카메라가 요청한 %dx%d 대신 %dx%d로 열렸습니다 — QR 인식이 느려질 수 있습니다.",
+                CAMERA_WIDTH, CAMERA_HEIGHT, width, height,
+            )
+        return capture
+
+    working = find_capture_indices(cv2)
+    found = (
+        f"지금 영상이 들어오는 번호: {', '.join(str(i) for i in working)}"
+        if working
+        else "영상이 들어오는 장치를 하나도 찾지 못했습니다 (웹캠이 꽂혀 있나요?)"
+    )
     raise RuntimeError(
-        f"카메라를 열 수 없습니다 (index={camera_index}, 시도한 backend={', '.join(tried)}). "
-        "Zoom·Teams·브라우저 등 웹캠을 쓰는 프로그램을 모두 끄고, USB 웹캠이면 "
-        ".env의 CAMERA_INDEX를 1, 2로 바꿔 보세요."
+        f"카메라를 열 수 없습니다 (index={camera_index}, 시도: {', '.join(tried)}).\n"
+        f"  {found}\n"
+        "  → .env의 CAMERA_INDEX를 위 번호로 맞추고 데몬을 다시 켜세요.\n"
+        "  라즈베리파이에 USB 웹캠 하나만 꽂았다면 보통 0입니다. /dev/video1이 보여도\n"
+        "  그건 같은 웹캠의 메타데이터 장치라 영상이 오지 않습니다.\n"
+        "  (윈도우라면 Zoom·Teams·브라우저 등 웹캠을 쓰는 프로그램을 모두 끄세요)"
     )
 
 

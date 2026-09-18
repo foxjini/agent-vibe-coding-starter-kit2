@@ -283,6 +283,9 @@ python scripts/demo_e2e.py
 | 파이에서 `ModuleNotFoundError: No module named 'iot'` | `pi/`만 복사했다. `backend/`가 같은 상위 폴더에 나란히 있어야 한다 (4-2 참고) |
 | `gpiozero` 오류 | Pi 5는 `lgpio`가 필요하다. `pip install lgpio` 후 `GPIOZERO_PIN_FACTORY=lgpio` |
 | 카메라를 못 연다 | `ENABLE_CAMERA=false`로 두고 `POST /qr`로 먼저 로직을 검증한다 |
+| `Not a video capture device` / `can't open camera by index` | **번호가 있다고 카메라가 아니다.** UVC 웹캠 하나는 `/dev/video0`(영상)과 `/dev/video1`(메타데이터)을 함께 만든다. `python check_hardware.py`가 영상이 들어오는 번호를 찾아 알려 준다 |
+| 로그는 "카메라 열림"인데 QR이 안 읽힌다 | 위와 같은 원인이다. 지금은 데몬이 프레임을 한 장 받아 보고 실패하면 번호를 알려 주며 멈춘다 |
+| `PWMSoftwareFallback: ... use the pigpio pin factory` | **버그가 아니다.** 파이 5(RP1)에서는 `pigpio`를 쓸 수 없어 소프트웨어 PWM으로 동작한다. 서보가 미세하게 떨릴 수 있으나 배출 동작에는 문제가 없다 |
 | **파이에서** `python main.py`가 바로 죽는다 | `cd pi && python check_hardware.py` 를 먼저 돌린다. 원인과 고치는 방법이 한 줄씩 나온다 |
 | `No module named 'iot'` | `backend/iot/`가 없다. `pi/`와 같은 상위 폴더 아래 `backend/iot/`를 둔다 (`iot/`만 옮겨도 된다) |
 | `No module named 'gpiozero'` (설치했는데도) | venv가 apt 패키지를 못 보는 것이다. `/usr/bin/python3 -c "import gpiozero"`로 시스템에는 있는지 먼저 확인하고, `python3 -m venv --system-site-packages venv`로 다시 만든다 |
