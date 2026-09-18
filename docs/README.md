@@ -25,7 +25,8 @@ Tailwind v4 토큰, 한글 글꼴, 상태와 연결된 애니메이션 아이콘
 python tools/context_pack.py pi        # 또는 frontend · vision · all
 ```
 
-`context_packs/` 폴더에 파일이 생깁니다 (14~23KB). 올리는 방법과 요청 예시는
+`context_packs/` 폴더에 파일이 생깁니다 (20~60KB — 우리 팀이 남겨 둔 파일 수에 따라 다릅니다).
+올리는 방법과 요청 예시는
 **[00 매뉴얼 8장](00-2차개발-통합-매뉴얼.md)** 에 있습니다.
 
 ---
@@ -42,8 +43,9 @@ python tools/context_pack.py pi        # 또는 frontend · vision · all
 
 **`backend/` · `backend/db/` · `vision/` 공통 파일은 고치지 않습니다** (4팀 공통 코드).
 
-화면은 셋입니다 — `/`(★ 우리 팀 화면, 4팀 공통 출발점) ·
-`/kit`(하드웨어 구성·규칙·영상인식 설정, 키트 제공) · `/wakeup`(wakeup 팀 완성 본보기).
+화면은 넷입니다 — `/`(★ 우리 팀 화면, 4팀 공통 출발점) ·
+`/kit`(하드웨어 구성·규칙·영상인식 설정, 키트 제공) · `/wakeup`(wakeup 팀 본보기) ·
+`/study`(study 팀 집중도 본보기).
 `/` 화면 제목은 `frontend/.env.local`의 `NEXT_PUBLIC_TEAM_NAME`에서 바꿉니다.
 
 ---
