@@ -132,14 +132,18 @@ def gaze_offset(points: Sequence[Point]) -> Optional[float]:
     offsets: List[float] = []
     for eye, iris in ((EYE_IMAGE_LEFT, IRIS_IMAGE_LEFT),
                       (EYE_IMAGE_RIGHT, IRIS_IMAGE_RIGHT)):
-        inner_x = points[eye["inner"]][0]
-        outer_x = points[eye["outer"]][0]
-        span = outer_x - inner_x
-        if abs(span) < 1e-6:
+        # ⚠️ 안쪽/바깥쪽을 기준으로 재면 안 됩니다.
+        #    왼쪽 눈은 안쪽이 오른편에, 오른쪽 눈은 안쪽이 왼편에 있어서
+        #    같은 곳을 봐도 두 눈의 부호가 반대가 되고 평균이 0이 됩니다.
+        #    그래서 **화면 기준(왼쪽→오른쪽)** 으로 통일해서 잽니다.
+        corner_a = points[eye["inner"]][0]
+        corner_b = points[eye["outer"]][0]
+        left_x, right_x = min(corner_a, corner_b), max(corner_a, corner_b)
+        width = right_x - left_x
+        if width < 1e-6:
             continue
-        # 눈 안쪽 끝을 0, 바깥쪽 끝을 1로 봤을 때 눈동자가 어디 있는가
-        t = (points[iris][0] - inner_x) / span
-        offsets.append(t - 0.5)
+        # 눈의 화면 왼쪽 끝을 0, 오른쪽 끝을 1로 봤을 때 눈동자가 어디 있는가
+        offsets.append((points[iris][0] - left_x) / width - 0.5)
 
     if not offsets:
         return None

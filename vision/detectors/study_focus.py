@@ -71,8 +71,15 @@ class Detector(FrameDetector):
 
     def __init__(self) -> None:
         super().__init__()
+        # ⚠️ MediaPipe가 없어 아래에서 멈추더라도 status_text()·draw()가 불릴 수 있으므로
+        #    쓰는 값은 **먼저 다 만들어 둡니다.** (없으면 AttributeError로 화면이 죽습니다)
         self._mesh = None
         self._frame_no = 0
+        self._acc = fe.WindowAccumulator()
+        self._window_started = time.time()
+        self._summary: Dict[str, Any] = {"samples": 0, "face": False, "calibrated": False}
+        self._last_face_at = 0.0
+        self._last_points: Optional[Sequence[Tuple[float, float]]] = None
 
         try:
             import mediapipe as mp
@@ -85,13 +92,6 @@ class Detector(FrameDetector):
             )
         except Exception as exc:
             self.disable(f"MediaPipe를 쓸 수 없습니다: {exc}")
-            return
-
-        self._acc = fe.WindowAccumulator()
-        self._window_started = time.time()
-        self._summary: Dict[str, Any] = {"samples": 0, "face": False, "calibrated": False}
-        self._last_face_at = 0.0
-        self._last_points: Optional[Sequence[Tuple[float, float]]] = None
 
     # ------------------------------------------------------------------
     def detect(self, frame_bgr, config: Dict[str, Any]) -> List[DetectionEvent]:

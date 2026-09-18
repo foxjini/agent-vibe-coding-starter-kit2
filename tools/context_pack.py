@@ -103,7 +103,7 @@ HOW_TO_ANSWER = """\
    cd pi       && python daemon.py --check
    cd pi       && python test_slot_daemon.py      # 39항목
    cd vision   && python test_vision_config.py    # 45항목
-   cd vision   && python test_study_focus.py      # 53항목 (study 집중도)
+   cd vision   && python test_study_focus.py      # 63항목 (study 집중도)
    cd frontend && npx eslint . && npm run build
    cd frontend && grep -o '\.bg-brand{[^}]*}' .next/static/chunks/*.css   # 토큰이 살아 있는지
    ```

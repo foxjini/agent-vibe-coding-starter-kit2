@@ -92,8 +92,9 @@ def make_face(
             points[index] = (eye_cx, eye_y - lid / 2.0)
         for index in eye["low"]:
             points[index] = (eye_cx, eye_y + lid / 2.0)
-        # 눈동자 — 눈 안쪽 끝을 0, 바깥쪽 끝을 1로 봤을 때 (0.5 + gaze) 위치
-        points[iris] = (inner_x + (0.5 + gaze) * (outer_x - inner_x), eye_y)
+        # 눈동자 — **두 눈이 같은 화면 방향으로** 움직입니다 (실제 사람이 그렇습니다).
+        # 안쪽/바깥쪽 기준으로 옮기면 두 눈이 반대로 움직여 신호가 상쇄됩니다.
+        points[iris] = (eye_cx + gaze * eye_w, eye_y)
 
     return points[: fe.LANDMARKS_WITH_IRIS if with_iris else 468]
 
@@ -136,6 +137,48 @@ def main_test() -> int:
           f"{right}")
     check("눈동자 점이 없으면(refine_landmarks=False) None을 돌려줌",
           fe.gaze_offset(make_face(with_iris=False)) is None)
+
+    # ⚠️ 아래는 실제로 났던 버그를 막는 시험입니다.
+    #    왼쪽 눈은 '안쪽'이 오른편에, 오른쪽 눈은 '안쪽'이 왼편에 있습니다.
+    #    안쪽/바깥쪽 기준으로 재면 같은 곳을 봐도 두 눈의 부호가 반대가 되어
+    #    평균이 **항상 0**이 됩니다. 가짜 얼굴을 같은 공식으로 만들면 이것을 못 잡습니다.
+    #    그래서 여기서는 **픽셀을 직접 옮겨서** 확인합니다.
+    def face_with_iris_moved(shift_px: float) -> List[Tuple[float, float]]:
+        """두 눈동자를 화면 기준으로 **같은 방향** shift_px 만큼 옮깁니다."""
+        points = list(make_face())
+        for eye, iris in ((fe.EYE_IMAGE_LEFT, fe.IRIS_IMAGE_LEFT),
+                          (fe.EYE_IMAGE_RIGHT, fe.IRIS_IMAGE_RIGHT)):
+            center_x = (points[eye["inner"]][0] + points[eye["outer"]][0]) / 2.0
+            points[iris] = (center_x + shift_px, points[iris][1])
+        return points
+
+    straight = fe.gaze_offset(face_with_iris_moved(0.0))
+    moved = fe.gaze_offset(face_with_iris_moved(12.0))
+    check("눈동자를 옮기면 값이 실제로 변함 (두 눈이 상쇄되지 않음)",
+          moved is not None and abs(moved) > 0.05, f"0px={straight} 12px={moved}")
+
+    back = fe.gaze_offset(face_with_iris_moved(-12.0))
+    check("반대쪽으로 옮기면 부호가 뒤집힘",
+          moved is not None and back is not None and moved * back < 0,
+          f"{moved} vs {back}")
+
+    # 한쪽 눈만 봐도 같은 부호가 나와야 합니다
+    def one_eye(shift_px: float, eye, iris) -> float:
+        points = list(make_face())
+        center_x = (points[eye["inner"]][0] + points[eye["outer"]][0]) / 2.0
+        points[iris] = (center_x + shift_px, points[iris][1])
+        # 다른 쪽 눈동자는 가운데 그대로 두고, 두 눈 평균에서 부호를 봅니다
+        other_eye, other_iris = ((fe.EYE_IMAGE_RIGHT, fe.IRIS_IMAGE_RIGHT)
+                                 if eye is fe.EYE_IMAGE_LEFT
+                                 else (fe.EYE_IMAGE_LEFT, fe.IRIS_IMAGE_LEFT))
+        other_center = (points[other_eye["inner"]][0] + points[other_eye["outer"]][0]) / 2.0
+        points[other_iris] = (other_center, points[other_iris][1])
+        return fe.gaze_offset(points) or 0.0
+
+    left_only = one_eye(12.0, fe.EYE_IMAGE_LEFT, fe.IRIS_IMAGE_LEFT)
+    right_only = one_eye(12.0, fe.EYE_IMAGE_RIGHT, fe.IRIS_IMAGE_RIGHT)
+    check("왼쪽 눈과 오른쪽 눈이 같은 부호를 냄 (이것이 깨지면 평균이 0이 됩니다)",
+          left_only * right_only > 0, f"왼쪽={left_only:.3f} 오른쪽={right_only:.3f}")
 
     # ------------------------------------------------------------------
     section("3. 고개 방향")
@@ -275,6 +318,19 @@ def main_test() -> int:
         print(f"  [건너뜀] 검출기를 만들지 못했습니다: {exc}")
         detector = None
 
+    if detector is not None:
+        # 아직 한 프레임도 안 본 상태에서도 화면 표시가 터지면 안 됩니다.
+        # (MediaPipe가 없어 꺼진 검출기도 같은 경로를 탑니다)
+        for name, call in (("status_text", lambda: detector.status_text()),
+                           ("draw", lambda: detector.draw(None, [])),
+                           ("detect", lambda: detector.detect(None, {}))):
+            try:
+                call()
+                check(f"첫 프레임 전에 {name}()를 불러도 터지지 않음", True)
+            except Exception as exc:
+                check(f"첫 프레임 전에 {name}()를 불러도 터지지 않음", False,
+                      f"{type(exc).__name__}: {exc}")
+
     if detector is not None and detector.available:
         check("라벨이 네 개", set(detector.labels) ==
               {"face_visible", "eyes_closed", "look_away", "no_face"})
@@ -311,6 +367,36 @@ def main_test() -> int:
 
         check("confidence가 0~1 범위",
               all(0.0 <= (e.confidence or 0) <= 1.0 for e in events.values()))
+
+        # ------------------------------------------------------------------
+        # 진짜 카메라 프레임과 같은 모양으로 한 번 돌려 봅니다.
+        # (얼굴은 없지만 cv2 변환·MediaPipe 호출·그리기 경로가 전부 실행됩니다)
+        section("11. 진짜 프레임으로 돌려보기 (얼굴 없는 화면)")
+        try:
+            import numpy as np
+        except Exception:
+            print("  [건너뜀] numpy가 없습니다")
+            np = None
+
+        if np is not None:
+            for label, frame in (
+                ("FHD 1920x1080", np.zeros((1080, 1920, 3), np.uint8)),
+                ("640x480", np.zeros((480, 640, 3), np.uint8)),
+            ):
+                try:
+                    found = detector.detect(frame, {"cooldown_seconds": 2.5})
+                    detector.draw(frame, found)
+                    check(f"{label} 프레임을 처리함 (라벨 4개)", len(found) == 4,
+                          f"{len(found)}개")
+                    states = {e.label: e.detected for e in found}
+                    check(f"{label}에서 얼굴이 없으면 no_face만 켜짐",
+                          states.get("no_face") is True
+                          and not states.get("face_visible")
+                          and not states.get("eyes_closed"),
+                          str(states))
+                except Exception as exc:
+                    check(f"{label} 프레임을 처리함", False, f"{type(exc).__name__}: {exc}")
+
         detector.close()
     else:
         reason = detector.unavailable_reason if detector else "생성 실패"

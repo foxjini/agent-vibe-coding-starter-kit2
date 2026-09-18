@@ -107,15 +107,15 @@ export function useStudy(): StudyApi {
   // ---- 카메라가 보낸 측정값 받기 ------------------------------------------
   useEffect(() => {
     const stop = onVision(["face_visible", "no_face"], (event) => {
-      // no_face는 알림용 신호일 뿐, 측정값은 face_visible에만 실려 옵니다
-      if (event.label === "no_face" && !event.extra) {
-        setLastEventAt(Date.now());
-        return;
-      }
-      const next = parseMeasure(event.extra);
       const now = Date.now();
-      setMeasure(next);
+      // 어느 라벨이든 "카메라가 살아 있다"는 신호입니다
       setLastEventAt(now);
+      // 측정값은 **face_visible에만** 실려 옵니다. 다른 라벨의 extra를 읽으면
+      // 빈 값으로 덮어써서 화면이 "확인 중"으로 되돌아갑니다.
+      if (event.label !== "face_visible") return;
+
+      const next = parseMeasure(event.extra);
+      setMeasure(next);
       setSession((prev) => {
         const updated = applyMeasure(prev ?? loadSession(now), next, now);
         saveSession(updated);
@@ -215,10 +215,11 @@ export function useStudyActuators(
     lastRef.current = state;
 
     const drowsySlot = slots.drowsy;
+    let stopBuzz = 0;
     if (state === "drowsy" && drowsySlot) {
       void setActuator(drowsySlot, "on", { intensity: 70 });
       // 3초만 울리고 끕니다 (계속 울리면 신경만 쓰입니다)
-      window.setTimeout(() => void setActuator(drowsySlot, "off"), 3000);
+      stopBuzz = window.setTimeout(() => void setActuator(drowsySlot, "off"), 3000);
     }
 
     const awaySlot = slots.away;
@@ -228,5 +229,10 @@ export function useStudyActuators(
     if (awaySlot && previous === "away" && state !== "away") {
       void setActuator(awaySlot, "on");
     }
+
+    // 화면을 떠나면 예약해 둔 '끄기'도 취소합니다
+    return () => {
+      if (stopBuzz) window.clearTimeout(stopBuzz);
+    };
   }, [state, enabled, slots.drowsy, slots.away, setActuator]);
 }
