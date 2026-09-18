@@ -12,12 +12,17 @@ detectors/
   objects.py             공통 — 사물 탐지(YOLO). 4팀이 같이 씀 (고치지 않음)
   hands_rps.py           ★ wakeup 팀 — 가위바위보 손동작
   _hands_rps_engine.py     `_`로 시작하면 검출기가 아닌 보조 모듈
-  study_seats.py         ★ study 팀 — 좌석 6개 점유·집중도
+  study_focus.py         ★ study 팀 — 한 사람의 집중도 (눈·고개·시선)
+  _focus_engine.py         EAR·고개각·시선 계산 (보조 모듈)
+  study_seats.py         본보기 — 화면을 좌석 구역으로 나눠 보는 법
   <우리팀>.py             ★ 여기에 파일 하나 추가하면 끝
 ```
 
-다른 팀은 자기 것이 아닌 팀 파일(`hands_rps*`, `study_seats.py`)을 지워도 됩니다.
+다른 팀은 자기 것이 아닌 팀 파일(`hands_rps*`, `study_*`)을 지워도 됩니다.
 다만 **본보기로 남겨 두는 편이 편합니다** — 구조를 볼 때 씁니다.
+
+- `study_focus.py` — **한 사람을 정밀하게** 볼 때 (얼굴·눈)
+- `study_seats.py` — **여러 구역을 나눠서** 볼 때 (좌석·구간·분단)
 
 ## 규칙 두 가지
 
@@ -104,6 +109,36 @@ for person in find_people(frame_bgr, min_confidence=0.5):
 돌아가는 예시가 `study_seats.py`에 있습니다 — 화면을 좌석 구역으로 나누고
 구역마다 점유를 봅니다. 좌석 위치는 파일 맨 위 `SEATS`에서 **화면 비율**로 고칩니다.
 
+---
+
+## 얼굴·눈을 보려면 — 거리와 해상도가 먼저입니다
+
+MediaPipe는 얼굴을 잘라 **192×192로 맞춰** 눈을 찾습니다. 얼굴이 그보다 작게 잡히면
+늘려 쓰느라 눈꺼풀·눈동자가 뭉갭니다. **대수를 늘리기 전에 거리와 해상도를 보세요.**
+
+| 배치 | 얼굴 폭(추정) | 눈을 잴 수 있나 |
+|---|---|---|
+| FHD · 0.5~1.0m (책상 앞) | 220~530px | ✅ 눈동자·시선까지 |
+| 640×480 · 3m (여러 자리를 한 화면에) | 24~30px | ❌ 안 됨 |
+
+`vision/.env`에 `CAMERA_WIDTH=1920` `CAMERA_HEIGHT=1080`을 넣고,
+웹캠 창의 `face ___px` 숫자를 보며 카메라를 옮겨 맞춥니다.
+
+돌아가는 예시가 `study_focus.py`입니다 — 눈 감김(EAR)·고개 숙임·시선 이탈을 재서
+`extra`로 보냅니다. **"졸고 있다"는 판정은 하지 않습니다** — 프론트엔드가 합니다.
+
+### 전송 주기보다 짧은 일은 창(window)으로 모으세요
+
+전송은 `cooldown_seconds`(기본 2.5초)에 한 번입니다. 그 순간 한 프레임만 실어 보내면
+하필 눈을 깜빡인 프레임이 잡혀 "졸고 있음"이 됩니다. `_focus_engine.py`의
+`WindowAccumulator`처럼 **모았다가 요약해서** 보내세요.
+
+### 사람마다 다른 것은 처음 몇 초로 배우세요
+
+얼굴 비율은 사람마다 다릅니다. "고개를 숙였다"를 고정 숫자로 판단하면 누구는 늘 숙인
+것이 되고 누구는 절대 안 숙인 것이 됩니다. `Calibration`이 처음 8초로 그 사람의 '정면'을
+기록해 기준으로 삼습니다.
+
 ## 라이브러리가 없을 때
 
 `self.disable("이유")`를 부르면 **그 검출기만** 빠지고 나머지는 그대로 돌아갑니다.
@@ -132,7 +167,8 @@ def __init__(self) -> None:
 ## 확인
 
 ```bash
-cd vision && python test_vision_config.py     # 검출기 계약 자가 점검
+cd vision && python test_vision_config.py     # 검출기 계약 자가 점검 (45항목)
+cd vision && python test_study_focus.py       # 집중도 측정 자가 점검 (53항목, 웹캠 없이)
 python -c "import sys; sys.path.insert(0,'.'); from detectors import available_detectors; print(available_detectors())"
 ```
 
