@@ -1,0 +1,1196 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="light dark">
+<meta name="description" content="라즈베리파이 담당 학생이 센서·액추에이터를 추가·제거·교체할 때 pi/slot_map.py를 고치는 방법. 드라이버 11종 레퍼런스와 오류 메시지 사전 포함.">
+<title>배치표 바꾸기</title>
+<style>
+:root{
+  /* PCB 기판(초록)과 구리 패드에서 가져온 색. 중성색도 초록 쪽으로 살짝 기울였습니다. */
+  --ink:#16201c; --ink-2:#3d4a45; --ink-3:#6b7873;
+  --ground:#f5f7f4; --surface:#ffffff; --surface-2:#eef1ec;
+  --line:#dbe0da; --line-strong:#b9c2bb;
+  --pcb:#14634a;           /* 주 강조 — 기판 초록 */
+  --pcb-soft:#e3efe9;
+  --copper:#a8551a;        /* 핀 번호 — 구리 패드 */
+  --copper-soft:#f6ece2;
+  --warn:#8a5a00; --warn-soft:#fbf0d8;
+  --danger:#9d2235; --danger-soft:#fbe9eb;
+  --code-bg:#12211c; --code-ink:#dfe9e3; --code-dim:#8fa69c;
+  --sans:"Pretendard Variable",Pretendard,-apple-system,BlinkMacSystemFont,"Segoe UI","Malgun Gothic","Apple SD Gothic Neo","Noto Sans KR",sans-serif;
+  --mono:ui-monospace,SFMono-Regular,"Cascadia Mono",Consolas,"D2Coding","Noto Sans Mono CJK KR",monospace;
+}
+@media (prefers-color-scheme:dark){ :root:not([data-theme="light"]){
+  --ink:#e4ebe7; --ink-2:#b0bcb6; --ink-3:#7f8d87;
+  --ground:#101714; --surface:#18211d; --surface-2:#1f2a25;
+  --line:#2c3831; --line-strong:#41504a;
+  --pcb:#4cc39a; --pcb-soft:#17302a;
+  --copper:#d8874a; --copper-soft:#2b2018;
+  --warn:#d9a441; --warn-soft:#2a2113;
+  --danger:#e4707f; --danger-soft:#2c1619;
+  --code-bg:#0b120f; --code-ink:#d6e2db; --code-dim:#7d938a;
+}}
+:root[data-theme="dark"]{
+  --ink:#e4ebe7; --ink-2:#b0bcb6; --ink-3:#7f8d87;
+  --ground:#101714; --surface:#18211d; --surface-2:#1f2a25;
+  --line:#2c3831; --line-strong:#41504a;
+  --pcb:#4cc39a; --pcb-soft:#17302a;
+  --copper:#d8874a; --copper-soft:#2b2018;
+  --warn:#d9a441; --warn-soft:#2a2113;
+  --danger:#e4707f; --danger-soft:#2c1619;
+  --code-bg:#0b120f; --code-ink:#d6e2db; --code-dim:#7d938a;
+}
+
+*{box-sizing:border-box}
+body{
+  margin:0; background:var(--ground); color:var(--ink);
+  font-family:var(--sans); font-size:16px; line-height:1.68;
+  -webkit-text-size-adjust:100%;
+}
+.wrap{max-width:980px; margin:0 auto; padding-inline:20px; padding-block:0 72px}
+@media(max-width:480px){ .wrap{padding-inline:16px} }
+
+/* ── 머리말 ─────────────────────────────────────────────── */
+.masthead{padding-block:44px 28px; border-bottom:3px solid var(--ink)}
+.eyebrow{
+  font-family:var(--mono); font-size:12px; letter-spacing:.14em; text-transform:uppercase;
+  color:var(--pcb); font-weight:600; margin:0 0 14px;
+}
+h1{
+  font-size:clamp(30px,6.2vw,46px); line-height:1.12; letter-spacing:-.024em;
+  font-weight:800; margin:0 0 14px; text-wrap:balance;
+}
+.standfirst{font-size:clamp(16px,2.3vw,19px); color:var(--ink-2); margin:0; max-width:62ch}
+.meta-row{
+  display:flex; flex-wrap:wrap; gap:8px 18px; margin-top:20px;
+  font-family:var(--mono); font-size:12.5px; color:var(--ink-3);
+}
+.meta-row b{color:var(--ink-2); font-weight:600}
+
+/* ── 목차 ───────────────────────────────────────────────── */
+nav.toc{
+  position:sticky; top:env(safe-area-inset-top,0px); z-index:20;
+  background:color-mix(in srgb,var(--ground) 92%,transparent);
+  backdrop-filter:blur(8px);
+  border-bottom:1px solid var(--line); margin-bottom:8px;
+}
+nav.toc ol{
+  list-style:none; display:flex; gap:2px; overflow-x:auto; margin:0;
+  padding:9px 0; font-family:var(--mono); font-size:12.5px; scrollbar-width:thin;
+}
+nav.toc a{
+  display:block; white-space:nowrap; padding:4px 10px; border-radius:5px;
+  color:var(--ink-2); text-decoration:none;
+}
+nav.toc a:hover{background:var(--surface-2); color:var(--ink)}
+
+/* ── 섹션 ───────────────────────────────────────────────── */
+section{padding-block:40px 8px; scroll-margin-top:60px}
+section + section{border-top:1px solid var(--line)}
+h2{
+  font-size:clamp(22px,3.6vw,28px); line-height:1.25; letter-spacing:-.018em;
+  font-weight:750; margin:0 0 6px; text-wrap:balance;
+}
+h2 .num{
+  font-family:var(--mono); font-size:.58em; font-weight:600; color:var(--pcb);
+  margin-right:.65em; letter-spacing:.06em;
+}
+h3{font-size:18px; font-weight:700; margin:30px 0 8px; letter-spacing:-.01em}
+h4{font-size:15px; font-weight:700; margin:20px 0 6px; color:var(--ink-2)}
+p{margin:0 0 14px; max-width:70ch}
+.lede{color:var(--ink-2); font-size:17px; margin-bottom:20px; max-width:66ch}
+ul,ol{margin:0 0 16px; padding-left:22px; max-width:70ch}
+li{margin-bottom:6px}
+a{color:var(--pcb)}
+strong{font-weight:700}
+code{
+  font-family:var(--mono); font-size:.885em; background:var(--surface-2);
+  padding:.13em .38em; border-radius:4px; color:var(--ink);
+  overflow-wrap:break-word;
+}
+kbd{
+  font-family:var(--mono); font-size:.82em; background:var(--surface);
+  border:1px solid var(--line-strong); border-bottom-width:2px;
+  border-radius:4px; padding:.1em .4em;
+}
+
+/* ── 코드블록 ───────────────────────────────────────────── */
+.code{position:relative; margin:0 0 18px}
+.code pre{
+  margin:0; background:var(--code-bg); color:var(--code-ink);
+  border-radius:8px; padding:15px 17px; overflow-x:auto;
+  font-family:var(--mono); font-size:13.2px; line-height:1.62;
+}
+.code pre .c{color:var(--code-dim)}
+.code pre .k{color:#7fd1ae}
+.code pre .s{color:#e9b384}
+.code .copy{
+  position:absolute; top:9px; right:9px; font-family:var(--mono); font-size:11px;
+  background:rgba(255,255,255,.09); color:var(--code-dim); border:1px solid rgba(255,255,255,.14);
+  border-radius:5px; padding:3px 9px; cursor:pointer; transition:all .15s;
+}
+.code .copy:hover{background:rgba(255,255,255,.17); color:var(--code-ink)}
+.code .copy.done{background:var(--pcb); border-color:var(--pcb); color:#fff}
+.code figcaption{
+  font-family:var(--mono); font-size:11.5px; color:var(--ink-3);
+  padding:0 0 6px; letter-spacing:.02em;
+}
+
+/* ── 표 ─────────────────────────────────────────────────── */
+.tablewrap{overflow-x:auto; margin:0 0 20px; border:1px solid var(--line); border-radius:8px}
+table{border-collapse:collapse; width:100%; font-size:14.4px; background:var(--surface)}
+th,td{padding:9px 13px; text-align:left; border-bottom:1px solid var(--line); vertical-align:top}
+th{
+  background:var(--surface-2); font-weight:700; font-size:12.5px;
+  letter-spacing:.04em; text-transform:uppercase; color:var(--ink-2); white-space:nowrap;
+}
+tr:last-child td{border-bottom:0}
+td code{background:transparent; padding:0; color:var(--pcb); font-weight:600}
+.tablewrap.compact td,.tablewrap.compact th{padding:7px 11px}
+
+/* ── 콜아웃 ─────────────────────────────────────────────── */
+.note{
+  border-left:3px solid var(--pcb); background:var(--pcb-soft);
+  padding:13px 16px; border-radius:0 7px 7px 0; margin:0 0 18px;
+  font-size:15px;
+}
+.note.warn{border-color:var(--warn); background:var(--warn-soft)}
+.note.danger{border-color:var(--danger); background:var(--danger-soft)}
+.note p:last-child{margin-bottom:0}
+.note .tag{
+  font-family:var(--mono); font-size:11px; font-weight:700; letter-spacing:.09em;
+  text-transform:uppercase; display:block; margin-bottom:4px; color:var(--pcb);
+}
+.note.warn .tag{color:var(--warn)}
+.note.danger .tag{color:var(--danger)}
+
+/* ── 단계 ───────────────────────────────────────────────── */
+.steps{list-style:none; padding:0; counter-reset:s; max-width:none}
+.steps > li{
+  counter-increment:s; position:relative; padding-left:46px; margin-bottom:26px;
+}
+.steps > li::before{
+  content:counter(s); position:absolute; left:0; top:-1px;
+  width:30px; height:30px; border-radius:50%; background:var(--ink); color:var(--ground);
+  font-family:var(--mono); font-size:14px; font-weight:700;
+  display:grid; place-items:center;
+}
+.steps > li > h3{margin-top:0}
+
+/* ── 경계 (고치는 곳 / 안 고치는 곳) ──────────────────────── */
+.boundary{display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-bottom:20px}
+@media(max-width:620px){ .boundary{grid-template-columns:1fr} }
+.boundary > div{border:1px solid var(--line); border-radius:9px; padding:15px 17px; background:var(--surface)}
+.boundary .yes{border-color:var(--pcb); border-width:2px}
+.boundary h4{margin:0 0 9px; font-size:14px; letter-spacing:.03em; text-transform:uppercase}
+.boundary .yes h4{color:var(--pcb)}
+.boundary .no h4{color:var(--ink-3)}
+.boundary ul{margin:0; padding-left:19px; font-size:14.2px; max-width:none}
+.boundary li{margin-bottom:4px}
+
+/* ── GPIO 핀 배치도 ─────────────────────────────────────── */
+.pinout{
+  background:var(--surface); border:1px solid var(--line); border-radius:9px;
+  padding:16px; margin-bottom:8px; overflow-x:auto;
+}
+.pin-grid{
+  display:grid; grid-template-columns:1fr auto auto 1fr; gap:0 6px;
+  font-family:var(--mono); font-size:12.2px; min-width:420px;
+  font-variant-numeric:tabular-nums;
+}
+.pin-grid > div{padding:2.5px 6px; white-space:nowrap; border-radius:3px}
+.pin-grid .l{text-align:right; justify-self:end}
+.pin-grid .r{text-align:left; justify-self:start}
+.pin-grid .n{
+  text-align:center; color:var(--ink-3); background:var(--surface-2);
+  font-size:11px; min-width:26px;
+}
+.pin-grid .gpio{color:var(--copper); font-weight:700; background:var(--copper-soft)}
+.pin-grid .pwr{color:var(--danger)}
+.pin-grid .gnd{color:var(--ink-3)}
+.pin-grid .hdr{
+  font-size:10.5px; letter-spacing:.09em; text-transform:uppercase;
+  color:var(--ink-3); background:transparent; padding-bottom:6px;
+}
+.pin-legend{
+  display:flex; flex-wrap:wrap; gap:6px 16px; margin-top:12px;
+  font-family:var(--mono); font-size:11.5px; color:var(--ink-3);
+}
+.pin-legend span::before{
+  content:""; display:inline-block; width:9px; height:9px; border-radius:2px;
+  margin-right:5px; vertical-align:-1px;
+}
+.pin-legend .g::before{background:var(--copper)}
+.pin-legend .p::before{background:var(--danger)}
+.pin-legend .e::before{background:var(--ink-3)}
+
+/* ── 드라이버 카드 ──────────────────────────────────────── */
+.filterbar{
+  display:flex; flex-wrap:wrap; gap:10px; align-items:center; margin-bottom:18px;
+}
+.filterbar input{
+  flex:1 1 220px; min-width:0; font-family:var(--sans); font-size:14.5px;
+  padding:9px 13px; border:1px solid var(--line-strong); border-radius:7px;
+  background:var(--surface); color:var(--ink);
+}
+.filterbar input:focus-visible{outline:2px solid var(--pcb); outline-offset:1px; border-color:var(--pcb)}
+.chips{display:flex; gap:6px; flex-wrap:wrap}
+.chip{
+  font-family:var(--mono); font-size:12px; padding:6px 12px; border-radius:20px;
+  border:1px solid var(--line-strong); background:var(--surface); color:var(--ink-2);
+  cursor:pointer;
+}
+.chip[aria-pressed="true"]{background:var(--ink); border-color:var(--ink); color:var(--ground)}
+.chip:focus-visible{outline:2px solid var(--pcb); outline-offset:2px}
+
+.drv{
+  border:1px solid var(--line); border-radius:10px; background:var(--surface);
+  padding:18px 20px; margin-bottom:14px;
+}
+.drv-head{display:flex; flex-wrap:wrap; align-items:baseline; gap:8px 12px; margin-bottom:4px}
+.drv-name{font-family:var(--mono); font-size:17px; font-weight:700; color:var(--pcb)}
+.drv-role{
+  font-family:var(--mono); font-size:10.5px; letter-spacing:.09em; text-transform:uppercase;
+  padding:2px 8px; border-radius:11px; border:1px solid currentColor;
+}
+.drv-role.act{color:var(--copper)}
+.drv-role.sen{color:var(--pcb)}
+.drv-ct{font-family:var(--mono); font-size:12px; color:var(--ink-3); margin-left:auto}
+.drv-use{color:var(--ink-2); font-size:14.8px; margin:0 0 13px; max-width:none}
+.drv dl{
+  display:grid; grid-template-columns:auto 1fr; gap:4px 14px; margin:0 0 13px;
+  font-size:14px;
+}
+.drv dt{
+  font-family:var(--mono); font-size:11.5px; letter-spacing:.06em; text-transform:uppercase;
+  color:var(--ink-3); padding-top:3px; white-space:nowrap;
+}
+.drv dd{margin:0}
+.drv dd code{background:var(--surface-2); color:var(--ink); font-weight:400}
+.drv dd.req code{color:var(--danger); font-weight:700; background:var(--danger-soft)}
+
+/* ── 체크리스트 ─────────────────────────────────────────── */
+.check{list-style:none; padding:0; max-width:none}
+.check li{
+  display:flex; gap:11px; align-items:flex-start; padding:9px 0;
+  border-bottom:1px solid var(--line); font-size:15px;
+}
+.check li:last-child{border-bottom:0}
+.check input{margin-top:5px; width:16px; height:16px; accent-color:var(--pcb); flex:none}
+.check label{cursor:pointer}
+
+.foot{
+  margin-top:52px; padding-top:22px; border-top:3px solid var(--ink);
+  font-size:14px; color:var(--ink-3);
+}
+.foot p{max-width:none}
+
+@media print{
+  nav.toc,.code .copy,.filterbar{display:none}
+  body{background:#fff; font-size:11pt}
+  section{page-break-inside:avoid; padding-block:20px 4px}
+  .drv{page-break-inside:avoid}
+  .code pre{background:#f4f4f4; color:#111; border:1px solid #ccc}
+  .code pre .c{color:#666} .code pre .k{color:#0a5} .code pre .s{color:#a50}
+}
+@media (prefers-reduced-motion:reduce){ *{transition:none!important; animation:none!important} }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="masthead">
+  <p class="eyebrow">라즈베리파이 담당 · IoT 개발 플랫폼 키트</p>
+  <h1>배치표 바꾸기</h1>
+  <p class="standfirst">
+    센서나 액추에이터를 <strong>추가·제거·교체</strong>할 때 무엇을 어떻게 고치는지 적어 둔 문서입니다.
+    고치는 파일은 <code>pi/slot_map.py</code> <strong>하나뿐</strong>입니다 —
+    백엔드·DB·화면·영상인식은 한 줄도 건드리지 않습니다.
+  </p>
+  <div class="meta-row">
+    <span><b>대상</b> 마이스터고 2학년 · 라즈베리파이 담당</span>
+    <span><b>고치는 파일</b> pi/slot_map.py</span>
+    <span><b>드라이버</b> 11종</span>
+    <span><b>확인 명령</b> python daemon.py --check</span>
+  </div>
+</header>
+
+<nav class="toc" aria-label="목차">
+  <ol>
+    <li><a href="#s1">1 고치는 곳</a></li>
+    <li><a href="#s2">2 한 줄의 구조</a></li>
+    <li><a href="#s3">3 GPIO 핀 번호</a></li>
+    <li><a href="#s4">4 부품 추가</a></li>
+    <li><a href="#s5">5 드라이버 11종</a></li>
+    <li><a href="#s6">6 제거·교체</a></li>
+    <li><a href="#s7">7 확인</a></li>
+    <li><a href="#s8">8 오류 사전</a></li>
+    <li><a href="#s9">9 자주 하는 실수</a></li>
+    <li><a href="#s10">10 팀 예시</a></li>
+    <li><a href="#s11">11 체크리스트</a></li>
+  </ol>
+</nav>
+
+<!-- ══════════════════════════════════════════════════════ -->
+<section id="s1">
+  <h2><span class="num">01</span>고치는 곳은 한 파일뿐입니다</h2>
+  <p class="lede">
+    이 키트는 4개 팀(wakeup · classroom · study · subway)이 같이 씁니다.
+    공통 파일을 고치면 다른 팀 시스템이 멈춥니다.
+  </p>
+
+  <div class="boundary">
+    <div class="yes">
+      <h4>✓ 내가 고치는 것</h4>
+      <ul>
+        <li><code>pi/slot_map.py</code> — 배치표</li>
+        <li><code>pi/.env</code> — 백엔드 주소·인증키</li>
+      </ul>
+    </div>
+    <div class="no">
+      <h4>✕ 고치지 않는 것</h4>
+      <ul>
+        <li><code>pi/daemon.py</code> — 공통 루프</li>
+        <li><code>pi/drivers/</code> — 부품 드라이버</li>
+        <li><code>pi/slot_config.py</code> — 검사기</li>
+        <li><code>backend/</code> · <code>frontend/</code> · <code>vision/</code></li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="note">
+    <span class="tag">왜 이렇게 만들었나</span>
+    <p>
+      부품을 바꿀 때마다 백엔드와 화면을 같이 고쳐야 한다면, 팀마다 코드가 갈라져서
+      나중에 합칠 수 없게 됩니다. 그래서 <strong>"어디에 무엇을 꽂았는가"만 배치표에 적고</strong>,
+      나머지는 전부 키트가 알아서 하도록 만들었습니다.
+    </p>
+  </div>
+
+  <h3>배치표를 고치면 자동으로 일어나는 일</h3>
+  <div class="tablewrap compact">
+    <table>
+      <thead><tr><th>내가 한 일</th><th>자동으로 일어나는 일</th></tr></thead>
+      <tbody>
+        <tr><td>배치표에 한 줄 추가</td><td>대시보드에 카드가 생기고, 종류에 맞는 조작 위젯이 붙습니다</td></tr>
+        <tr><td>배치표에서 한 줄 삭제</td><td>대시보드에서 사라집니다 (기록은 남습니다)</td></tr>
+        <tr><td><code>label</code> 수정</td><td>대시보드 이름이 바뀝니다</td></tr>
+        <tr><td><code>unit</code> 추가</td><td>센서값 옆에 단위가 붙고 차트가 그려집니다</td></tr>
+        <tr><td><code>driver</code> 교체</td><td>조작 방법이 바뀝니다 (켜기/끄기 → 세기 조절 등)</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════════════════════ -->
+<section id="s2">
+  <h2><span class="num">02</span>배치표 한 줄은 이렇게 생겼습니다</h2>
+
+  <figure class="code">
+    <figcaption>pi/slot_map.py</figcaption>
+    <button class="copy" type="button">복사</button>
+<pre><span class="c"># 슬롯 이름          부품 이름              부품 종류</span>
+<span class="s">"actuator_01"</span>: {
+    <span class="s">"label"</span>: <span class="s">"알람 부저"</span>,      <span class="c"># 대시보드에 보일 이름 (한글로)</span>
+    <span class="s">"kind"</span>: <span class="s">"buzzer"</span>,          <span class="c"># 부품 종류</span>
+    <span class="s">"driver"</span>: <span class="s">"tonal_buzzer"</span>,  <span class="c"># 어떻게 다룰지 (drivers/ 폴더 이름)</span>
+    <span class="s">"pin"</span>: <span class="k">18</span>,                 <span class="c"># GPIO 번호 (BCM 기준!)</span>
+    <span class="s">"control_type"</span>: <span class="s">"tonal"</span>,   <span class="c"># 대시보드 위젯 모양</span>
+    <span class="s">"buzzer_type"</span>: <span class="s">"passive"</span>,  <span class="c"># 드라이버별 옵션</span>
+},</pre>
+  </figure>
+
+  <h3>슬롯 이름은 정해져 있습니다</h3>
+  <p>
+    이름을 마음대로 지을 수 없습니다. <strong>센서는 <code>sensor_01</code>~<code>sensor_10</code></strong>,
+    <strong>액추에이터는 <code>actuator_01</code>~<code>actuator_10</code></strong> 중에서 씁니다.
+    쓰지 않는 번호는 그냥 적지 않으면 됩니다. 번호를 건너뛰어도 괜찮습니다.
+  </p>
+  <div class="note warn">
+    <span class="tag">헷갈리지 마세요</span>
+    <p>
+      부품 이름(<code>servo_door</code> 같은 것)은 <strong>슬롯 이름이 아니라 <code>label</code>에</strong> 적습니다.
+      슬롯 이름은 자리 번호이고, 사람이 읽는 이름은 <code>label</code>입니다.
+    </p>
+  </div>
+
+  <h3>적을 수 있는 항목</h3>
+  <div class="tablewrap">
+    <table>
+      <thead><tr><th>항목</th><th>누가 쓰나</th><th>무엇</th></tr></thead>
+      <tbody>
+        <tr><td><code>label</code></td><td>둘 다</td><td>대시보드에 보일 이름. 한글로 적으세요</td></tr>
+        <tr><td><code>kind</code></td><td>둘 다</td><td>부품 종류. <code>control_type</code>을 안 적으면 이걸로 위젯을 짐작합니다</td></tr>
+        <tr><td><code>driver</code></td><td>둘 다</td><td><strong>필수.</strong> <code>drivers/</code> 폴더의 파일 이름</td></tr>
+        <tr><td><code>pin</code> / <code>pins</code></td><td>둘 다</td><td>GPIO 번호. 핀을 여러 개 쓰면 <code>pins</code></td></tr>
+        <tr><td><code>control_type</code></td><td>액추에이터</td><td>대시보드 위젯 모양. 생략하면 드라이버 기본값</td></tr>
+        <tr><td><code>value_schema</code></td><td>액추에이터</td><td>슬라이더 범위 — <code>{"min":0,"max":180,"step":5}</code></td></tr>
+        <tr><td><code>unit</code></td><td>센서</td><td>단위 — <code>"°C"</code> <code>"cm"</code> <code>"kg"</code></td></tr>
+        <tr><td><code>interval</code></td><td>센서</td><td>몇 초마다 읽을지 (기본 1초)</td></tr>
+        <tr><td><code>display_order</code></td><td>둘 다</td><td>대시보드 카드 순서 (작을수록 앞)</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>control_type — 대시보드에 어떤 조작 버튼이 나올지</h3>
+  <div class="tablewrap compact">
+    <table>
+      <thead><tr><th>값</th><th>대시보드에 나오는 것</th><th>주로 쓰는 부품</th></tr></thead>
+      <tbody>
+        <tr><td><code>onoff</code></td><td>켜기 / 끄기 스위치</td><td>LED, 릴레이</td></tr>
+        <tr><td><code>pulse</code></td><td>점멸 스위치</td><td>경보등</td></tr>
+        <tr><td><code>tonal</code></td><td>주파수·볼륨 조절</td><td>피에조 부저</td></tr>
+        <tr><td><code>pwm</code></td><td>세기 슬라이더</td><td>진동 모터, LED 밝기</td></tr>
+        <tr><td><code>servo</code></td><td>각도 슬라이더</td><td>서보모터</td></tr>
+        <tr><td><code>rgb</code></td><td>색상 선택기</td><td>네오픽셀, 3색 LED</td></tr>
+        <tr><td><code>level</code></td><td>단계 선택 (0·1·2·3)</td><td>혼잡도 표시등</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════════════════════ -->
+<section id="s3">
+  <h2><span class="num">03</span>GPIO 번호 — 가장 많이 틀리는 곳</h2>
+  <div class="note danger">
+    <span class="tag">반드시 BCM 번호</span>
+    <p>
+      배치표의 <code>pin</code>은 <strong>BCM(GPIO) 번호</strong>입니다.
+      보드에 꽂는 <strong>물리적 핀 위치 번호가 아닙니다.</strong>
+      예를 들어 <strong>GPIO 18번은 위에서 6번째 줄 오른쪽(물리 12번 자리)</strong>입니다.
+      이걸 헷갈리면 배선은 맞는데 아무 반응이 없습니다.
+    </p>
+  </div>
+
+  <div class="pinout">
+    <div class="pin-grid" role="img" aria-label="라즈베리파이 40핀 헤더 배치도. 왼쪽 열이 홀수 물리핀, 오른쪽 열이 짝수 물리핀입니다.">
+      <div class="hdr l">기능</div><div class="hdr n">핀</div><div class="hdr n">핀</div><div class="hdr r">기능</div>
+      <div class="l pwr">3V3</div>      <div class="n">1</div>  <div class="n">2</div>  <div class="r pwr">5V</div>
+      <div class="l gpio">GPIO 2</div>  <div class="n">3</div>  <div class="n">4</div>  <div class="r pwr">5V</div>
+      <div class="l gpio">GPIO 3</div>  <div class="n">5</div>  <div class="n">6</div>  <div class="r gnd">GND</div>
+      <div class="l gpio">GPIO 4</div>  <div class="n">7</div>  <div class="n">8</div>  <div class="r gpio">GPIO 14</div>
+      <div class="l gnd">GND</div>      <div class="n">9</div>  <div class="n">10</div> <div class="r gpio">GPIO 15</div>
+      <div class="l gpio">GPIO 17</div> <div class="n">11</div> <div class="n">12</div> <div class="r gpio">GPIO 18</div>
+      <div class="l gpio">GPIO 27</div> <div class="n">13</div> <div class="n">14</div> <div class="r gnd">GND</div>
+      <div class="l gpio">GPIO 22</div> <div class="n">15</div> <div class="n">16</div> <div class="r gpio">GPIO 23</div>
+      <div class="l pwr">3V3</div>      <div class="n">17</div> <div class="n">18</div> <div class="r gpio">GPIO 24</div>
+      <div class="l gpio">GPIO 10</div> <div class="n">19</div> <div class="n">20</div> <div class="r gnd">GND</div>
+      <div class="l gpio">GPIO 9</div>  <div class="n">21</div> <div class="n">22</div> <div class="r gpio">GPIO 25</div>
+      <div class="l gpio">GPIO 11</div> <div class="n">23</div> <div class="n">24</div> <div class="r gpio">GPIO 8</div>
+      <div class="l gnd">GND</div>      <div class="n">25</div> <div class="n">26</div> <div class="r gpio">GPIO 7</div>
+      <div class="l gnd">ID_SD</div>    <div class="n">27</div> <div class="n">28</div> <div class="r gnd">ID_SC</div>
+      <div class="l gpio">GPIO 5</div>  <div class="n">29</div> <div class="n">30</div> <div class="r gnd">GND</div>
+      <div class="l gpio">GPIO 6</div>  <div class="n">31</div> <div class="n">32</div> <div class="r gpio">GPIO 12</div>
+      <div class="l gpio">GPIO 13</div> <div class="n">33</div> <div class="n">34</div> <div class="r gnd">GND</div>
+      <div class="l gpio">GPIO 19</div> <div class="n">35</div> <div class="n">36</div> <div class="r gpio">GPIO 16</div>
+      <div class="l gpio">GPIO 26</div> <div class="n">37</div> <div class="n">38</div> <div class="r gpio">GPIO 20</div>
+      <div class="l gnd">GND</div>      <div class="n">39</div> <div class="n">40</div> <div class="r gpio">GPIO 21</div>
+    </div>
+    <div class="pin-legend">
+      <span class="g">GPIO — 배치표에 적는 번호</span>
+      <span class="p">전원 — 부품에 쓰지만 배치표에는 안 적습니다</span>
+      <span class="e">GND·예약 — 배치표에 안 적습니다</span>
+    </div>
+  </div>
+  <p style="font-family:var(--mono); font-size:12.5px; color:var(--ink-3); margin-top:10px">
+    USB 포트가 아래로 가도록 두었을 때, 왼쪽 위가 물리 1번입니다.
+  </p>
+
+  <h3>핀 하나에 부품 하나</h3>
+  <p>
+    같은 GPIO 번호를 두 슬롯에 적으면 검사기가 잡아 줍니다. 배선도 마찬가지입니다 —
+    <strong>한 GPIO 핀에는 부품 하나만</strong> 연결하세요.
+    GND는 여러 부품이 나눠 써도 됩니다.
+  </p>
+</section>
+
+<!-- ══════════════════════════════════════════════════════ -->
+<section id="s4">
+  <h2><span class="num">04</span>부품 추가하기 — 3단계</h2>
+
+  <ol class="steps">
+    <li>
+      <h3>배선하고 GPIO 번호를 적어 둡니다</h3>
+      <p>
+        전원을 <strong>끄고</strong> 연결하세요. 어느 GPIO에 꽂았는지 종이에 적어 둡니다 —
+        3번 항목의 배치도에서 BCM 번호를 확인하세요.
+      </p>
+    </li>
+    <li>
+      <h3><code>slot_map.py</code>에 한 줄 추가합니다</h3>
+      <p>빈 슬롯 번호를 하나 골라 적습니다. 5번 항목에서 부품에 맞는 코드를 복사해 오세요.</p>
+      <figure class="code">
+        <figcaption>예 — 경보 LED를 GPIO 23번에 추가</figcaption>
+        <button class="copy" type="button">복사</button>
+<pre>    <span class="s">"actuator_02"</span>: {
+        <span class="s">"label"</span>: <span class="s">"경보 LED"</span>,
+        <span class="s">"kind"</span>: <span class="s">"led"</span>,
+        <span class="s">"driver"</span>: <span class="s">"digital_out"</span>,
+        <span class="s">"pin"</span>: <span class="k">23</span>,
+        <span class="s">"control_type"</span>: <span class="s">"onoff"</span>,
+    },</pre>
+      </figure>
+    </li>
+    <li>
+      <h3>확인하고 데몬을 다시 실행합니다</h3>
+      <figure class="code">
+        <button class="copy" type="button">복사</button>
+<pre>cd pi
+python daemon.py --check   <span class="c"># 배선·배치표만 확인 (백엔드 없이 됩니다)</span>
+python daemon.py           <span class="c"># 실제 실행</span></pre>
+      </figure>
+      <p>대시보드(<code>localhost:3000</code>)를 새로고침하면 카드가 나타납니다.</p>
+    </li>
+  </ol>
+
+  <div class="note">
+    <span class="tag">파이가 없어도 됩니다</span>
+    <p>
+      PC에서 실행하면 GPIO가 없으므로 <strong>흉내내기 모드</strong>로 돕니다.
+      배치표가 맞는지, 대시보드에 카드가 제대로 나오는지는 파이 없이도 전부 확인할 수 있습니다.
+      <code>--check</code>에 "흉내내기 모드"라고 나오면 PC에서는 정상입니다.
+    </p>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════════════════════ -->
+<section id="s5">
+  <h2><span class="num">05</span>드라이버 11종 — 부품에 맞는 것을 고르세요</h2>
+  <p class="lede">
+    <code>driver</code>에 적는 이름입니다. 부품에 맞는 카드를 찾아 코드를 복사해 쓰세요.
+    <span style="color:var(--danger); font-weight:600">빨간 항목은 반드시 적어야 하는 것</span>입니다.
+  </p>
+
+  <div class="filterbar">
+    <input id="drv-search" type="search" placeholder="부품 이름으로 찾기 — LED, 부저, 서보, 온도, 거리…" aria-label="드라이버 검색">
+    <div class="chips">
+      <button class="chip" type="button" id="chip-all" data-role="all" aria-pressed="true">전체</button>
+      <button class="chip" type="button" id="chip-act" data-role="actuator" aria-pressed="false">액추에이터 7</button>
+      <button class="chip" type="button" id="chip-sen" data-role="sensor" aria-pressed="false">센서 4</button>
+    </div>
+  </div>
+
+  <div id="drv-list">
+
+    <!-- ── 액추에이터 ───────────────────────────── -->
+    <article class="drv" data-role="actuator" data-keys="digital_out LED 릴레이 능동부저 스위치 켜기 끄기 relay">
+      <div class="drv-head">
+        <span class="drv-name">digital_out</span>
+        <span class="drv-role act">액추에이터</span>
+        <span class="drv-ct">control_type: onoff (blink 쓰면 pulse)</span>
+      </div>
+      <p class="drv-use">켜고 끄기만 하는 부품 — LED, 릴레이, 능동 부저.</p>
+      <dl>
+        <dt>필수</dt><dd class="req"><code>pin</code></dd>
+        <dt>선택</dt><dd><code>active_high</code> 기본 <code>True</code> · <code>blink</code> 기본 <code>False</code>(<code>True</code>면 점멸)</dd>
+      </dl>
+      <figure class="code"><button class="copy" type="button">복사</button>
+<pre>    <span class="s">"actuator_02"</span>: {
+        <span class="s">"label"</span>: <span class="s">"경보 LED"</span>, <span class="s">"kind"</span>: <span class="s">"led"</span>,
+        <span class="s">"driver"</span>: <span class="s">"digital_out"</span>, <span class="s">"pin"</span>: <span class="k">23</span>,
+        <span class="s">"control_type"</span>: <span class="s">"onoff"</span>,
+    },</pre></figure>
+    </article>
+
+    <article class="drv" data-role="actuator" data-keys="pwm_out 진동모터 밝기 세기 모터 vibration 조절">
+      <div class="drv-head">
+        <span class="drv-name">pwm_out</span>
+        <span class="drv-role act">액추에이터</span>
+        <span class="drv-ct">control_type: pwm</span>
+      </div>
+      <p class="drv-use">세기를 조절하는 부품 — 진동 모터, LED 밝기, DC 모터 속도.</p>
+      <dl>
+        <dt>필수</dt><dd class="req"><code>pin</code></dd>
+        <dt>선택</dt><dd><code>frequency</code> 기본 <code>100</code> · <code>default_duty</code> 기본 <code>100</code> · <code>min_level</code> 기본 <code>0</code></dd>
+      </dl>
+      <figure class="code"><button class="copy" type="button">복사</button>
+<pre>    <span class="s">"actuator_03"</span>: {
+        <span class="s">"label"</span>: <span class="s">"방석 진동 모터"</span>, <span class="s">"kind"</span>: <span class="s">"vibration_motor"</span>,
+        <span class="s">"driver"</span>: <span class="s">"pwm_out"</span>, <span class="s">"pin"</span>: <span class="k">19</span>,
+        <span class="s">"control_type"</span>: <span class="s">"pwm"</span>,
+    },</pre></figure>
+    </article>
+
+    <article class="drv" data-role="actuator" data-keys="tonal_buzzer 부저 피에조 소리 알람 buzzer 스피커">
+      <div class="drv-head">
+        <span class="drv-name">tonal_buzzer</span>
+        <span class="drv-role act">액추에이터</span>
+        <span class="drv-ct">control_type: tonal</span>
+      </div>
+      <p class="drv-use">소리를 내는 부품 — 피에조 부저. 주파수를 바꿔 음을 만들 수 있습니다.</p>
+      <dl>
+        <dt>필수</dt><dd class="req"><code>pin</code></dd>
+        <dt>선택</dt><dd><code>buzzer_type</code> 기본 <code>"passive"</code> — 소리가 안 나면 <code>"active"</code>로 바꿔 보세요</dd>
+      </dl>
+      <figure class="code"><button class="copy" type="button">복사</button>
+<pre>    <span class="s">"actuator_01"</span>: {
+        <span class="s">"label"</span>: <span class="s">"알람 부저"</span>, <span class="s">"kind"</span>: <span class="s">"buzzer"</span>,
+        <span class="s">"driver"</span>: <span class="s">"tonal_buzzer"</span>, <span class="s">"pin"</span>: <span class="k">18</span>,
+        <span class="s">"control_type"</span>: <span class="s">"tonal"</span>, <span class="s">"buzzer_type"</span>: <span class="s">"passive"</span>,
+    },</pre></figure>
+    </article>
+
+    <article class="drv" data-role="actuator" data-keys="servo 서보 각도 문 자동문 모터 회전">
+      <div class="drv-head">
+        <span class="drv-name">servo</span>
+        <span class="drv-role act">액추에이터</span>
+        <span class="drv-ct">control_type: servo</span>
+      </div>
+      <p class="drv-use">각도를 지정하는 부품 — 서보모터(SG90 등). 자동문, 차단기.</p>
+      <dl>
+        <dt>필수</dt><dd class="req"><code>pin</code></dd>
+        <dt>선택</dt><dd><code>min_angle</code> 기본 <code>0</code> · <code>max_angle</code> 기본 <code>180</code> · <code>rest_angle</code> · <code>value_schema</code></dd>
+      </dl>
+      <figure class="code"><button class="copy" type="button">복사</button>
+<pre>    <span class="s">"actuator_04"</span>: {
+        <span class="s">"label"</span>: <span class="s">"자동문"</span>, <span class="s">"kind"</span>: <span class="s">"servo"</span>,
+        <span class="s">"driver"</span>: <span class="s">"servo"</span>, <span class="s">"pin"</span>: <span class="k">12</span>,
+        <span class="s">"control_type"</span>: <span class="s">"servo"</span>,
+        <span class="s">"value_schema"</span>: {<span class="s">"min"</span>: <span class="k">0</span>, <span class="s">"max"</span>: <span class="k">180</span>, <span class="s">"step"</span>: <span class="k">5</span>},
+    },</pre></figure>
+      <div class="note warn" style="margin-bottom:0">
+        <span class="tag">서보만 다릅니다</span>
+        <p>서보는 켤 때 상태가 <code>"on"</code>이 아니라 <code>"move"</code>입니다. 화면이나 규칙에서 서보를 다룰 때 기억하세요.</p>
+      </div>
+    </article>
+
+    <article class="drv" data-role="actuator" data-keys="neopixel_out 네오픽셀 LED스트립 색상 rgb ws2812 좌석표시등">
+      <div class="drv-head">
+        <span class="drv-name">neopixel_out</span>
+        <span class="drv-role act">액추에이터</span>
+        <span class="drv-ct">control_type: rgb</span>
+      </div>
+      <p class="drv-use">데이터선 <strong>한 가닥</strong>으로 여러 알을 제어하는 LED — 네오픽셀(WS2812).</p>
+      <dl>
+        <dt>필수</dt><dd class="req"><code>pin</code></dd>
+        <dt>선택</dt><dd><code>count</code> 기본 <code>8</code> (LED 알 개수) · <code>default_color</code> 기본 <code>"#ffffff"</code></dd>
+      </dl>
+      <figure class="code"><button class="copy" type="button">복사</button>
+<pre>    <span class="s">"actuator_05"</span>: {
+        <span class="s">"label"</span>: <span class="s">"좌석 표시등"</span>, <span class="s">"kind"</span>: <span class="s">"neopixel"</span>,
+        <span class="s">"driver"</span>: <span class="s">"neopixel_out"</span>, <span class="s">"pin"</span>: <span class="k">21</span>,
+        <span class="s">"control_type"</span>: <span class="s">"rgb"</span>, <span class="s">"count"</span>: <span class="k">8</span>,
+    },</pre></figure>
+      <div class="note warn" style="margin-bottom:0">
+        <span class="tag">추가 준비가 필요합니다</span>
+        <p>네오픽셀은 별도 라이브러리가 필요하고, 파이에서 <kbd>sudo</kbd> 권한을 요구하는 경우가 많습니다.
+           준비가 안 되어 있으면 색만 로그로 보여 주고 넘어갑니다 — 프로그램은 죽지 않습니다.</p>
+      </div>
+    </article>
+
+    <article class="drv" data-role="actuator" data-keys="rgb_out 3색LED 삼색 무드등 color 애노드 캐소드">
+      <div class="drv-head">
+        <span class="drv-name">rgb_out</span>
+        <span class="drv-role act">액추에이터</span>
+        <span class="drv-ct">control_type: rgb</span>
+      </div>
+      <p class="drv-use">핀 <strong>3개(+공통)</strong>를 쓰는 3색 LED. 추가 라이브러리도 sudo도 필요 없습니다.</p>
+      <dl>
+        <dt>필수</dt><dd class="req"><code>pins</code> — <code>{"r":17,"g":27,"b":22}</code></dd>
+        <dt>선택</dt><dd><code>common_anode</code> 기본 <code>False</code> · <code>frequency</code> 기본 <code>200</code> · <code>default_color</code></dd>
+      </dl>
+      <figure class="code"><button class="copy" type="button">복사</button>
+<pre>    <span class="s">"actuator_06"</span>: {
+        <span class="s">"label"</span>: <span class="s">"무드등"</span>, <span class="s">"kind"</span>: <span class="s">"rgb_led"</span>,
+        <span class="s">"driver"</span>: <span class="s">"rgb_out"</span>,
+        <span class="s">"pins"</span>: {<span class="s">"r"</span>: <span class="k">17</span>, <span class="s">"g"</span>: <span class="k">27</span>, <span class="s">"b"</span>: <span class="k">22</span>},
+        <span class="s">"control_type"</span>: <span class="s">"rgb"</span>,
+    },</pre></figure>
+      <div class="note" style="margin-bottom:0">
+        <span class="tag">어느 쪽인지 헷갈리면</span>
+        <p><strong>핀 개수로 구분하세요.</strong> 다리가 4개(R·G·B·공통)면 <code>rgb_out</code>,
+           데이터선 1개로 여러 알을 켜면 <code>neopixel_out</code>입니다.</p>
+      </div>
+    </article>
+
+    <article class="drv" data-role="actuator" data-keys="level_out 단계 혼잡도 막대 LED여러개 게이지">
+      <div class="drv-head">
+        <span class="drv-name">level_out</span>
+        <span class="drv-role act">액추에이터</span>
+        <span class="drv-ct">control_type: level</span>
+      </div>
+      <p class="drv-use">LED 여러 개를 <strong>단계</strong>로 켭니다 — 혼잡도 표시등, 게이지. 2단계면 앞에서부터 2개가 켜집니다.</p>
+      <dl>
+        <dt>필수</dt><dd class="req"><code>pins</code> — <code>[5, 6, 13]</code></dd>
+        <dt>선택</dt><dd><code>active_high</code> 기본 <code>True</code> · <code>value_schema</code>로 단계 수 지정</dd>
+      </dl>
+      <figure class="code"><button class="copy" type="button">복사</button>
+<pre>    <span class="s">"actuator_07"</span>: {
+        <span class="s">"label"</span>: <span class="s">"혼잡도 표시등"</span>, <span class="s">"kind"</span>: <span class="s">"level_led"</span>,
+        <span class="s">"driver"</span>: <span class="s">"level_out"</span>, <span class="s">"pins"</span>: [<span class="k">5</span>, <span class="k">6</span>, <span class="k">13</span>],
+        <span class="s">"control_type"</span>: <span class="s">"level"</span>,
+        <span class="s">"value_schema"</span>: {<span class="s">"min"</span>: <span class="k">0</span>, <span class="s">"max"</span>: <span class="k">3</span>, <span class="s">"step"</span>: <span class="k">1</span>},
+    },</pre></figure>
+    </article>
+
+    <!-- ── 센서 ─────────────────────────────────── -->
+    <article class="drv" data-role="sensor" data-keys="button_in 버튼 터치 PIR 스위치 인체감지 누름">
+      <div class="drv-head">
+        <span class="drv-name">button_in</span>
+        <span class="drv-role sen">센서</span>
+        <span class="drv-ct">눌림 / 안 눌림</span>
+      </div>
+      <p class="drv-use">눌렸는지 아닌지만 보는 부품 — 푸시버튼, 정전식 터치센서, PIR 인체감지.</p>
+      <dl>
+        <dt>필수</dt><dd class="req"><code>pin</code></dd>
+        <dt>선택</dt><dd><code>pull_up</code> 기본 <code>True</code> · <code>bounce_time</code> 기본 <code>0.05</code>초</dd>
+      </dl>
+      <figure class="code"><button class="copy" type="button">복사</button>
+<pre>    <span class="s">"sensor_01"</span>: {
+        <span class="s">"label"</span>: <span class="s">"기상 확인 버튼"</span>, <span class="s">"kind"</span>: <span class="s">"button"</span>,
+        <span class="s">"driver"</span>: <span class="s">"button_in"</span>, <span class="s">"pin"</span>: <span class="k">24</span>,
+        <span class="s">"pull_up"</span>: <span class="k">True</span>,
+    },</pre></figure>
+      <div class="note warn" style="margin-bottom:0">
+        <span class="tag">반대로 동작하면 pull_up을 뒤집으세요</span>
+        <p>일반 푸시버튼은 <code>True</code>, <strong>정전식 터치센서와 PIR은 <code>False</code></strong>입니다.
+           안 눌렀는데 계속 눌린 것으로 나오면 이 값을 바꿔 보세요.</p>
+      </div>
+    </article>
+
+    <article class="drv" data-role="sensor" data-keys="dht_in 온도 습도 온습도 DHT22 DHT11 temperature humidity">
+      <div class="drv-head">
+        <span class="drv-name">dht_in</span>
+        <span class="drv-role sen">센서</span>
+        <span class="drv-ct">숫자 — 차트가 그려집니다</span>
+      </div>
+      <p class="drv-use">온도·습도 센서 — DHT22 / DHT11.</p>
+      <dl>
+        <dt>필수</dt><dd class="req"><code>pin</code></dd>
+        <dt>선택</dt><dd><code>measure</code> 기본 <code>"temperature"</code> (<code>"humidity"</code> 가능) · <code>model</code> 기본 <code>"DHT22"</code> · <code>interval</code> 기본 <code>5.0</code> · <code>decimals</code> 기본 <code>1</code></dd>
+      </dl>
+      <figure class="code"><button class="copy" type="button">복사</button>
+<pre>    <span class="s">"sensor_02"</span>: {
+        <span class="s">"label"</span>: <span class="s">"실내 온도"</span>, <span class="s">"kind"</span>: <span class="s">"temperature"</span>, <span class="s">"unit"</span>: <span class="s">"°C"</span>,
+        <span class="s">"driver"</span>: <span class="s">"dht_in"</span>, <span class="s">"pin"</span>: <span class="k">4</span>, <span class="s">"interval"</span>: <span class="k">5.0</span>,
+    },</pre></figure>
+      <div class="note warn" style="margin-bottom:0">
+        <span class="tag">느린 센서입니다</span>
+        <p><code>interval</code>을 <strong>5초 이상</strong>으로 두세요. 2초 미만이면 읽기에 실패합니다.
+           가끔 실패하는 것은 이 센서의 정상 동작이며, 다음 회차에 다시 읽습니다.</p>
+        <p style="margin-top:8px">
+          온도와 습도를 <strong>둘 다</strong> 쓰려면 슬롯을 2개로 나누고 한쪽에
+          <code>"measure": "humidity"</code>를 적습니다. 같은 핀을 쓰게 되므로
+          <code>--check</code>가 핀 중복을 경고하는데, <strong>이 경우는 센서가 하나이므로 정상</strong>입니다.
+          실기기에서는 두 값이 모두 갱신되는지 확인하세요.
+        </p>
+      </div>
+    </article>
+
+    <article class="drv" data-role="sensor" data-keys="analog_in 압력 조도 아날로그 ADC MCP3008 가변저항 빛">
+      <div class="drv-head">
+        <span class="drv-name">analog_in</span>
+        <span class="drv-role sen">센서</span>
+        <span class="drv-ct">숫자 — 차트가 그려집니다</span>
+      </div>
+      <p class="drv-use">아날로그 값을 읽는 부품 — 압력(FSR), 조도(CDS), 가변저항.</p>
+      <dl>
+        <dt>필수</dt><dd class="req"><code>channel</code></dd>
+        <dt>선택</dt><dd><code>adc</code> 기본 <code>"MCP3008"</code> · <code>scale</code> 기본 <code>100</code> · <code>offset</code> 기본 <code>0</code> · <code>deadband</code> 기본 <code>0</code> · <code>decimals</code> 기본 <code>1</code></dd>
+      </dl>
+      <figure class="code"><button class="copy" type="button">복사</button>
+<pre>    <span class="s">"sensor_03"</span>: {
+        <span class="s">"label"</span>: <span class="s">"좌석 압력"</span>, <span class="s">"kind"</span>: <span class="s">"pressure"</span>, <span class="s">"unit"</span>: <span class="s">"kg"</span>,
+        <span class="s">"driver"</span>: <span class="s">"analog_in"</span>, <span class="s">"channel"</span>: <span class="k">0</span>,
+        <span class="s">"scale"</span>: <span class="k">120</span>, <span class="s">"deadband"</span>: <span class="k">0.5</span>,
+    },</pre></figure>
+      <div class="note danger" style="margin-bottom:0">
+        <span class="tag">ADC가 반드시 필요합니다</span>
+        <p>라즈베리파이에는 <strong>아날로그 입력 핀이 없습니다.</strong>
+           MCP3008 같은 ADC 칩을 거쳐야 읽을 수 있고, 배치표에는 GPIO 번호가 아니라
+           <strong>ADC 채널 번호(0~7)</strong>를 적습니다.</p>
+      </div>
+    </article>
+
+    <article class="drv" data-role="sensor" data-keys="distance_in 거리 초음파 HC-SR04 ultrasonic 출입문">
+      <div class="drv-head">
+        <span class="drv-name">distance_in</span>
+        <span class="drv-role sen">센서</span>
+        <span class="drv-ct">숫자(cm) — 차트가 그려집니다</span>
+      </div>
+      <p class="drv-use">초음파 거리 센서 — HC-SR04. 출입 감지, 물체 접근.</p>
+      <dl>
+        <dt>필수</dt><dd class="req"><code>trigger_pin</code></dd>
+        <dt>필수</dt><dd class="req"><code>echo_pin</code></dd>
+        <dt>선택</dt><dd><code>max_distance_cm</code> 기본 <code>200</code> · <code>deadband</code> 기본 <code>1.0</code> · <code>decimals</code> 기본 <code>1</code></dd>
+      </dl>
+      <figure class="code"><button class="copy" type="button">복사</button>
+<pre>    <span class="s">"sensor_04"</span>: {
+        <span class="s">"label"</span>: <span class="s">"출입문 거리"</span>, <span class="s">"kind"</span>: <span class="s">"distance"</span>, <span class="s">"unit"</span>: <span class="s">"cm"</span>,
+        <span class="s">"driver"</span>: <span class="s">"distance_in"</span>,
+        <span class="s">"trigger_pin"</span>: <span class="k">20</span>, <span class="s">"echo_pin"</span>: <span class="k">16</span>,
+        <span class="s">"interval"</span>: <span class="k">0.5</span>,
+    },</pre></figure>
+      <div class="note danger" style="margin-bottom:0">
+        <span class="tag">ECHO 핀에 분압저항을 꼭 넣으세요</span>
+        <p>HC-SR04의 ECHO는 <strong>5V로 나옵니다.</strong> GPIO는 3.3V용이라
+           그냥 연결하면 핀이 상합니다. 저항 2개로 분압해서 연결하세요.</p>
+      </div>
+    </article>
+
+  </div>
+  <p id="drv-empty" hidden style="color:var(--ink-3); font-family:var(--mono); font-size:13.5px">
+    찾는 부품이 없습니다. 검색어를 지우고 전체를 훑어보세요.
+  </p>
+</section>
+
+<!-- ══════════════════════════════════════════════════════ -->
+<section id="s6">
+  <h2><span class="num">06</span>제거 · 핀 변경 · 부품 교체</h2>
+
+  <h3>부품을 뗄 때</h3>
+  <p>배치표에서 <strong>그 줄을 지우면 끝</strong>입니다. 대시보드에서도 사라집니다.</p>
+  <div class="note">
+    <span class="tag">기록은 지워지지 않습니다</span>
+    <p>
+      줄을 지워도 그동안 쌓인 센서 기록은 DB에 남습니다. 대시보드에서 안 보이게 될 뿐입니다.
+      나중에 같은 슬롯에 그 줄을 다시 적으면 이어서 씁니다.
+    </p>
+  </div>
+
+  <h3>핀을 바꿨을 때</h3>
+  <p><code>pin</code> 값만 새 번호로 고칩니다. 다른 것은 그대로 둡니다.</p>
+
+  <h3>부품 종류를 바꿨을 때</h3>
+  <div class="tablewrap compact">
+    <table>
+      <thead><tr><th>바꾼 내용</th><th>배치표에서 고칠 것</th></tr></thead>
+      <tbody>
+        <tr><td>능동 부저 → 피에조 부저</td><td><code>buzzer_type</code>을 <code>"active"</code> → <code>"passive"</code></td></tr>
+        <tr><td>그냥 LED → 밝기 조절 LED</td><td><code>driver</code>를 <code>digital_out</code> → <code>pwm_out</code>, <code>control_type</code>도 <code>pwm</code>으로</td></tr>
+        <tr><td>푸시버튼 → 정전식 터치</td><td><code>pull_up</code>을 <code>True</code> → <code>False</code></td></tr>
+        <tr><td>3색 LED → 네오픽셀</td><td><code>driver</code>를 <code>rgb_out</code> → <code>neopixel_out</code>, <code>pins</code>를 <code>pin</code> 하나로</td></tr>
+        <tr><td>DHT11 → DHT22</td><td><code>model</code>을 <code>"DHT22"</code>로 (기본값이라 지워도 됩니다)</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>슬롯 자리를 옮길 때</h3>
+  <p>
+    <code>actuator_02</code>에 있던 것을 <code>actuator_05</code>로 옮기면,
+    대시보드에서는 <strong>새 부품이 생기고 옛 부품이 사라진 것</strong>으로 보입니다.
+    옛 슬롯의 기록과 이어지지 않으니, 특별한 이유가 없으면 자리를 옮기지 마세요.
+  </p>
+</section>
+
+<!-- ══════════════════════════════════════════════════════ -->
+<section id="s7">
+  <h2><span class="num">07</span>확인하기 — <code>--check</code> 읽는 법</h2>
+  <p class="lede">
+    고친 뒤에는 데몬을 켜기 전에 <strong>반드시 한 번</strong> 확인하세요.
+    백엔드도 배선도 없이 돌아갑니다.
+  </p>
+
+  <figure class="code"><button class="copy" type="button">복사</button>
+<pre>cd pi
+python daemon.py --check</pre></figure>
+
+  <h3>정상일 때</h3>
+  <figure class="code">
+    <figcaption>실제 출력</figcaption>
+<pre><span class="c">====================================================================
+ 라즈베리파이 슬롯 데몬 — 시작 점검
+====================================================================</span>
+ 백엔드      : http://localhost:8000
+ 디바이스 키 : 없음 (pi/.env의 DEVICE_API_KEY를 채우세요)
+ 하드웨어    : 흉내내기 모드 — ModuleNotFoundError: No module named 'gpiozero'
+               (PC에서는 정상입니다. 파이에서 이 메시지가 보이면 배선·권한을 확인하세요)
+
+ 배치표 슬롯 2개
+   actuator_01   알람 부저            tonal_buzzer   GPIO 18
+   sensor_01     기상 확인 버튼         button_in      GPIO 24
+<span class="c">====================================================================</span></pre>
+  </figure>
+
+  <div class="tablewrap compact">
+    <table>
+      <thead><tr><th>이 줄</th><th>확인할 것</th></tr></thead>
+      <tbody>
+        <tr><td>백엔드</td><td>파이에서 실행한다면 <code>localhost</code>가 아니라 <strong>PC의 실제 IP</strong>여야 합니다</td></tr>
+        <tr><td>디바이스 키</td><td>"없음"이면 <code>pi/.env</code>의 <code>DEVICE_API_KEY</code>를 채우세요</td></tr>
+        <tr><td>하드웨어</td><td>PC에서는 "흉내내기 모드"가 정상. <strong>파이에서 이게 뜨면 문제</strong>입니다</td></tr>
+        <tr><td>배치표 슬롯</td><td>내가 적은 부품이 전부 나오는지, GPIO 번호가 맞는지</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>문제가 있을 때</h3>
+  <figure class="code">
+<pre> 배치표 슬롯 3개
+   actuator_01   알람 부저            tonal_buzzer   GPIO 18
+   actuator_02   경보 LED           digital_out    GPIO 17
+   actuator_03   진동 모터            pwm_out        GPIO 17
+
+ <span class="s">⚠ 고쳐야 할 것 1개 (이 줄만 빼고 나머지는 동작합니다)</span>
+   · GPIO 17번을 actuator_02와 actuator_03가 같이 쓰고 있습니다. 핀 하나에 부품 하나만 연결하세요.</pre>
+  </figure>
+  <p>
+    <strong>문제가 있는 줄만 빠지고 나머지는 그대로 동작합니다.</strong>
+    오타 하나 때문에 전체가 멈추면 수업이 진행되지 않으니 그렇게 만들었습니다.
+  </p>
+
+  <h3>배치표를 고친 뒤 도는 자가 점검</h3>
+  <figure class="code"><button class="copy" type="button">복사</button>
+<pre>cd pi
+python test_slot_daemon.py     <span class="c"># 드라이버·배치표 규약 (39항목)</span>
+python test_team_examples.py   <span class="c"># 팀별 예시 배치표 (32항목)</span></pre></figure>
+</section>
+
+<!-- ══════════════════════════════════════════════════════ -->
+<section id="s8">
+  <h2><span class="num">08</span>오류 메시지 사전</h2>
+  <p class="lede">
+    <code>--check</code>가 보여 주는 메시지 그대로입니다. 화면에 나온 문장을 여기서 찾으세요.
+  </p>
+
+  <div class="tablewrap">
+    <table>
+      <thead><tr><th style="width:46%">화면에 나온 말</th><th>무엇이 잘못됐나 · 어떻게 고치나</th></tr></thead>
+      <tbody>
+        <tr>
+          <td><code>'actuator_1'는 슬롯 이름이 아닙니다</code></td>
+          <td>번호를 <strong>두 자리</strong>로 적어야 합니다. <code>actuator_1</code> → <code>actuator_01</code></td>
+        </tr>
+        <tr>
+          <td><code>'driver'를 적어야 합니다</code></td>
+          <td><code>driver</code> 항목을 빠뜨렸습니다. 5번 항목에서 부품에 맞는 이름을 골라 적으세요</td>
+        </tr>
+        <tr>
+          <td><code>드라이버 'led_out'을(를) 찾을 수 없습니다</code></td>
+          <td>그런 이름의 드라이버가 없습니다. 메시지 뒤에 쓸 수 있는 이름 11개가 같이 나옵니다</td>
+        </tr>
+        <tr>
+          <td><code>sensor_02는 sensor 슬롯인데 드라이버 'digital_out'은(는) actuator용입니다</code></td>
+          <td>센서 자리에 액추에이터 부품을 적었습니다. 슬롯 번호를 <code>actuator_NN</code>으로 바꾸세요</td>
+        </tr>
+        <tr>
+          <td><code>GPIO 17번을 actuator_02와 actuator_03가 같이 쓰고 있습니다</code></td>
+          <td>같은 핀을 두 곳에 적었습니다. 한쪽 <code>pin</code>을 다른 번호로 바꾸세요
+              <br><span style="color:var(--ink-3)">예외: 온도·습도를 한 DHT 센서에서 둘 다 읽는 경우는 정상입니다</span></td>
+        </tr>
+        <tr>
+          <td><code>'pin'에는 핀 번호 하나만 적습니다</code></td>
+          <td><code>"pin": [17, 27, 22]</code>처럼 적었습니다. 핀이 여러 개면 <code>pins</code>에 적으세요</td>
+        </tr>
+        <tr>
+          <td><code>'pin'에 적은 핀 번호가 숫자가 아닙니다 ('17')</code></td>
+          <td>따옴표가 붙어 있습니다. <code>"pin": "17"</code> → <code>"pin": 17</code></td>
+        </tr>
+        <tr>
+          <td><code>'pins'는 목록이나 딕셔너리여야 합니다</code></td>
+          <td><code>"pins": 5</code>처럼 적었습니다. <code>[5, 6, 13]</code> 또는 <code>{"r":17,"g":27,"b":22}</code></td>
+        </tr>
+        <tr>
+          <td><code>slot_map.py를 읽지 못했습니다: ...</code></td>
+          <td>파이썬 문법 오류입니다. 쉼표·중괄호·따옴표가 빠지지 않았는지 보세요</td>
+        </tr>
+        <tr>
+          <td><code>401 Unauthorized</code></td>
+          <td><code>backend/.env</code>와 <code>pi/.env</code>의 <code>DEVICE_API_KEY</code>가 다릅니다. 똑같이 맞추세요</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════════════════════ -->
+<section id="s9">
+  <h2><span class="num">09</span>자주 하는 실수</h2>
+
+  <div class="tablewrap">
+    <table>
+      <thead><tr><th style="width:38%">증상</th><th>원인과 해결</th></tr></thead>
+      <tbody>
+        <tr>
+          <td>배선은 맞는데 <strong>아무 반응이 없다</strong></td>
+          <td><strong>물리 핀 번호를 적었을 가능성이 가장 큽니다.</strong> 3번 항목의 배치도로 BCM 번호를 확인하세요</td>
+        </tr>
+        <tr>
+          <td>대시보드에 <strong>카드가 안 생긴다</strong></td>
+          <td>파이에서 <code>python daemon.py</code>가 돌고 있어야 슬롯이 등록됩니다. <code>--check</code>로 먼저 확인</td>
+        </tr>
+        <tr>
+          <td>카드는 있는데 <strong>"하드웨어 반영 대기"</strong>에서 안 바뀐다</td>
+          <td>데몬이 꺼져 있거나, <code>BACKEND_URL</code>이 파이에서 <code>localhost</code>로 되어 있습니다 (PC의 실제 IP를 쓰세요)</td>
+        </tr>
+        <tr>
+          <td>버튼을 <strong>안 눌렀는데 눌린 것으로</strong> 나온다</td>
+          <td><code>pull_up</code>을 뒤집으세요. 정전식 터치·PIR은 <code>False</code>입니다</td>
+        </tr>
+        <tr>
+          <td>부저에서 <strong>소리가 안 난다</strong></td>
+          <td><code>buzzer_type</code>을 <code>"passive"</code> ↔ <code>"active"</code>로 바꿔 보세요</td>
+        </tr>
+        <tr>
+          <td>센서값이 <strong>차트로 안 그려진다</strong></td>
+          <td><code>unit</code>을 적었는지 확인하세요. 숫자 센서는 단위가 있어야 차트가 붙습니다</td>
+        </tr>
+        <tr>
+          <td>온습도 센서가 <strong>가끔 값을 안 준다</strong></td>
+          <td>DHT의 정상 동작입니다. <code>interval</code>이 5초 이상인지만 확인하세요</td>
+        </tr>
+        <tr>
+          <td>파이에서 <strong>"흉내내기 모드"</strong>가 뜬다</td>
+          <td>GPIO 라이브러리를 못 열었습니다. <code>pi/.env</code>의 <code>GPIOZERO_PIN_FACTORY=lgpio</code>와 권한을 확인하세요</td>
+        </tr>
+        <tr>
+          <td>고쳤는데 <strong>반영이 안 된다</strong></td>
+          <td>데몬을 껐다 다시 켜세요. 배치표는 시작할 때 한 번 읽습니다</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="note danger">
+    <span class="tag">배선할 때</span>
+    <p>
+      부품을 연결하거나 뺄 때는 <strong>파이 전원을 끄세요.</strong>
+      GPIO는 3.3V입니다 — 5V 신호를 직접 넣으면 핀이 상합니다.
+      모터처럼 전류를 많이 쓰는 부품은 파이에서 직접 전원을 뽑지 말고 <strong>별도 전원</strong>을 쓰세요.
+    </p>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════════════════════ -->
+<section id="s10">
+  <h2><span class="num">10</span>팀별 예시 배치표</h2>
+  <p class="lede">
+    <code>pi/examples/</code>에 4팀 예시가 들어 있습니다. 복사해서 시작하세요.
+  </p>
+
+  <figure class="code"><button class="copy" type="button">복사</button>
+<pre>cd pi
+cp examples/slot_map_study.py slot_map.py     <span class="c"># study 팀</span>
+python daemon.py --check</pre></figure>
+
+  <div class="tablewrap compact">
+    <table>
+      <thead><tr><th>팀</th><th>파일</th><th>들어 있는 부품</th></tr></thead>
+      <tbody>
+        <tr><td>wakeup</td><td><code>slot_map_wakeup.py</code></td><td>알람 부저, 기상 확인 버튼</td></tr>
+        <tr><td>study</td><td><code>slot_map_study.py</code></td><td>스탠드 RGB 조명, 등받이·방석 진동 모터, 스탠드 릴레이, 터치 입력</td></tr>
+        <tr><td>classroom</td><td><code>slot_map_classroom.py</code></td><td>교실 환경·출입 관련 부품 5개</td></tr>
+        <tr><td>subway</td><td><code>slot_map_subway.py</code></td><td>혼잡도 표시 관련 부품 3개</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="note">
+    <span class="tag">예시는 예시입니다</span>
+    <p>
+      핀 번호는 <strong>실제 배선에 맞게 고쳐야 합니다.</strong>
+      예시의 번호를 그대로 두고 다른 곳에 꽂으면 동작하지 않습니다.
+    </p>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════════════════════ -->
+<section id="s11">
+  <h2><span class="num">11</span>고치고 나서 확인할 것</h2>
+
+  <ul class="check">
+    <li><input type="checkbox" id="c1"><label for="c1">전원을 끄고 배선했다</label></li>
+    <li><input type="checkbox" id="c2"><label for="c2">배치표의 <code>pin</code>이 <strong>BCM 번호</strong>다 (물리 핀 번호가 아니다)</label></li>
+    <li><input type="checkbox" id="c3"><label for="c3">슬롯 번호를 두 자리로 적었다 — <code>actuator_02</code></label></li>
+    <li><input type="checkbox" id="c4"><label for="c4">같은 GPIO 번호를 두 군데 적지 않았다</label></li>
+    <li><input type="checkbox" id="c5"><label for="c5">센서에는 <code>unit</code>을, 액추에이터에는 <code>control_type</code>을 적었다</label></li>
+    <li><input type="checkbox" id="c6"><label for="c6"><code>python daemon.py --check</code>에서 "고쳐야 할 것"이 0개다</label></li>
+    <li><input type="checkbox" id="c7"><label for="c7">내가 적은 부품이 모두 목록에 나왔다</label></li>
+    <li><input type="checkbox" id="c8"><label for="c8"><code>python test_slot_daemon.py</code>가 통과했다</label></li>
+    <li><input type="checkbox" id="c9"><label for="c9">데몬을 다시 켠 뒤 대시보드에 카드가 나왔다</label></li>
+    <li><input type="checkbox" id="c10"><label for="c10">대시보드에서 조작했을 때 실제 부품이 움직였다</label></li>
+    <li><input type="checkbox" id="c11"><label for="c11">고친 <code>slot_map.py</code>를 팀 브랜치에 커밋했다</label></li>
+  </ul>
+
+  <div class="foot">
+    <p>
+      더 자세한 내용은 저장소의 <strong>docs/00 · 2차 개발 통합 매뉴얼 4장</strong>에 있습니다.
+      드라이버를 직접 만들어야 할 만큼 특이한 부품이라면 <strong>부록F 8-3절</strong>을 보세요 —
+      <code>drivers/</code>에 파일 하나를 추가하면 되고, 역시 공통 코드는 고치지 않습니다.
+    </p>
+    <p style="margin-top:14px; font-family:var(--mono); font-size:12.5px">
+      막혔을 때 → ① <code>--check</code> 다시 읽기 → ② 8번 오류 사전 → ③ 9번 자주 하는 실수 → ④ 선생님
+    </p>
+  </div>
+</section>
+
+</div>
+
+<script>
+(function(){
+  // 코드 복사
+  document.querySelectorAll('.code .copy').forEach(function(btn){
+    btn.addEventListener('click', function(){
+      var pre = btn.parentElement.querySelector('pre');
+      if(!pre) return;
+      var text = pre.innerText;
+      var done = function(){
+        btn.textContent = '복사됨';
+        btn.classList.add('done');
+        setTimeout(function(){ btn.textContent = '복사'; btn.classList.remove('done'); }, 1400);
+      };
+      if(navigator.clipboard && navigator.clipboard.writeText){
+        navigator.clipboard.writeText(text).then(done, function(){ fallback(text, done); });
+      } else { fallback(text, done); }
+    });
+  });
+  function fallback(text, done){
+    var ta = document.createElement('textarea');
+    ta.value = text; ta.style.position = 'fixed'; ta.style.opacity = '0';
+    document.body.appendChild(ta); ta.select();
+    try { document.execCommand('copy'); done(); } catch(e){ /* 브라우저가 막으면 직접 긁어 복사 */ }
+    document.body.removeChild(ta);
+  }
+
+  // 드라이버 검색 · 역할 필터
+  var search = document.getElementById('drv-search');
+  var cards = Array.prototype.slice.call(document.querySelectorAll('#drv-list .drv'));
+  var chips = Array.prototype.slice.call(document.querySelectorAll('.chip'));
+  var empty = document.getElementById('drv-empty');
+  var role = 'all';
+
+  function apply(){
+    var q = (search.value || '').trim().toLowerCase();
+    var shown = 0;
+    cards.forEach(function(card){
+      var okRole = (role === 'all') || (card.dataset.role === role);
+      var hay = (card.dataset.keys + ' ' + card.textContent).toLowerCase();
+      var okText = !q || hay.indexOf(q) !== -1;
+      var show = okRole && okText;
+      card.hidden = !show;
+      if(show) shown++;
+    });
+    empty.hidden = shown !== 0;
+  }
+  search.addEventListener('input', apply);
+  chips.forEach(function(chip){
+    chip.addEventListener('click', function(){
+      role = chip.dataset.role;
+      chips.forEach(function(c){ c.setAttribute('aria-pressed', String(c === chip)); });
+      apply();
+    });
+  });
+
+  // 체크리스트는 이 브라우저에만 기억합니다
+  var KEY = 'pi-hw-checklist-v1';
+  var boxes = Array.prototype.slice.call(document.querySelectorAll('.check input'));
+  try {
+    var saved = JSON.parse(localStorage.getItem(KEY) || '{}');
+    boxes.forEach(function(b){ if(saved[b.id]) b.checked = true; });
+  } catch(e){ /* 저장을 못 써도 화면은 그대로 동작합니다 */ }
+  boxes.forEach(function(b){
+    b.addEventListener('change', function(){
+      try {
+        var state = {};
+        boxes.forEach(function(x){ if(x.checked) state[x.id] = 1; });
+        localStorage.setItem(KEY, JSON.stringify(state));
+      } catch(e){ /* 무시 */ }
+    });
+  });
+})();
+</script>
+
+</body>
+</html>
