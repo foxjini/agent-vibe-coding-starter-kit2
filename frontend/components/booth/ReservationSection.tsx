@@ -19,7 +19,14 @@ import { apiUrl } from "@/utils/apiConfig";
 interface ReservationSectionProps {
   reservations: Reservation[];
   onReservationCreated: () => void;
-  onSelectPinForSimulator: (pin: string) => void;
+  /**
+   * 발급된 PIN을 키패드 시뮬레이터에 바로 넣어 보는 동작.
+   *
+   * 관리자 화면(`/admin`)에만 시뮬레이터가 있으므로 그쪽에서만 내려온다.
+   * 관람객 화면(`/`)에서는 넘기지 않으며, 그때는 관련 버튼을 숨기고 대신
+   * "부스 앞 키패드에 입력하세요" 안내를 보여 준다. (부록G §3-3)
+   */
+  onSelectPinForSimulator?: (pin: string) => void;
 }
 
 export function ReservationSection({
@@ -133,14 +140,26 @@ export function ReservationSection({
               >
                 {copied ? <CheckCircle2 className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4" />}
               </button>
-              <button
-                onClick={() => onSelectPinForSimulator(issuedVoucher.pin_code)}
-                className="px-3 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold transition-all shadow-md active:scale-95 flex items-center gap-1.5 cursor-pointer"
-              >
-                시뮬레이터에 입력 <ArrowRight className="w-3.5 h-3.5" />
-              </button>
+              {onSelectPinForSimulator && (
+                <button
+                  onClick={() => onSelectPinForSimulator(issuedVoucher.pin_code)}
+                  className="px-3 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold transition-all shadow-md active:scale-95 flex items-center gap-1.5 cursor-pointer"
+                >
+                  시뮬레이터에 입력 <ArrowRight className="w-3.5 h-3.5" />
+                </button>
+              )}
             </div>
           </div>
+
+          {!onSelectPinForSimulator && (
+            <p className="mt-4 text-sm text-emerald-200/90 flex items-start gap-2">
+              <ArrowRight className="w-4 h-4 shrink-0 mt-0.5 text-emerald-400" />
+              <span>
+                이용 시간에 <strong className="text-white">부스 앞 키패드</strong>에 위 4자리를 입력하면 문이 열립니다.
+                <strong className="text-white"> 한 번만 쓸 수 있으니</strong> 다른 사람에게 알려주지 마세요.
+              </span>
+            </p>
+          )}
         </div>
       )}
 
@@ -364,12 +383,14 @@ export function ReservationSection({
                         </span>
                       </td>
                       <td className="py-3 text-right">
-                        <button
-                          onClick={() => onSelectPinForSimulator(r.pin_code)}
-                          className="px-2.5 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-200 text-[11px] border border-slate-700 transition-colors cursor-pointer"
-                        >
-                          입력
-                        </button>
+                        {onSelectPinForSimulator && (
+                          <button
+                            onClick={() => onSelectPinForSimulator(r.pin_code)}
+                            className="px-2.5 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-200 text-[11px] border border-slate-700 transition-colors cursor-pointer"
+                          >
+                            입력
+                          </button>
+                        )}
                       </td>
                     </tr>
                   ))}
