@@ -221,7 +221,20 @@
 <!-- 3 -->
 <section>
   <h2>3. 작업 순서 <em>1번을 건너뛰면 같은 코드가 3벌이 됩니다</em></h2>
-  <p>지금 <code>app/page.tsx</code> 397줄 안에 데이터 로딩·WebSocket·핸들러가 전부 들어 있습니다. 라우트부터 만들고 복사하면 그 397줄이 세 번 복제됩니다. <strong>공통 로직을 먼저 빼내세요.</strong></p>
+
+  <div class="note n-tip">
+    <b>✅ 작업 1~5는 이미 저장소에 적용되어 있습니다</b>
+    아래 설명은 <strong>여러분이 받게 될 코드가 왜 그렇게 생겼는지</strong> 읽는 순서입니다. 그대로 다시 만들 필요는 없고, 파일을 열어 대조하며 구조를 파악한 뒤 <strong>작업 6(UI/UX 다듬기)부터</strong> 이어서 하세요.
+    <div style="margin-top:10px;overflow-x:auto"><table style="min-width:0"><tbody>
+      <tr><td style="padding:6px 0;border:none"><code>hooks/useBoothData.ts</code></td><td style="padding:6px 0 6px 14px;border:none">공통 데이터·WebSocket (작업 1)</td></tr>
+      <tr><td style="padding:6px 0;border:none"><code>app/admin/page.tsx</code></td><td style="padding:6px 0 6px 14px;border:none">관리자 화면 (작업 2)</td></tr>
+      <tr><td style="padding:6px 0;border:none"><code>app/booth/page.tsx</code></td><td style="padding:6px 0 6px 14px;border:none">부스 대형 화면 (작업 3)</td></tr>
+      <tr><td style="padding:6px 0;border:none"><code>app/page.tsx</code></td><td style="padding:6px 0 6px 14px;border:none">관람객 화면 (작업 4)</td></tr>
+      <tr><td style="padding:6px 0;border:none"><code>components/layout/AppHeader.tsx</code></td><td style="padding:6px 0 6px 14px;border:none">`/`와 `/admin`이 함께 쓰는 상단 바 (작업 5)</td></tr>
+    </tbody></table></div>
+  </div>
+
+  <p>원래 <code>app/page.tsx</code> 397줄 안에 데이터 로딩·WebSocket·핸들러가 전부 들어 있었습니다. 라우트부터 만들고 복사했다면 그 397줄이 세 번 복제됐을 것입니다. <strong>그래서 공통 로직을 먼저 빼냈습니다.</strong></p>
 
   <!-- 작업 1 -->
   <div class="task">
@@ -332,7 +345,7 @@
   <!-- 작업 6 -->
   <div class="task">
     <header><span class="tag">작업 6</span><h3>기기별로 다듬기</h3><span class="est">2~3일</span></header>
-    <p>여기부터가 UI/UX 작업입니다. 다음 장에서 화면별로 따로 설명합니다.</p>
+    <p><strong>← 여기부터가 여러분이 할 일입니다.</strong> 구조는 갖춰졌지만 화면은 아직 세 기기 모두에 같은 모양으로 나옵니다. 다음 장의 원칙대로 폰·대형 화면·노트북에 맞게 다듬으세요.</p>
   </div>
 </section>
 
@@ -387,6 +400,7 @@
         <tr><td>버튼을 눌러도 <strong>401</strong></td><td>관리자 인증이 만료됐습니다. <code>adminFetch()</code>를 쓰고 있는지, <code>fetch()</code>를 쓰고 있진 않은지 확인하세요</td></tr>
         <tr><td>Tailwind 색이 <strong>안 먹힘</strong></td><td>클래스 이름을 문자열로 조립하면(<code>{`bg-${color}-500`}</code>) 빌드가 그 클래스를 못 찾아 지워 버립니다. <strong>완성된 클래스 이름</strong>을 통째로 쓰세요</td></tr>
         <tr><td>실시간 표시가 <strong>안 바뀜</strong></td><td>WebSocket이 끊겼습니다. 상단 연결 배지를 확인하고, <code>.env</code>의 <code>NEXT_PUBLIC_WS_URL</code>을 보세요. <code>NEXT_PUBLIC_</code> 값은 <strong>서버를 껐다 켜야</strong> 반영됩니다</td></tr>
+        <tr><td>화면은 뜨는데 <strong>시계·연결 배지가 멈춰 있음</strong></td><td><code>npm run dev</code>의 핫리로드(HMR) 연결이 막히면 브라우저 쪽 React가 끝까지 살아나지 않아 이런 증상이 납니다. <code>npm run build &amp;&amp; npm start</code>로 확인해 보고 거기서 정상이면 코드 문제가 아닙니다. 사내망·프록시 환경에서 주로 생깁니다</td></tr>
         <tr><td>폰에서 <strong>가로로 스크롤</strong></td><td>어딘가 고정 폭(<code>min-width</code>)이 있습니다. 표는 <code>overflow-x-auto</code>로 감싼 안쪽에서만 넓어야 합니다</td></tr>
       </tbody>
     </table>
@@ -396,7 +410,7 @@
 <!-- 6 -->
 <section>
   <h2>6. 완료 체크리스트</h2>
-  <p>작업이 끝났는지 스스로 확인하는 기준입니다.</p>
+  <p>작업이 끝났는지 스스로 확인하는 기준입니다. <strong>구조(1~4)는 이미 통과한 상태</strong>이고, 5번부터가 여러분이 채울 부분입니다.</p>
   <div class="check" id="doneList">
     <label><input type="checkbox" id="f1"><span><strong>구조</strong> <code>app/page.tsx</code> · <code>app/booth/page.tsx</code> · <code>app/admin/page.tsx</code> 세 파일이 있다</span></label>
     <label><input type="checkbox" id="f2"><span><strong>구조</strong> 데이터 로딩과 WebSocket 코드가 <code>hooks/useBoothData.ts</code> 한 곳에만 있다</span></label>

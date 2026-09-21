@@ -19,6 +19,16 @@ const QUIZ_LIST: QuizItem[] = [
   { consonant: "ㅎㅇㅍ ㅂㅇ", singer: "NewJeans", hint: "홍대 가려면 어떻게 가요?", answer: "Hype Boy" },
 ];
 
+/*
+ * ⚠️ 답 입력칸에 autoFocus 를 걸지 않는다.
+ *
+ * 예전에는 이 게임이 별도 탭이었고, 탭을 열면 바로 입력할 수 있어 편했다.
+ * 지금은 `/` 한 페이지에 예약 폼·노래 기록과 함께 세로로 쌓여 있어서,
+ * autoFocus 가 걸리면 페이지가 열리자마자 게임 위치(약 1700px 아래)로
+ * 스크롤되어 **정작 먼저 봐야 할 예약 폼이 화면 밖으로 밀려난다.**
+ *
+ * 게임을 하려는 사람은 입력칸을 직접 누르면 된다.
+ */
 export function MiniGameSection() {
   const [currentIndex, setCurrentIndex] = useState<number>(0);
   const [userGuess, setUserGuess] = useState<string>("");
@@ -153,7 +163,6 @@ export function MiniGameSection() {
               onChange={(e) => setUserGuess(e.target.value)}
               disabled={feedback !== null}
               className="flex-1 px-4 py-3 rounded-xl bg-slate-800 border border-slate-700 text-white text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
-              autoFocus
             />
             <button
               type="submit"
