@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useMemo, useState, useSyncExternalStore } from "react";
 import {
   Calendar,
   Clock,
@@ -12,9 +12,18 @@ import {
   CheckCircle2,
   Copy,
   ArrowRight,
+  Trash2,
 } from "lucide-react";
 import { Reservation } from "@/types";
 import { apiUrl } from "@/utils/apiConfig";
+import {
+  subscribeVoucher,
+  getVoucherSnapshot,
+  getVoucherServerSnapshot,
+  saveVoucher,
+  clearVoucher,
+  isExpired,
+} from "@/utils/voucherStore";
 
 interface ReservationSectionProps {
   reservations: Reservation[];
@@ -27,13 +36,23 @@ interface ReservationSectionProps {
    * "부스 앞 키패드에 입력하세요" 안내를 보여 준다. (부록G §3-3)
    */
   onSelectPinForSimulator?: (pin: string) => void;
+  /**
+   * 화면마다 필요한 부분이 다르다 (부록G §3-3).
+   *   form  `/`      관람객은 신청만 한다
+   *   list  `/admin` 선생님은 현황 확인이 일이다
+   *   both  (기본)   예전처럼 둘 다
+   */
+  sections?: "both" | "form" | "list";
 }
 
 export function ReservationSection({
   reservations,
   onReservationCreated,
   onSelectPinForSimulator,
+  sections = "both",
 }: ReservationSectionProps) {
+  const showForm = sections !== "list";
+  const showList = sections !== "form";
   // Form State
   const [grade, setGrade] = useState<number>(2);
   const [department, setDepartment] = useState<string>("정보통신과");
@@ -45,7 +64,22 @@ export function ReservationSection({
   // Status & Voucher State
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
-  const [issuedVoucher, setIssuedVoucher] = useState<Reservation | null>(null);
+  // 발급된 PIN은 컴포넌트 상태가 아니라 보관소에 둔다 — 페이지를 닫아도 남아야
+  // 부스 앞에서 다시 꺼내 볼 수 있다 (utils/voucherStore.ts 설명 참고).
+  const voucherRaw = useSyncExternalStore(
+    subscribeVoucher,
+    getVoucherSnapshot,
+    getVoucherServerSnapshot
+  );
+  const issuedVoucher = useMemo<Reservation | null>(() => {
+    if (!voucherRaw) return null;
+    try {
+      const parsed = JSON.parse(voucherRaw) as Reservation;
+      return isExpired(parsed) ? null : parsed;
+    } catch {
+      return null;
+    }
+  }, [voucherRaw]);
   const [copied, setCopied] = useState<boolean>(false);
 
   // Today string for min attribute and validation
@@ -88,7 +122,7 @@ export function ReservationSection({
         return;
       }
 
-      setIssuedVoucher(data.data);
+      saveVoucher(data.data);
       setStudentName("");
       onReservationCreated();
     } catch {
@@ -106,67 +140,85 @@ export function ReservationSection({
 
   return (
     <div className="space-y-8">
-      {/* Issued Voucher Notification Card */}
-      {issuedVoucher && (
-        <div className="p-6 rounded-2xl bg-free-soft border-2 border-free shadow-2xl animate-fade-in relative overflow-hidden">
-          <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
-            <div className="space-y-1">
-              <span className="px-3 py-1 rounded-full text-xs font-semibold bg-free/20 text-free border border-free/40 inline-flex items-center gap-1.5">
-                <CheckCircle2 className="w-3.5 h-3.5 text-free" />
-                예약 확정 완료 (일회성 비밀번호 발급)
-              </span>
-              <h3 className="text-xl font-bold text-ink">
-                {issuedVoucher.student_name} 학생의 노래방 부스 예약이 완료되었습니다!
-              </h3>
+      {/*
+        내 예약권 — 관람객 화면에서 가장 중요한 물건이다.
+        예약을 마치고 부스 앞까지 가는 동안 필요한 건 4자리 숫자 하나뿐이므로,
+        그 숫자를 화면에서 가장 큰 요소로 두고 나머지는 전부 뒤로 물린다.
+        관리자 화면(list 전용)에서는 띄우지 않는다.
+      */}
+      {showForm && issuedVoucher && (
+        <div className="rounded-2xl bg-surface border border-free/40 overflow-hidden shadow-sm">
+          <div className="px-5 py-2.5 bg-free-soft border-b border-free/25 flex items-center gap-2">
+            <CheckCircle2 className="w-4 h-4 text-free shrink-0" />
+            <span className="text-xs font-bold text-free">예약 완료 · 입장 비밀번호가 발급되었습니다</span>
+          </div>
+
+          <div className="p-5 sm:p-6 flex flex-col sm:flex-row sm:items-center gap-5">
+            <div className="min-w-0 flex-1">
               <p className="text-xs text-ink-3">
-                {issuedVoucher.reservation_date} |{" "}
-                {issuedVoucher.time_slot === "lunch" ? "점심 타임 (12:30~13:20)" : "저녁 타임 (17:30~18:30)"} | 인원{" "}
-                {issuedVoucher.user_count}명
+                {issuedVoucher.student_name} · {issuedVoucher.user_count}명
+              </p>
+              <p className="text-base font-bold text-ink mt-0.5">
+                {String(issuedVoucher.reservation_date).slice(0, 10)}{" "}
+                {issuedVoucher.time_slot === "lunch" ? "점심 타임" : "저녁 타임"}
+              </p>
+              <p className="text-xs text-ink-3 mt-0.5">
+                {issuedVoucher.time_slot === "lunch" ? "12:30 ~ 13:20" : "17:30 ~ 18:30"}
               </p>
             </div>
 
-            {/* PIN Code Display Box */}
-            <div className="flex items-center gap-4 bg-canvas/90 p-4 rounded-xl border border-free/40 shadow-inner">
-              <div>
-                <span className="text-[10px] text-ink-3 block uppercase font-mono">발급된 OTP PIN</span>
-                <span className="text-3xl font-extrabold font-mono tracking-widest text-free">
-                  {issuedVoucher.pin_code}
-                </span>
-              </div>
+            {/* 히어로 숫자 — 이 화면에서 가장 큰 글자 */}
+            <div className="shrink-0 text-center sm:text-right">
+              <span className="block text-[11px] font-semibold tracking-wider uppercase text-ink-3">
+                입장 비밀번호
+              </span>
+              <span className="block font-mono tnum text-5xl sm:text-6xl font-extrabold tracking-[0.18em] text-ink leading-none mt-1">
+                {issuedVoucher.pin_code}
+              </span>
+            </div>
+          </div>
+
+          <div className="px-5 sm:px-6 pb-5 space-y-3">
+            <p className="text-sm text-ink-2 flex items-start gap-2">
+              <ArrowRight className="w-4 h-4 shrink-0 mt-0.5 text-free" />
+              <span>
+                이용 시간에 <strong className="text-ink">부스 앞 키패드</strong>로 이 네 자리를 누르면 문이 열립니다.
+                <strong className="text-ink"> 한 번만 쓸 수 있으니</strong> 다른 사람에게 알려주지 마세요.
+              </span>
+            </p>
+            <div className="flex flex-wrap items-center gap-2">
               <button
                 onClick={() => copyPin(issuedVoucher.pin_code)}
-                className="p-2.5 rounded-lg bg-raised hover:bg-line-strong/90 text-ink-2 transition-colors cursor-pointer"
-                title="PIN 복사"
+                className="px-3 py-2 rounded-lg bg-raised hover:bg-line-strong border border-line text-ink text-xs font-bold transition-colors cursor-pointer inline-flex items-center gap-1.5"
               >
-                {copied ? <CheckCircle2 className="w-4 h-4 text-free" /> : <Copy className="w-4 h-4" />}
+                {copied ? <CheckCircle2 className="w-3.5 h-3.5 text-free" /> : <Copy className="w-3.5 h-3.5" />}
+                {copied ? "복사했습니다" : "비밀번호 복사"}
               </button>
               {onSelectPinForSimulator && (
                 <button
                   onClick={() => onSelectPinForSimulator(issuedVoucher.pin_code)}
-                  className="px-3 py-2 rounded-lg bg-free hover:bg-free/90 text-on-accent text-xs font-bold transition-all shadow-md active:scale-95 flex items-center gap-1.5 cursor-pointer"
+                  className="px-3 py-2 rounded-lg bg-ink hover:bg-ink/90 text-surface text-xs font-bold transition-colors cursor-pointer inline-flex items-center gap-1.5"
                 >
-                  시뮬레이터에 입력 <ArrowRight className="w-3.5 h-3.5" />
+                  키패드로 인증 <ArrowRight className="w-3.5 h-3.5" />
                 </button>
               )}
+              <button
+                onClick={clearVoucher}
+                className="px-3 py-2 rounded-lg text-ink-3 hover:text-live text-xs font-semibold transition-colors cursor-pointer inline-flex items-center gap-1.5 ml-auto"
+                title="이 기기에서 예약권을 지웁니다"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+                지우기
+              </button>
             </div>
           </div>
-
-          {!onSelectPinForSimulator && (
-            <p className="mt-4 text-sm text-free/90 flex items-start gap-2">
-              <ArrowRight className="w-4 h-4 shrink-0 mt-0.5 text-free" />
-              <span>
-                이용 시간에 <strong className="text-ink">부스 앞 키패드</strong>에 위 4자리를 입력하면 문이 열립니다.
-                <strong className="text-ink"> 한 번만 쓸 수 있으니</strong> 다른 사람에게 알려주지 마세요.
-              </span>
-            </p>
-          )}
         </div>
       )}
 
-      {/* Main Content: Left Form, Right Existing Reservations */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-        {/* Reservation Form (5 Cols) */}
-        <div className="lg:col-span-5 bg-surface/90 border border-line rounded-2xl p-6 shadow-xl space-y-6">
+      {/* 신청 폼과 현황 목록 — 화면에 따라 한쪽만 쓰기도 한다 */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+        {showForm && (
+        <div className={`${showList ? "lg:col-span-5" : "lg:col-span-12"} bg-surface/90 border border-line rounded-2xl p-6 shadow-xl space-y-6`}>
           <div className="border-b border-line pb-4">
             <h3 className="text-lg font-bold text-ink flex items-center gap-2">
               <Calendar className="w-5 h-5 text-brass" />
@@ -314,8 +366,10 @@ export function ReservationSection({
           </form>
         </div>
 
-        {/* Existing Reservations Table (7 Cols) */}
-        <div className="lg:col-span-7 bg-surface/90 border border-line rounded-2xl p-6 shadow-xl space-y-4">
+        )}
+
+        {showList && (
+        <div className={`${showForm ? "lg:col-span-7" : "lg:col-span-12"} bg-surface/90 border border-line rounded-2xl p-6 shadow-xl space-y-4`}>
           <div className="flex items-center justify-between border-b border-line pb-4">
             <div>
               <h3 className="text-lg font-bold text-ink flex items-center gap-2">
@@ -398,7 +452,8 @@ export function ReservationSection({
               </table>
             )}
           </div>
-        </div>
+          </div>
+        )}
       </div>
     </div>
   );

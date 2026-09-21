@@ -284,9 +284,9 @@ export function VirtualBoothSimulator({
     <div className="space-y-6">
       {/* Top Notification Banner */}
       {lastEventMessage && (
-        <div className="flex items-center gap-3 p-4 rounded-xl bg-brass-soft/40 border border-brass/30 text-brass text-sm animate-fade-in shadow-inner">
-          <Sparkles className="w-5 h-5 text-brass shrink-0" />
-          <span className="font-medium">{lastEventMessage}</span>
+        <div className="flex items-center gap-3 px-4 py-3 rounded-xl bg-surface border border-line text-ink-2 text-sm">
+          <Sparkles className="w-4 h-4 text-ink-3 shrink-0" aria-hidden />
+          <span>{lastEventMessage}</span>
         </div>
       )}
 
