@@ -17,6 +17,19 @@ class KeypadVerifyRequest(BaseModel):
     pin: str = Field(..., min_length=4, max_length=4, description="4자리 비밀번호 (숫자)")
 
 
+class ScoreRecordRequest(BaseModel):
+    """채점 결과 저장 요청 (부록G §2-④)"""
+    nickname: str = Field("익명", max_length=20, description="부스에서 입력한 별명")
+    title: str = Field(..., min_length=1, max_length=100, description="곡 제목")
+    singer: str = Field(..., min_length=1, max_length=100, description="가수 이름")
+    score: int = Field(..., ge=0, le=100, description="총점")
+    rank_label: Optional[str] = Field(None, max_length=20, description="등급 표시")
+    pitch: Optional[int] = Field(None, ge=0, le=100)
+    timing: Optional[int] = Field(None, ge=0, le=100)
+    volume: Optional[int] = Field(None, ge=0, le=100)
+    expression: Optional[int] = Field(None, ge=0, le=100)
+
+
 class SongRecordRequest(BaseModel):
     """노래 이력 등록 요청"""
     title: str = Field(..., min_length=1, description="곡 제목")

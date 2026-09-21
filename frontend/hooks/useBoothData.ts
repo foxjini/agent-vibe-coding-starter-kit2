@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { apiUrl } from "@/utils/apiConfig";
 import { useKaraokeSocket } from "@/hooks/useKaraokeSocket";
-import { Device, Reservation, Song, WebSocketMessage } from "@/types";
+import { Device, Reservation, ScoreRecord, Song, WebSocketMessage } from "@/types";
 
 /**
  * 부스 공용 데이터 훅 (부록G §3 화면 분리 / 부록J 작업 1)
@@ -25,6 +25,9 @@ export function useBoothData() {
   const [allSongs, setAllSongs] = useState<Song[]>([]);
   const [favoriteSongs, setFavoriteSongs] = useState<Song[]>([]);
   const [lastEventMsg, setLastEventMsg] = useState<string>("부스 시스템이 정상 대기 중입니다.");
+  // 순위 (부록G §2-④) — 오늘 기록과 명예의 전당을 따로 본다
+  const [topToday, setTopToday] = useState<ScoreRecord[]>([]);
+  const [topAll, setTopAll] = useState<ScoreRecord[]>([]);
 
   const fetchDevices = useCallback(async () => {
     try {
@@ -63,11 +66,25 @@ export function useBoothData() {
     }
   }, []);
 
+  const fetchScores = useCallback(async () => {
+    try {
+      const [todayRes, allRes] = await Promise.all([
+        fetch(apiUrl("/api/scores/top?period=today&limit=5")),
+        fetch(apiUrl("/api/scores/top?period=all&limit=5")),
+      ]);
+      if (todayRes.ok) setTopToday((await todayRes.json()).data || []);
+      if (allRes.ok) setTopAll((await allRes.json()).data || []);
+    } catch {
+      // 순위를 못 받아도 노래방은 돌아가야 한다
+    }
+  }, []);
+
   useEffect(() => {
     fetchDevices();
     fetchReservations();
     fetchSongs();
-  }, [fetchDevices, fetchReservations, fetchSongs]);
+    fetchScores();
+  }, [fetchDevices, fetchReservations, fetchSongs, fetchScores]);
 
   const handleWsMessage = useCallback(
     (msg: WebSocketMessage) => {
@@ -93,9 +110,15 @@ export function useBoothData() {
         fetchReservations();
       } else if (msg.type === "song_recorded") {
         fetchSongs();
+      } else if (msg.type === "score_recorded") {
+        // 누군가 점수를 받으면 부스 화면의 순위가 즉시 바뀐다
+        setLastEventMsg(
+          `${msg.nickname ?? "익명"}님이 ${msg.title ?? "노래"}로 ${msg.score ?? 0}점을 받았습니다!`
+        );
+        fetchScores();
       }
     },
-    [fetchDevices, fetchReservations, fetchSongs]
+    [fetchDevices, fetchReservations, fetchSongs, fetchScores]
   );
 
   const { isConnected } = useKaraokeSocket(handleWsMessage);
@@ -106,10 +129,13 @@ export function useBoothData() {
     allSongs,
     favoriteSongs,
     lastEventMsg,
+    topToday,
+    topAll,
     isConnected,
     fetchDevices,
     fetchReservations,
     fetchSongs,
+    fetchScores,
   };
 }
 

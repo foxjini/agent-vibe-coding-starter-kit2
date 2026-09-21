@@ -24,7 +24,6 @@ import {
   Radio,
   ShieldCheck,
   Loader2,
-  Mic2,
 } from "lucide-react";
 import { KaraokeAudioScorer, AudioAnalysisResult, FinalScore } from "@/utils/audioScorer";
 import { KaraokeAccompanimentEngine } from "@/utils/karaokeAccompaniment";
@@ -45,15 +44,27 @@ import {
   ResolvedMedia,
 } from "@/utils/karaokeMedia";
 import { KARAOKE_SONGS, KaraokeSong, youtubeSearchUrl } from "@/data/karaokeSongs";
-import { Device } from "@/types";
+import { AttractScreen } from "@/components/booth/AttractScreen";
+import { Device, ScoreRecord } from "@/types";
 import { apiUrl } from "@/utils/apiConfig";
 
 interface KaraokeRoomSectionProps {
   devices: Device[];
   onSongCompleted?: () => void;
+  /** 어트랙트 화면에 돌려 보여 줄 순위 (부록G §2-④) */
+  topToday?: ScoreRecord[];
+  topAll?: ScoreRecord[];
+  /** 점수를 남긴 뒤 순위를 다시 받아 오게 한다 */
+  onScoreRecorded?: () => void;
 }
 
-export function KaraokeRoomSection({ devices, onSongCompleted }: KaraokeRoomSectionProps) {
+export function KaraokeRoomSection({
+  devices,
+  onSongCompleted,
+  topToday = [],
+  topAll = [],
+  onScoreRecorded,
+}: KaraokeRoomSectionProps) {
   // 부스 반주기 전원(relay_1) 확인
   const relayDevice = devices.find((d) => d.id === "relay_1");
   const isPowerOn = relayDevice?.current_state === "on";
@@ -89,6 +100,8 @@ export function KaraokeRoomSection({ devices, onSongCompleted }: KaraokeRoomSect
    */
   const [hasEntered, setHasEntered] = useState(false);
   const [isEntering, setIsEntering] = useState(false);
+  /** 순위에 올릴 별명 — 입장할 때 한 번 받아 두고 채점 때마다 묻지 않는다 */
+  const [nickname, setNickname] = useState("");
   const [enterNotice, setEnterNotice] = useState<string | null>(null);
 
   // ── 영상 등록 ────────────────────────────────────────────
@@ -196,6 +209,39 @@ export function KaraokeRoomSection({ devices, onSongCompleted }: KaraokeRoomSect
     [onSongCompleted]
   );
 
+  /**
+   * 채점 결과를 순위에 올린다 (부록G §2-④).
+   *
+   * 실패해도 조용히 넘어간다 — 점수를 못 남겼다고 해서 노래방 화면이 멈추거나
+   * 사용자에게 오류를 띄울 일은 아니다. 부를 때마다 이름을 묻지 않으려고
+   * 별명은 입장할 때 한 번만 받는다.
+   */
+  const recordScoreToDB = useCallback(
+    async (song: KaraokeSong, result: FinalScore) => {
+      try {
+        await fetch(apiUrl("/api/scores"), {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            nickname: nickname.trim() || "익명",
+            title: song.title,
+            singer: song.singer,
+            score: result.score,
+            rank_label: result.rank,
+            pitch: Math.round(result.breakdown.pitch),
+            timing: Math.round(result.breakdown.timing),
+            volume: Math.round(result.breakdown.volume),
+            expression: Math.round(result.breakdown.expression),
+          }),
+        });
+        onScoreRecorded?.();
+      } catch {
+        /* 순위 등록 실패는 노래방 진행을 막지 않는다 */
+      }
+    },
+    [nickname, onScoreRecorded]
+  );
+
   const finishAndScore = useCallback(() => {
     if (scoredRef.current) return; // 중복 채점 방지
     scoredRef.current = true;
@@ -241,10 +287,11 @@ export function KaraokeRoomSection({ devices, onSongCompleted }: KaraokeRoomSect
             }
           }
           void recordSongToDB(selectedSong);
+          void recordScoreToDB(selectedSong, result);
         }
       }
     }, 40);
-  }, [recordSongToDB, selectedSong, stopAllPlayback]);
+  }, [recordSongToDB, recordScoreToDB, selectedSong, stopAllPlayback]);
 
   // ticker(setInterval)와 유튜브 콜백은 만들어질 때의 값을 붙잡고 있으므로,
   // 곡이 바뀌어도 최신 값을 보도록 ref에 담아 둔다.
@@ -682,50 +729,29 @@ export function KaraokeRoomSection({ devices, onSongCompleted }: KaraokeRoomSect
         </div>
       )}
 
-      {/* 입장 게이트 — 브라우저 자동재생 정책 대응 (마이크 권한·소음 측정을 여기서 끝낸다) */}
+      {/*
+        어트랙트(유휴) 화면 — 부록G §2-⑥
+        아무도 부스를 쓰지 않을 때 대형 화면에 떠 있는 화면이다. 입장 전에는
+        노래방 조작부를 아예 그리지 않는다. 설명과 순위만 남겨 두는 편이
+        "여기서 뭘 하면 되는지"가 분명하고, 전시장에서 사람을 모은다.
+      */}
       {!hasEntered && (
-        <div className="p-6 rounded-2xl bg-raised border border-brass/40 shadow-xl text-center space-y-4">
-          <div className="w-14 h-14 rounded-2xl bg-brass/30 border border-brass/50 flex items-center justify-center text-brass mx-auto">
-            <Mic2 className="w-7 h-7" />
-          </div>
-          <div className="space-y-1.5">
-            <h3 className="text-lg font-black text-ink">노래방에 입장하세요</h3>
-            <p className="text-xs text-ink-2 leading-relaxed max-w-md mx-auto">
-              브라우저는 사용자가 버튼을 눌러야 소리를 낼 수 있습니다.
-              <br />
-              입장할 때 <strong className="text-brass">마이크 권한</strong>과{" "}
-              <strong className="text-brass">주변 소음</strong>을 한 번에 확인해 두면,
-              이후에는 [반주 시작]만 눌러도 영상이 바로 재생됩니다.
-            </p>
-          </div>
-
-          <button
-            onClick={() => void handleEnter()}
-            disabled={isEntering}
-            className="px-7 py-3 rounded-xl bg-brass disabled:opacity-60 disabled:cursor-not-allowed text-on-accent font-black text-sm shadow-lg transition-all cursor-pointer inline-flex items-center gap-2"
-          >
-            {isEntering ? (
-              <>
-                <Loader2 className="w-4 h-4 animate-spin" />
-                준비 중...
-              </>
-            ) : (
-              <>
-                <Mic2 className="w-4 h-4" />
-                🎤 노래방 입장하기
-              </>
-            )}
-          </button>
-
-          {enterNotice && <p className="text-[11px] text-brass/90">{enterNotice}</p>}
-
-          <button
-            onClick={() => setHasEntered(true)}
-            className="block mx-auto text-[11px] text-ink-3 hover:text-ink underline underline-offset-2 cursor-pointer"
-          >
-            마이크 없이 둘러보기
-          </button>
-        </div>
+        <AttractScreen
+          isPowerOn={isPowerOn}
+          topToday={topToday}
+          topAll={topAll}
+          popularSongs={KARAOKE_SONGS.slice(0, 5).map((song) => ({
+            id: song.id,
+            title: song.title,
+            singer: song.singer,
+          }))}
+          nickname={nickname}
+          onNicknameChange={setNickname}
+          onEnter={() => void handleEnter()}
+          onBrowse={() => setHasEntered(true)}
+          isEntering={isEntering}
+          enterNotice={enterNotice}
+        />
       )}
 
       {hasEntered && enterNotice && (
@@ -735,6 +761,7 @@ export function KaraokeRoomSection({ devices, onSongCompleted }: KaraokeRoomSect
         </p>
       )}
 
+      {hasEntered && (
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         {/* ── 왼쪽: 노래방 화면 ─────────────────────────────── */}
         <div className="lg:col-span-8 bg-surface/90 border border-line rounded-2xl p-6 shadow-2xl flex flex-col space-y-4">
@@ -1155,6 +1182,7 @@ export function KaraokeRoomSection({ devices, onSongCompleted }: KaraokeRoomSect
           </div>
         </div>
       </div>
+      )}
 
       {/* ── 점수 결과 모달 ─────────────────────────────────── */}
       {showScoreModal && (

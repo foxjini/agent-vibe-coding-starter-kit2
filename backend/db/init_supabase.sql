@@ -110,6 +110,26 @@ CREATE TRIGGER trg_song_last_sung_at
 -- 7. 노래방 영상 등록 (F-06)
 --    곡별 기본 후보는 프론트엔드 코드에 있고, 이 테이블은 관리자가 직접 지정한
 --    영상만 담는다. 모든 기기가 같은 영상을 보게 하려고 서버에 저장한다.
+-- ==============================================================================
+-- 점수 기록 (부록G §2-④). MySQL 판과 같은 이유로 song_history 와 분리한다.
+-- ==============================================================================
+CREATE TABLE IF NOT EXISTS score_records (
+  id         SERIAL PRIMARY KEY,
+  nickname   VARCHAR(20) NOT NULL DEFAULT '익명',
+  title      VARCHAR(100) NOT NULL,
+  singer     VARCHAR(100) NOT NULL,
+  score      INTEGER NOT NULL,
+  rank_label VARCHAR(20),
+  pitch      INTEGER,
+  timing     INTEGER,
+  volume     INTEGER,
+  expression INTEGER,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_score_records_score ON score_records (score DESC);
+CREATE INDEX IF NOT EXISTS idx_score_records_created ON score_records (created_at DESC);
+
 CREATE TABLE IF NOT EXISTS song_videos (
   song_id    VARCHAR(64) PRIMARY KEY,
   video_id   VARCHAR(32) NOT NULL,

@@ -100,6 +100,32 @@ CREATE TABLE IF NOT EXISTS song_videos (
 );
 
 -- ==============================================================================
+-- 점수 기록 (부록G §2-④ 점수 저장 + 실시간 랭킹)
+--
+-- song_history 는 "어떤 곡을 몇 번 불렀나"를 누적한다. 랭킹은 그것과 다른
+-- 질문이다 — "누가 언제 몇 점을 받았나"라서 한 곡을 여러 번 부르면 행도 여러 개
+-- 생겨야 한다. 그래서 별도 테이블로 둔다.
+--
+-- 이름은 부스에서 직접 받는다. 예약자 이름을 쓰면 한 팀이 여러 명일 때 누가
+-- 불렀는지 알 수 없고, 전시장에서는 예약 없이 체험하는 관람객도 있다.
+-- ==============================================================================
+CREATE TABLE IF NOT EXISTS score_records (
+  id         INT AUTO_INCREMENT PRIMARY KEY,
+  nickname   VARCHAR(20) NOT NULL DEFAULT '익명',
+  title      VARCHAR(100) NOT NULL,
+  singer     VARCHAR(100) NOT NULL,
+  score      INT NOT NULL,
+  rank_label VARCHAR(20),
+  pitch      INT,
+  timing     INT,
+  volume     INT,
+  expression INT,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  INDEX idx_score (score DESC),
+  INDEX idx_created (created_at DESC)
+);
+
+-- ==============================================================================
 INSERT INTO devices (id, name, kind) VALUES
   -- 액추에이터 목록
   ('door_lock_1', '솔레노이드 도어락', 'door_lock'),
