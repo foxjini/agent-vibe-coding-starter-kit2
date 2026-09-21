@@ -68,7 +68,7 @@ CREATE TABLE IF NOT EXISTS reservations (
   reservation_date DATE NOT NULL,      -- 예약 일자
   time_slot VARCHAR(20) NOT NULL,      -- 타임슬롯 ('lunch', 'dinner')
   pin_code VARCHAR(4) NOT NULL,        -- 일회성 4자리 비밀번호
-  status VARCHAR(20) NOT NULL DEFAULT 'reserved', -- 'reserved', 'active', 'completed', 'cancelled'
+  status VARCHAR(20) NOT NULL DEFAULT 'reserved', -- 'reserved', 'active', 'completed', 'cancelled', 'no_show'
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
   UNIQUE KEY uq_date_slot (reservation_date, time_slot) -- 동일 날짜/시간대 중복 예약 차단
 );
