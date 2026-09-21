@@ -1,0 +1,435 @@
+<title>노래방 부스 화면 분리 작업서</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Gothic+A1:wght@400;500;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap">
+<style>
+  :root{
+    --bg:#F2F4F8; --card:#FFFFFF; --sunk:#E7EAF1;
+    --ink:#11151C; --ink2:#4B5563; --ink3:#7C8798;
+    --line:#D8DDE7; --line2:#E8ECF3;
+    --home:#B45309; --home-bg:#FDF4E3; --home-line:#E7BE78;
+    --booth:#5B4CD6; --booth-bg:#EDEBFC; --booth-line:#B6AEF2;
+    --admin:#0E7490; --admin-bg:#E2F2F6; --admin-line:#7FC2D4;
+    --risk:#B91C1C; --risk-bg:#FCEDEC; --risk-line:#EBA7A2;
+    --code-bg:#161A22; --code-ink:#DDE3ED; --code-dim:#79839A;
+    --sh:0 1px 2px rgba(17,21,28,.05),0 8px 22px -14px rgba(17,21,28,.25);
+    --sans:"Gothic A1",system-ui,-apple-system,"Malgun Gothic",sans-serif;
+    --mono:"JetBrains Mono",ui-monospace,Consolas,monospace;
+  }
+  @media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+    --bg:#0D1017; --card:#161A22; --sunk:#1E232D;
+    --ink:#E9EDF4; --ink2:#A7B1C0; --ink3:#78839A;
+    --line:#2A303B; --line2:#222833;
+    --home:#F0A74A; --home-bg:#2A2013; --home-line:#6A5227;
+    --booth:#A79BFF; --booth-bg:#1E1B33; --booth-line:#443C79;
+    --admin:#5FC8DE; --admin-bg:#10262D; --admin-line:#2A5764;
+    --risk:#F08A82; --risk-bg:#2B1615; --risk-line:#6B3330;
+    --code-bg:#0A0D13; --code-ink:#DDE3ED; --code-dim:#6C7788;
+    --sh:0 1px 2px rgba(0,0,0,.4),0 8px 22px -14px rgba(0,0,0,.7);
+  }}
+  :root[data-theme="dark"]{
+    --bg:#0D1017; --card:#161A22; --sunk:#1E232D;
+    --ink:#E9EDF4; --ink2:#A7B1C0; --ink3:#78839A;
+    --line:#2A303B; --line2:#222833;
+    --home:#F0A74A; --home-bg:#2A2013; --home-line:#6A5227;
+    --booth:#A79BFF; --booth-bg:#1E1B33; --booth-line:#443C79;
+    --admin:#5FC8DE; --admin-bg:#10262D; --admin-line:#2A5764;
+    --risk:#F08A82; --risk-bg:#2B1615; --risk-line:#6B3330;
+    --code-bg:#0A0D13; --code-ink:#DDE3ED; --code-dim:#6C7788;
+    --sh:0 1px 2px rgba(0,0,0,.4),0 8px 22px -14px rgba(0,0,0,.7);
+  }
+
+  body{background:var(--bg);color:var(--ink);font-family:var(--sans);line-height:1.72;}
+  .wrap{max-width:900px;margin:0 auto;padding-inline:20px;padding-block:0 80px;}
+  h1,h2,h3{margin:0;line-height:1.28;text-wrap:balance;}
+  p{margin:0;}
+  code{font-family:var(--mono);font-size:.86em;background:var(--sunk);padding:.1em .4em;border-radius:4px;}
+  a{color:var(--booth);}
+
+  .cover{padding-block:54px 34px;}
+  .kicker{font-family:var(--mono);font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--ink3);font-weight:500;}
+  .cover h1{font-size:clamp(29px,5.6vw,44px);font-weight:800;letter-spacing:-.025em;margin-top:12px;}
+  .cover .lede{color:var(--ink2);font-size:16px;margin-top:14px;max-width:62ch;}
+  .answer{margin-top:26px;background:var(--card);border:1px solid var(--line);border-left:5px solid var(--risk);
+          border-radius:12px;padding:16px 18px;box-shadow:var(--sh);}
+  .answer b{color:var(--risk);font-size:13.5px;display:block;margin-bottom:5px;}
+  .answer p{font-size:14.5px;color:var(--ink2);}
+
+  section{padding-block:38px;border-top:1px solid var(--line2);}
+  section > h2{font-size:23px;font-weight:800;letter-spacing:-.015em;display:flex;align-items:baseline;gap:11px;flex-wrap:wrap;}
+  section > h2 em{font-style:normal;font-family:var(--mono);font-size:12px;color:var(--ink3);font-weight:500;}
+  h3{font-size:15.5px;font-weight:700;margin-top:22px;}
+  section p,section li{color:var(--ink2);font-size:14.5px;}
+  section > p{margin-top:12px;}
+  ul,ol{margin:10px 0 0;padding-left:20px;display:flex;flex-direction:column;gap:7px;}
+
+  /* 기기 카드 3종 */
+  .devices{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-top:20px;}
+  .dev{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:18px 16px 16px;box-shadow:var(--sh);
+       display:flex;flex-direction:column;gap:12px;align-items:center;text-align:center;}
+  .frame{--c:var(--ink3);display:grid;place-items:center;height:92px;width:100%;}
+  .screen{border:2.5px solid var(--c);border-radius:4px;background:color-mix(in srgb,var(--c) 10%,transparent);}
+  .ph{width:46px;height:82px;border-radius:9px;position:relative;}
+  .ph::after{content:"";position:absolute;left:50%;transform:translateX(-50%);bottom:5px;width:16px;height:2.5px;background:var(--c);border-radius:2px;}
+  .tv{width:104px;height:60px;border-radius:5px;position:relative;}
+  .tv::after{content:"";position:absolute;left:50%;transform:translateX(-50%);bottom:-11px;width:34px;height:3px;background:var(--c);border-radius:2px;}
+  .lp{width:88px;height:54px;border-radius:5px 5px 0 0;position:relative;}
+  .lp::after{content:"";position:absolute;left:50%;transform:translateX(-50%);bottom:-7px;width:112px;height:5px;background:var(--c);border-radius:0 0 5px 5px;}
+  .dev .route{font-family:var(--mono);font-size:15px;font-weight:700;}
+  .dev .who{font-size:12.5px;color:var(--ink3);}
+  .dev ul{padding-left:0;list-style:none;gap:5px;font-size:12.5px;color:var(--ink2);text-align:left;width:100%;
+          border-top:1px solid var(--line2);padding-top:11px;margin-top:2px;}
+  .dev ul li::before{content:"·";color:var(--ink3);margin-right:6px;}
+  .d-home{--c:var(--home);} .d-home .route{color:var(--home);}
+  .d-booth{--c:var(--booth);} .d-booth .route{color:var(--booth);}
+  .d-admin{--c:var(--admin);} .d-admin .route{color:var(--admin);}
+  @media(max-width:620px){.devices{grid-template-columns:1fr;} .dev{flex-direction:row;text-align:left;align-items:flex-start;flex-wrap:wrap;}
+    .frame{height:auto;width:auto;}
+    .dev ul{text-align:left;} .frame{flex:none;} .tv::after,.lp::after{display:none;}}
+
+  /* 표 */
+  .tw{overflow-x:auto;border:1px solid var(--line);border-radius:12px;background:var(--card);margin-top:16px;box-shadow:var(--sh);}
+  table{border-collapse:collapse;width:100%;font-size:13.5px;min-width:480px;}
+  th{text-align:left;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink3);font-weight:700;
+     padding:11px 14px;border-bottom:1px solid var(--line);white-space:nowrap;}
+  td{padding:11px 14px;border-bottom:1px solid var(--line2);color:var(--ink2);vertical-align:top;}
+  tr:last-child td{border-bottom:none;}
+  td strong{color:var(--ink);}
+  .chip{display:inline-block;font-family:var(--mono);font-size:11.5px;font-weight:700;padding:2px 8px;border-radius:999px;white-space:nowrap;}
+  .c-home{background:var(--home-bg);color:var(--home);border:1px solid var(--home-line);}
+  .c-booth{background:var(--booth-bg);color:var(--booth);border:1px solid var(--booth-line);}
+  .c-admin{background:var(--admin-bg);color:var(--admin);border:1px solid var(--admin-line);}
+
+  /* 작업 카드 */
+  .task{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:18px;margin-top:16px;box-shadow:var(--sh);}
+  .task > header{display:flex;align-items:baseline;gap:11px;flex-wrap:wrap;margin-bottom:10px;}
+  .task .tag{font-family:var(--mono);font-size:11px;font-weight:700;letter-spacing:.06em;color:var(--card);
+             background:var(--ink);padding:3px 9px;border-radius:5px;}
+  .task h3{margin:0;font-size:16.5px;}
+  .task .est{font-family:var(--mono);font-size:11.5px;color:var(--ink3);margin-left:auto;}
+  .task p{font-size:14px;}
+
+  pre{margin:12px 0 0;background:var(--code-bg);color:var(--code-ink);border-radius:10px;padding:14px 16px;
+      overflow-x:auto;font-family:var(--mono);font-size:12.5px;line-height:1.72;}
+  pre .c{color:var(--code-dim);}
+  pre .k{color:#FF9DB8;}
+  pre .s{color:#8ED9A6;}
+  .filename{font-family:var(--mono);font-size:11.5px;color:var(--ink3);margin-top:14px;display:block;}
+
+  .note{border-radius:10px;padding:13px 15px;margin-top:14px;font-size:14px;color:var(--ink2);}
+  .note b{display:block;font-size:13px;margin-bottom:4px;}
+  .n-risk{background:var(--risk-bg);border:1px solid var(--risk-line);border-left:5px solid var(--risk);} .n-risk b{color:var(--risk);}
+  .n-tip{background:var(--card);border:1px solid var(--line);border-left:5px solid var(--ink3);} .n-tip b{color:var(--ink);}
+
+  .check{background:var(--card);border:1px solid var(--line);border-radius:12px;overflow:hidden;margin-top:16px;box-shadow:var(--sh);}
+  .check label{display:flex;gap:11px;align-items:flex-start;padding:12px 15px;border-bottom:1px solid var(--line2);
+               font-size:14px;color:var(--ink2);cursor:pointer;}
+  .check label:last-child{border-bottom:none;}
+  .check input{margin-top:4px;width:15px;height:15px;flex:none;accent-color:var(--booth);}
+  .check input:checked + span{color:var(--ink3);text-decoration:line-through;}
+  .check input:focus-visible{outline:2px solid var(--booth);outline-offset:2px;}
+
+  footer{margin-top:50px;padding-top:20px;border-top:1px solid var(--line);font-size:12.5px;color:var(--ink3);}
+  @media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important;}}
+</style>
+
+<div class="wrap">
+
+<header class="cover">
+  <div class="kicker">부록 J · 프론트엔드 담당</div>
+  <h1>화면 분리와 UI/UX 개선 작업서</h1>
+  <p class="lede">지금 하나뿐인 화면을 <b>관람객 폰 · 부스 대형 화면 · 선생님 노트북</b> 세 개로 나누고, 각 기기에 맞게 다듬는 2차 작업 안내서입니다. 순서대로 따라가면 됩니다.</p>
+
+  <div class="answer">
+    <b>먼저 알아 둘 것 — 이건 디자인 취향 문제가 아닙니다</b>
+    <p>지금은 관람객이 보는 화면에 <strong>도어락 해제 · 220V 전원 차단 · 이용 강제 종료</strong> 버튼이 그대로 놓여 있습니다. 전시가 "관람객 직접 체험 + 실기기 반출"로 정해졌으니, 남이 노래하는 중에 전원이 꺼지거나 부스 문이 열릴 수 있습니다. <strong>화면 분리는 이걸 막는 작업입니다.</strong></p>
+  </div>
+</header>
+
+<!-- 1 -->
+<section>
+  <h2>1. 세 개로 나누는 이유 <em>보는 사람도, 기기도 다르다</em></h2>
+  <p>한 화면에 다 있으면 편해 보이지만, 실제로는 <strong>서로 다른 세 사람이 서로 다른 기기로</strong> 봅니다. 폰에서 쓰기 좋은 화면과 3m 떨어져 보는 대형 화면은 글자 크기부터 달라야 합니다.</p>
+
+  <div class="devices">
+    <div class="dev d-home">
+      <div class="frame"><div class="screen ph"></div></div>
+      <div>
+        <div class="route">/</div>
+        <div class="who">학생·관람객 · 폰</div>
+      </div>
+      <ul><li>예약 신청과 PIN 발급</li><li>내 노래 기록</li><li>노래 퀴즈 미니게임</li></ul>
+    </div>
+    <div class="dev d-booth">
+      <div class="frame"><div class="screen tv"></div></div>
+      <div>
+        <div class="route">/booth</div>
+        <div class="who">부스 이용자 · 대형 화면</div>
+      </div>
+      <ul><li>노래방 영상과 반주</li><li>실시간 음정·성량</li><li>점수와 랭킹</li></ul>
+    </div>
+    <div class="dev d-admin">
+      <div class="frame"><div class="screen lp"></div></div>
+      <div>
+        <div class="route">/admin</div>
+        <div class="who">선생님 · 노트북</div>
+      </div>
+      <ul><li>기기 직접 제어</li><li>시나리오 강제 실행</li><li>예약·통계 관리</li></ul>
+    </div>
+  </div>
+
+  <h3>지금 화면에 노출된 위험한 조작</h3>
+  <div class="tw">
+    <table>
+      <thead><tr><th>조작</th><th>지금 위치</th><th>전시장에서 벌어질 일</th></tr></thead>
+      <tbody>
+        <tr><td><strong>도어락 잠금/해제</strong></td><td><code>VirtualBoothSimulator</code></td><td>관람객이 부스 문을 연다</td></tr>
+        <tr><td><strong>릴레이 전원 ON/OFF</strong></td><td><code>VirtualBoothSimulator</code></td><td>남이 노래하는 중에 전원이 꺼진다</td></tr>
+        <tr><td><strong>이용 종료 강제 실행</strong></td><td><code>VirtualBoothSimulator</code></td><td>남의 이용 시간을 끝내 버린다</td></tr>
+        <tr><td>LED·스피커 직접 제어</td><td><code>VirtualBoothSimulator</code></td><td>조명과 안내음을 임의로 조작</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="note n-tip">
+    <b>백엔드 쪽은 이미 막혀 있습니다</b>
+    관리자 PIN → 단기 토큰(<code>X-Admin-Token</code>) 방식이 이미 들어가 있어서, 버튼을 숨기는 것만으로 끝나는 게 아니라 <strong>URL을 직접 호출해도 401</strong>이 납니다. 프론트에서는 <code>utils/adminSession.ts</code>의 <code>adminFetch()</code>가 토큰을 자동으로 붙여 줍니다. 여러분이 할 일은 <strong>화면을 나누는 것</strong>입니다.
+  </div>
+</section>
+
+<!-- 2 -->
+<section>
+  <h2>2. 지금 탭 5개를 어디로 보내나</h2>
+  <div class="tw">
+    <table>
+      <thead><tr><th>현재 탭</th><th>옮길 곳</th><th>비고</th></tr></thead>
+      <tbody>
+        <tr><td>가상 부스 관제 &amp; 키패드 시뮬레이터</td><td><span class="chip c-admin">/admin</span></td><td><strong>전부.</strong> 관람객에게 절대 노출 금지</td></tr>
+        <tr><td>노래방 예약 신청 &amp; PIN 발급</td><td><span class="chip c-home">/</span> <span class="chip c-admin">/admin</span></td><td>신청은 <code>/</code>, 조회·취소는 <code>/admin</code></td></tr>
+        <tr><td>실시간 노래방 반주 &amp; 채점</td><td><span class="chip c-booth">/booth</span></td><td>그대로 옮긴다</td></tr>
+        <tr><td>나의 18번 &amp; 노래 기록</td><td><span class="chip c-home">/</span> <span class="chip c-admin">/admin</span></td><td>내 기록은 <code>/</code>, 전체 통계는 <code>/admin</code></td></tr>
+        <tr><td>노래 퀴즈 미니게임</td><td><span class="chip c-home">/</span></td><td>대기열에서 기다릴 때 하기 좋다</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="note n-risk">
+    <b>없어지는 기능 하나 — 미리 알아 두세요</b>
+    지금은 예약 목록에서 PIN을 누르면 <strong>시뮬레이터 탭으로 자동 이동</strong>해 인증까지 됩니다(<code>handleSelectPinForSimulator</code>). 화면이 나뉘면 <code>/</code>에서 <code>/admin</code>의 키패드로 넘어갈 수 없습니다.<br>
+    → 대신 <code>/</code>에서는 <strong>발급된 PIN을 크게 보여 주고</strong>, "부스 앞 키패드에 입력하세요"라고 안내하면 됩니다. 실제 사용 흐름과도 이쪽이 맞습니다.
+  </div>
+</section>
+
+<!-- 3 -->
+<section>
+  <h2>3. 작업 순서 <em>1번을 건너뛰면 같은 코드가 3벌이 됩니다</em></h2>
+  <p>지금 <code>app/page.tsx</code> 397줄 안에 데이터 로딩·WebSocket·핸들러가 전부 들어 있습니다. 라우트부터 만들고 복사하면 그 397줄이 세 번 복제됩니다. <strong>공통 로직을 먼저 빼내세요.</strong></p>
+
+  <!-- 작업 1 -->
+  <div class="task">
+    <header><span class="tag">작업 1</span><h3>공통 로직을 훅으로 빼내기</h3><span class="est">반나절</span></header>
+    <p><code>app/page.tsx</code>에서 <strong>화면에 안 보이는 부분</strong>(데이터 가져오기 + WebSocket)만 새 파일로 옮깁니다. 화면(JSX)은 건드리지 않습니다.</p>
+    <span class="filename">frontend/hooks/useBoothData.ts (새 파일)</span>
+<pre><span class="k">"use client"</span>;
+<span class="k">import</span> { useState, useEffect, useCallback } <span class="k">from</span> <span class="s">"react"</span>;
+<span class="k">import</span> { apiUrl } <span class="k">from</span> <span class="s">"@/utils/apiConfig"</span>;
+<span class="k">import</span> { useKaraokeSocket } <span class="k">from</span> <span class="s">"@/hooks/useKaraokeSocket"</span>;
+<span class="k">import</span> { Device, Reservation, Song, WebSocketMessage } <span class="k">from</span> <span class="s">"@/types"</span>;
+
+<span class="c">/** 세 화면이 똑같이 필요로 하는 것: 기기 상태 · 예약 · 노래 · 실시간 연결 */</span>
+<span class="k">export function</span> useBoothData() {
+  <span class="k">const</span> [devices, setDevices] = useState&lt;Device[]&gt;([]);
+  <span class="k">const</span> [reservations, setReservations] = useState&lt;Reservation[]&gt;([]);
+  <span class="k">const</span> [allSongs, setAllSongs] = useState&lt;Song[]&gt;([]);
+  <span class="k">const</span> [favoriteSongs, setFavoriteSongs] = useState&lt;Song[]&gt;([]);
+  <span class="k">const</span> [lastEventMsg, setLastEventMsg] = useState(<span class="s">"부스 시스템이 정상 대기 중입니다."</span>);
+
+  <span class="c">// ↓ page.tsx 의 fetchDevices / fetchReservations / fetchSongs 를 그대로 옮겨 온다</span>
+  <span class="c">// ↓ handleWsMessage 와 useKaraokeSocket 호출도 그대로 옮겨 온다</span>
+
+  <span class="k">const</span> { isConnected } = useKaraokeSocket(handleWsMessage);
+
+  <span class="k">return</span> { devices, reservations, allSongs, favoriteSongs,
+           lastEventMsg, isConnected, fetchDevices, fetchReservations, fetchSongs };
+}</pre>
+    <p style="margin-top:12px">그리고 <code>app/page.tsx</code> 맨 위에서 이렇게 씁니다. 화면은 그대로인데 줄 수가 확 줄어듭니다.</p>
+<pre><span class="k">const</span> { devices, reservations, allSongs, favoriteSongs, isConnected, fetchDevices } = useBoothData();</pre>
+    <div class="note n-tip"><b>여기서 한 번 확인</b>화면이 이전과 똑같이 동작하는지 먼저 확인하고 다음으로 넘어가세요. 이 단계는 <strong>보이는 것이 하나도 바뀌지 않아야</strong> 성공입니다.</div>
+  </div>
+
+  <!-- 작업 2 -->
+  <div class="task">
+    <header><span class="tag">작업 2</span><h3><code>/admin</code> 만들기 — 위험한 것부터 격리</h3><span class="est">반나절</span></header>
+    <p>Next.js App Router는 <strong>폴더 이름이 곧 주소</strong>입니다. <code>app/admin/page.tsx</code>를 만들면 그 순간 <code>/admin</code>이 생깁니다.</p>
+    <span class="filename">frontend/app/admin/page.tsx (새 파일)</span>
+<pre><span class="k">"use client"</span>;
+<span class="k">import</span> { useSyncExternalStore } <span class="k">from</span> <span class="s">"react"</span>;
+<span class="k">import</span> { AdminGate } <span class="k">from</span> <span class="s">"@/components/booth/AdminGate"</span>;
+<span class="k">import</span> { VirtualBoothSimulator } <span class="k">from</span> <span class="s">"@/components/booth/VirtualBoothSimulator"</span>;
+<span class="k">import</span> { useBoothData } <span class="k">from</span> <span class="s">"@/hooks/useBoothData"</span>;
+<span class="k">import</span> { subscribeAdminSession, getAdminSnapshot,
+         getAdminServerSnapshot } <span class="k">from</span> <span class="s">"@/utils/adminSession"</span>;
+
+<span class="k">export default function</span> AdminPage() {
+  <span class="k">const</span> { devices, reservations, fetchDevices } = useBoothData();
+  <span class="k">const</span> adminAuthed = useSyncExternalStore(
+    subscribeAdminSession, getAdminSnapshot, getAdminServerSnapshot);
+
+  <span class="c">// 인증 전에는 기기 제어 화면 자체를 그리지 않는다</span>
+  <span class="k">if</span> (!adminAuthed) <span class="k">return</span> &lt;AdminGate isAuthed={adminAuthed} /&gt;;
+
+  <span class="k">return</span> (
+    &lt;main&gt;
+      &lt;VirtualBoothSimulator devices={devices} <span class="c">/* …기존 props 그대로 */</span> /&gt;
+    &lt;/main&gt;
+  );
+}</pre>
+    <div class="note n-risk"><b>인증 전에는 <em>그리지 않습니다</em></b><code>disabled</code>로 버튼만 막으면 화면에는 계속 보입니다. 아예 <code>return</code>해 버려야 관람객이 무엇이 있는지도 모릅니다.</div>
+  </div>
+
+  <!-- 작업 3 -->
+  <div class="task">
+    <header><span class="tag">작업 3</span><h3><code>/booth</code> 만들기 — 노래방 전용</h3><span class="est">반나절</span></header>
+    <p><code>app/booth/page.tsx</code>를 만들고 <code>KaraokeRoomSection</code>을 옮깁니다. 이 화면은 부스 대형 화면에 <strong>계속 띄워 두는 화면</strong>이라 탭 메뉴도, 상단 헤더도 필요 없습니다.</p>
+<pre><span class="k">"use client"</span>;
+<span class="k">import</span> { KaraokeRoomSection } <span class="k">from</span> <span class="s">"@/components/booth/KaraokeRoomSection"</span>;
+<span class="k">import</span> { useBoothData } <span class="k">from</span> <span class="s">"@/hooks/useBoothData"</span>;
+
+<span class="k">export default function</span> BoothPage() {
+  <span class="k">const</span> { devices, fetchSongs } = useBoothData();
+  <span class="k">return</span> (
+    &lt;main className=<span class="s">"min-h-screen bg-slate-950"</span>&gt;
+      &lt;KaraokeRoomSection devices={devices} onSongCompleted={fetchSongs} /&gt;
+    &lt;/main&gt;
+  );
+}</pre>
+  </div>
+
+  <!-- 작업 4 -->
+  <div class="task">
+    <header><span class="tag">작업 4</span><h3><code>/</code> 정리 — 관람객에게 필요한 것만</h3><span class="est">반나절</span></header>
+    <p>남은 <code>app/page.tsx</code>에서 시뮬레이터와 노래방을 걷어내고, <strong>탭 전환도 없앱니다.</strong> 폰 화면에서는 탭보다 세로로 쭉 이어지는 편이 낫습니다.</p>
+    <ul>
+      <li><code>ReservationSection</code> — 예약 신청 (신청 기능만)</li>
+      <li><code>SongHistorySection</code> — 내 노래 기록</li>
+      <li><code>MiniGameSection</code> — 노래 퀴즈</li>
+    </ul>
+    <p>맨 위에는 부스가 지금 쓰는 중인지 한 줄로 보여 주면 관람객이 줄 설지 판단할 수 있습니다.</p>
+  </div>
+
+  <!-- 작업 5 -->
+  <div class="task">
+    <header><span class="tag">작업 5</span><h3>화면 사이 이동</h3><span class="est">1~2시간</span></header>
+    <p><code>&lt;a href&gt;</code> 대신 <strong><code>next/link</code></strong>를 쓰세요. 페이지 전체를 새로 받지 않아 훨씬 빠릅니다.</p>
+<pre><span class="k">import</span> Link <span class="k">from</span> <span class="s">"next/link"</span>;
+
+&lt;Link href=<span class="s">"/admin"</span>&gt;관리자&lt;/Link&gt;</pre>
+    <ul>
+      <li><code>/</code> 하단에 <code>/admin</code> 링크를 <strong>작게</strong> — 관람객이 눌러도 인증 화면에서 막힙니다</li>
+      <li><code>/booth</code>에는 링크를 두지 않습니다 — 부스 화면은 노래방만 떠 있어야 합니다</li>
+      <li><code>app/layout.tsx</code>는 건드리지 마세요. 여기에 헤더를 넣으면 <code>/booth</code>에도 따라붙습니다</li>
+    </ul>
+  </div>
+
+  <!-- 작업 6 -->
+  <div class="task">
+    <header><span class="tag">작업 6</span><h3>기기별로 다듬기</h3><span class="est">2~3일</span></header>
+    <p>여기부터가 UI/UX 작업입니다. 다음 장에서 화면별로 따로 설명합니다.</p>
+  </div>
+</section>
+
+<!-- 4 -->
+<section>
+  <h2>4. 화면별 UI/UX 원칙</h2>
+  <p>같은 디자인을 세 곳에 쓰면 안 됩니다. <strong>보는 거리와 손가락 크기가 다릅니다.</strong></p>
+
+  <h3><span class="chip c-home">/</span> 관람객 폰 — 한 손으로, 서서, 급하게</h3>
+  <ul>
+    <li><strong>터치 영역은 최소 44×44px.</strong> 글자만 작게 두고 주변을 넓히는 방식(<code>padding</code>)으로 키우세요</li>
+    <li><strong>세로 한 컬럼.</strong> 폰에서 가로 스크롤이 생기면 그 화면은 실패입니다</li>
+    <li><strong>입력은 최소로.</strong> 예약 폼에서 타이핑이 필요한 칸을 세어 보고, 선택지로 바꿀 수 있는 건 버튼으로</li>
+    <li><strong>발급된 PIN은 화면에서 가장 큰 글자로.</strong> 관람객이 이걸 보고 부스 키패드로 갑니다</li>
+    <li>숫자 입력 칸에는 <code>inputMode="numeric"</code> — 폰에서 숫자 키패드가 바로 뜹니다</li>
+  </ul>
+
+  <h3><span class="chip c-booth">/booth</span> 부스 대형 화면 — 2~3m 떨어져서 본다</h3>
+  <ul>
+    <li><strong>본문 글자를 지금의 1.5~2배로.</strong> 노트북에서 적당해 보이는 크기는 3m 밖에서 안 읽힙니다. 실제로 화면을 띄워 두고 뒤로 물러나서 확인하세요</li>
+    <li><strong>마우스 커서를 숨깁니다</strong> — <code>cursor: none</code>. 키오스크 화면에 화살표가 떠 있으면 어설퍼 보입니다</li>
+    <li><strong>전체화면</strong> — 브라우저에서 <kbd>F11</kbd>, 또는 시작 버튼에 <code>requestFullscreen()</code></li>
+    <li><strong>어트랙트 화면</strong>(부록G §2-⑥) — 아무도 안 쓸 때 곡 목록과 최고 점수를 돌려 보여 주면 사람이 모입니다</li>
+    <li>점수 화면은 <strong>멀리서도 읽히게</strong> — 숫자 하나만 크게, 설명은 작게</li>
+  </ul>
+
+  <h3><span class="chip c-admin">/admin</span> 선생님 노트북 — 한눈에 파악, 실수 방지</h3>
+  <ul>
+    <li><strong>정보 밀도를 높여도 됩니다.</strong> 여기는 표가 어울리는 유일한 화면입니다</li>
+    <li><strong>위험한 버튼은 한 번 더 묻기</strong> — 전원 차단·강제 종료는 <code>confirm()</code>이라도 거치게</li>
+    <li><strong>상태는 색과 모양을 같이</strong> 씁니다. 색만으로 구분하면 색각 이상인 사람이 읽을 수 없습니다 (예: 🔴 + "차단됨")</li>
+    <li>지금 누가 이용 중인지, 몇 분 남았는지를 맨 위에</li>
+  </ul>
+
+  <h3>세 화면 공통</h3>
+  <ul>
+    <li><strong>키보드 포커스가 보여야 합니다.</strong> <code>outline: none</code>만 쓰고 대체 스타일을 안 주는 건 접근성 위반입니다</li>
+    <li><strong>백엔드가 꺼져 있을 때</strong> 화면이 하얗게 되지 않는지 — 지금 코드는 빈 목록으로 버티게 되어 있습니다. 새로 만드는 화면도 그렇게 하세요</li>
+    <li><strong>로딩 중과 빈 상태를 구분</strong>해서 보여 주세요. "불러오는 중"과 "아직 예약이 없습니다"는 다른 화면입니다</li>
+  </ul>
+</section>
+
+<!-- 5 -->
+<section>
+  <h2>5. 자주 막히는 곳</h2>
+  <div class="tw">
+    <table>
+      <thead><tr><th>증상</th><th>원인과 조치</th></tr></thead>
+      <tbody>
+        <tr><td><code>useState is not defined</code><br>비슷한 오류</td><td>새로 만든 <code>page.tsx</code> 맨 첫 줄에 <code>"use client";</code>가 빠졌습니다. 훅을 쓰는 파일에는 반드시 필요합니다</td></tr>
+        <tr><td><code>/admin</code>이 404</td><td>폴더 이름이 주소가 됩니다. <code>app/admin/page.tsx</code>가 맞는지, 파일 이름이 <code>page.tsx</code>인지 확인하세요</td></tr>
+        <tr><td>버튼을 눌러도 <strong>401</strong></td><td>관리자 인증이 만료됐습니다. <code>adminFetch()</code>를 쓰고 있는지, <code>fetch()</code>를 쓰고 있진 않은지 확인하세요</td></tr>
+        <tr><td>Tailwind 색이 <strong>안 먹힘</strong></td><td>클래스 이름을 문자열로 조립하면(<code>{`bg-${color}-500`}</code>) 빌드가 그 클래스를 못 찾아 지워 버립니다. <strong>완성된 클래스 이름</strong>을 통째로 쓰세요</td></tr>
+        <tr><td>실시간 표시가 <strong>안 바뀜</strong></td><td>WebSocket이 끊겼습니다. 상단 연결 배지를 확인하고, <code>.env</code>의 <code>NEXT_PUBLIC_WS_URL</code>을 보세요. <code>NEXT_PUBLIC_</code> 값은 <strong>서버를 껐다 켜야</strong> 반영됩니다</td></tr>
+        <tr><td>폰에서 <strong>가로로 스크롤</strong></td><td>어딘가 고정 폭(<code>min-width</code>)이 있습니다. 표는 <code>overflow-x-auto</code>로 감싼 안쪽에서만 넓어야 합니다</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<!-- 6 -->
+<section>
+  <h2>6. 완료 체크리스트</h2>
+  <p>작업이 끝났는지 스스로 확인하는 기준입니다.</p>
+  <div class="check" id="doneList">
+    <label><input type="checkbox" id="f1"><span><strong>구조</strong> <code>app/page.tsx</code> · <code>app/booth/page.tsx</code> · <code>app/admin/page.tsx</code> 세 파일이 있다</span></label>
+    <label><input type="checkbox" id="f2"><span><strong>구조</strong> 데이터 로딩과 WebSocket 코드가 <code>hooks/useBoothData.ts</code> 한 곳에만 있다</span></label>
+    <label><input type="checkbox" id="f3"><span><strong>보안</strong> <code>/</code>와 <code>/booth</code> 어디에도 도어락·전원·강제 종료 버튼이 없다</span></label>
+    <label><input type="checkbox" id="f4"><span><strong>보안</strong> 관리자 인증 전 <code>/admin</code>에서 제어 화면이 <em>보이지도</em> 않는다</span></label>
+    <label><input type="checkbox" id="f5"><span><strong>폰</strong> 390px 폭에서 가로 스크롤이 없고, 모든 버튼을 엄지로 누를 수 있다</span></label>
+    <label><input type="checkbox" id="f6"><span><strong>부스</strong> 대형 화면에서 <strong>3m 뒤로 물러나</strong> 곡 제목과 점수가 읽힌다</span></label>
+    <label><input type="checkbox" id="f7"><span><strong>관리</strong> 전원 차단·강제 종료에 확인 단계가 있다</span></label>
+    <label><input type="checkbox" id="f8"><span><strong>견고성</strong> 백엔드를 끈 상태로 세 화면을 열어도 하얗게 죽지 않는다</span></label>
+    <label><input type="checkbox" id="f9"><span><strong>품질</strong> <code>npm run build</code>가 오류 없이 끝난다</span></label>
+  </div>
+  <div class="note n-tip">
+    <b>순서를 지키세요</b>
+    부록G §3-5에 적힌 대로, 화면 분리는 <strong>체험 모드·어트랙트 화면·관리자 대시보드보다 먼저</strong> 해야 합니다. 나중에 하면 만들어 둔 화면을 전부 다시 옮겨야 합니다.
+  </div>
+</section>
+
+<footer>
+  부록 J · 웹 예약 연동 자동화 학교 노래방 부스 관리 시스템 · 인천전자마이스터고 정보통신과 2학년 팀 프로젝트<br>
+  설계 근거는 <code>docs/부록G §3</code>, 시스템 전체 구조는 <code>docs/부록H</code>를 함께 보세요.
+</footer>
+
+</div>
+
+<script>
+(function () {
+  var boxes = document.querySelectorAll('.check input[type="checkbox"]');
+  boxes.forEach(function (box) {
+    var key = "feManual:" + box.id;
+    try { if (localStorage.getItem(key) === "1") box.checked = true; } catch (e) {}
+    box.addEventListener("change", function () {
+      try { localStorage.setItem(key, box.checked ? "1" : "0"); } catch (e) {}
+    });
+  });
+})();
+</script>
