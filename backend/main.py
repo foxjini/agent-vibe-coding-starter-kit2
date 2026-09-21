@@ -28,6 +28,7 @@ from routers.reservations import (
     songs_router,
     videos_router,
     scores_router,
+    scheduler_router,
 )
 from websocket_manager import ws_manager
 
@@ -57,8 +58,14 @@ async def lifespan(app: FastAPI):
             f"DB initialization at startup skipped/failed (MariaDB connection check): {exc}"
         )
 
+    # 2. 예약 시간 자동 운영 엔진 시작 (부록G §2-①)
+    #    1분마다 오늘 예약을 훑어 10분 전 알림 · 종료 처리 · 노쇼 취소를 자동으로 한다.
+    from services import scheduler
+    scheduler.start()
+
     yield
 
+    await scheduler.stop()
     logger.info("Backend server shutting down.")
 
 
@@ -114,6 +121,7 @@ app.include_router(booth_router)
 app.include_router(songs_router)
 app.include_router(videos_router)
 app.include_router(scores_router)
+app.include_router(scheduler_router)
 
 
 

@@ -15,6 +15,7 @@ from schemas.reservation import (
     SongVideoRequest,
 )
 from services.booth_service import BoothService
+from services import scheduler
 from websocket_manager import ws_manager
 
 logger = logging.getLogger("backend.routers.reservations")
@@ -24,6 +25,7 @@ booth_router = APIRouter(prefix="/api/booth", tags=["booth-automation"])
 songs_router = APIRouter(prefix="/api/songs", tags=["songs"])
 videos_router = APIRouter(prefix="/api/song-videos", tags=["song-videos"])
 scores_router = APIRouter(prefix="/api/scores", tags=["scores"])
+scheduler_router = APIRouter(prefix="/api/scheduler", tags=["scheduler"])
 
 
 # ==============================================================================
@@ -311,3 +313,28 @@ async def list_recent_scores(limit: int = Query(10, ge=1, le=50)) -> Dict[str, A
     except Exception as exc:
         logger.error(f"Failed to fetch recent scores: {exc}")
         return {"data": []}
+
+
+# ==============================================================================
+# 예약 시간 자동 운영 엔진 (부록G §2-①)
+#
+# 상태 조회는 열어 둔다 — 관리자 화면이 "엔진이 살아 있나"를 계속 보여 줘야 한다.
+# 수동 실행은 관리자만 할 수 있다. 시연이나 점검 때 1분을 기다리지 않고
+# 곧바로 한 바퀴 돌려 보기 위한 것이다.
+# ==============================================================================
+
+@scheduler_router.get("/status")
+async def scheduler_status() -> Dict[str, Any]:
+    """엔진 설정·마지막 실행 시각·최근 처리 내역·오늘 남은 일정."""
+    try:
+        return {"data": scheduler.get_status()}
+    except Exception as exc:
+        logger.error(f"Failed to read scheduler status: {exc}")
+        return {"data": {"enabled": False, "last_error": str(exc), "actions": [], "upcoming": []}}
+
+
+@scheduler_router.post("/run")
+async def scheduler_run_once(_admin: str = Depends(verify_admin_token)) -> Dict[str, Any]:
+    """지금 즉시 한 바퀴 돌립니다 (관리자 전용)."""
+    result = await scheduler.run_once()
+    return {"data": result}

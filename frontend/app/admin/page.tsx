@@ -12,6 +12,7 @@ import { ReservationSection } from "@/components/booth/ReservationSection";
 import { SongHistorySection } from "@/components/booth/SongHistorySection";
 import { VideoCheckPanel } from "@/components/booth/VideoCheckPanel";
 import { OpsSummary } from "@/components/admin/OpsSummary";
+import { SchedulerPanel } from "@/components/admin/SchedulerPanel";
 import { useBoothData } from "@/hooks/useBoothData";
 import { apiUrl } from "@/utils/apiConfig";
 import {
@@ -167,7 +168,13 @@ export default function AdminPage() {
               isConnected={isConnected}
             />
 
-            {/* 2. 개입 — 기기 제어와 시나리오 강제 실행 */}
+            {/*
+              2. 자동 운영 엔진 — 사람이 버튼을 누르지 않아도 도는 부분이다.
+                 '지금 무슨 일이 예정돼 있나'가 개입 도구보다 먼저 와야 한다.
+            */}
+            <SchedulerPanel />
+
+            {/* 3. 개입 — 기기 제어와 시나리오 강제 실행 */}
             <VirtualBoothSimulator
               devices={devices}
               onDeviceControl={handleDeviceControl}
@@ -181,7 +188,7 @@ export default function AdminPage() {
             />
 
             {/*
-              3. 예약 관리 — 여기서는 '현황 목록'이 일이다. 신청 폼은 관람객
+              4. 예약 관리 — 여기서는 '현황 목록'이 일이다. 신청 폼은 관람객
                  화면(`/`)의 몫이라 띄우지 않는다 (부록G §3-3).
             */}
             <ReservationSection
@@ -193,13 +200,13 @@ export default function AdminPage() {
             />
 
             {/*
-              4. 준비 작업 — 노래방 영상 점검. 부스 화면(`/booth`)에 있던 것을
+              5. 준비 작업 — 노래방 영상 점검. 부스 화면(`/booth`)에 있던 것을
                  옮겨 왔다. 전시 중 관람객이 보는 화면에 설정 도구가 있을 이유가
                  없고, 영상 등록은 관리자 인증이 필요한 작업이다.
             */}
             <VideoCheckPanel />
 
-            {/* 5. 기록 — 전체 노래 통계 */}
+            {/* 6. 기록 — 전체 노래 통계 */}
             <SongHistorySection
               allSongs={allSongs}
               favoriteSongs={favoriteSongs}
