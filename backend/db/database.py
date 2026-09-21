@@ -612,6 +612,80 @@ def record_song(title: str, singer: str) -> Dict[str, Any]:
 
 
 # ==============================================================================
+# 점수 기록과 랭킹 (부록G §2-④)
+#
+# song_history 는 "어떤 곡을 몇 번 불렀나"의 누적이고, 여기는 "누가 언제 몇 점을
+# 받았나"의 낱개 기록이다. 질문이 다르므로 테이블도 따로 둔다.
+#
+# 다른 조회 함수와 마찬가지로, DB가 꺼져 있어도 부스 화면은 떠야 하므로
+# 호출하는 쪽에서 빈 목록으로 degrade 한다.
+# ==============================================================================
+
+def record_score(
+    nickname: str,
+    title: str,
+    singer: str,
+    score: int,
+    rank_label: Optional[str] = None,
+    pitch: Optional[int] = None,
+    timing: Optional[int] = None,
+    volume: Optional[int] = None,
+    expression: Optional[int] = None,
+) -> Dict[str, Any]:
+    """한 번의 채점 결과를 남깁니다."""
+    with get_db_cursor() as cursor:
+        cursor.execute(
+            """
+            INSERT INTO score_records
+              (nickname, title, singer, score, rank_label, pitch, timing, volume, expression)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+            """ + (" RETURNING id" if IS_POSTGRES else ""),
+            (nickname, title, singer, score, rank_label, pitch, timing, volume, expression),
+        )
+        new_id = cursor.fetchone()["id"] if IS_POSTGRES else cursor.lastrowid
+
+        cursor.execute("SELECT * FROM score_records WHERE id = %s", (new_id,))
+        return _format_row(cursor.fetchone()) or {}
+
+
+def get_top_scores(period: str = "today", limit: int = 5) -> List[Dict[str, Any]]:
+    """
+    점수 순위.
+
+    period="today" 는 오늘 기록만 본다 — 전시장에서는 "오늘의 1등"이라야
+    관람객이 순위를 깨러 다시 온다. "all" 은 명예의 전당이다.
+    """
+    # 날짜 비교 문법이 MySQL 과 PostgreSQL 에서 다르다
+    if period == "today":
+        where = "WHERE created_at::date = CURRENT_DATE" if IS_POSTGRES \
+            else "WHERE DATE(created_at) = CURDATE()"
+    else:
+        where = ""
+
+    with get_db_cursor() as cursor:
+        cursor.execute(
+            f"""
+            SELECT * FROM score_records
+            {where}
+            ORDER BY score DESC, created_at ASC
+            LIMIT %s
+            """,
+            (limit,),
+        )
+        return [_format_row(r) for r in (cursor.fetchall() or [])]
+
+
+def get_recent_scores(limit: int = 10) -> List[Dict[str, Any]]:
+    """최근 기록 순 — 어트랙트 화면에서 '방금 이 점수가 나왔다'를 보여 줄 때 쓴다."""
+    with get_db_cursor() as cursor:
+        cursor.execute(
+            "SELECT * FROM score_records ORDER BY created_at DESC LIMIT %s",
+            (limit,),
+        )
+        return [_format_row(r) for r in (cursor.fetchall() or [])]
+
+
+# ==============================================================================
 # 노래방 영상 등록 (F-06)
 #
 # 곡별 기본 후보 목록은 프론트엔드 코드(data/karaokeSongs.ts)에 있다.

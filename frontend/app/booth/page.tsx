@@ -17,12 +17,18 @@ import { useBoothData } from "@/hooks/useBoothData";
  *    읽히지 않는다 — 실제로 띄워 놓고 뒤로 물러나서 확인할 것 (부록J §4).
  */
 export default function BoothPage() {
-  const { devices, isConnected, fetchSongs } = useBoothData();
+  const { devices, isConnected, topToday, topAll, fetchSongs, fetchScores } = useBoothData();
 
   return (
     <div className="theme-stage min-h-screen bg-canvas text-ink">
       <main className="max-w-7xl mx-auto px-4 lg:px-8 py-6">
-        <KaraokeRoomSection devices={devices} onSongCompleted={fetchSongs} />
+        <KaraokeRoomSection
+          devices={devices}
+          onSongCompleted={fetchSongs}
+          topToday={topToday}
+          topAll={topAll}
+          onScoreRecorded={fetchScores}
+        />
       </main>
 
       {/*

@@ -10,6 +10,7 @@ from db import database as db
 from schemas.reservation import (
     KeypadVerifyRequest,
     ReservationCreateRequest,
+    ScoreRecordRequest,
     SongRecordRequest,
     SongVideoRequest,
 )
@@ -22,6 +23,7 @@ reservations_router = APIRouter(prefix="/api/reservations", tags=["reservations"
 booth_router = APIRouter(prefix="/api/booth", tags=["booth-automation"])
 songs_router = APIRouter(prefix="/api/songs", tags=["songs"])
 videos_router = APIRouter(prefix="/api/song-videos", tags=["song-videos"])
+scores_router = APIRouter(prefix="/api/scores", tags=["scores"])
 
 
 # ==============================================================================
@@ -244,3 +246,68 @@ async def unregister_song_video(
     """등록을 지우고 기본 후보 목록으로 되돌립니다 (관리자 전용)."""
     db.delete_song_video(song_id)
     return {"data": {"song_id": song_id, "removed": True}}
+
+
+# ==============================================================================
+# 점수 기록과 랭킹 (부록G §2-④)
+#
+# 기록은 부스 화면이 채점을 마치면 바로 올린다 — 관리자 인증을 걸지 않는다.
+# 전시장에서는 관람객이 직접 부르고 바로 순위에 오르는 것이 이 기능의 전부라,
+# 여기에 인증을 걸면 기능 자체가 성립하지 않는다.
+# 조회도 열어 둔다 — 부스 대형 화면과 관람객 폰이 같은 순위를 봐야 한다.
+# ==============================================================================
+
+@scores_router.post("")
+async def record_score(req: ScoreRecordRequest) -> Dict[str, Any]:
+    """채점 결과를 남기고 대시보드에 실시간으로 알립니다."""
+    try:
+        saved = db.record_score(
+            nickname=(req.nickname or "익명").strip() or "익명",
+            title=req.title,
+            singer=req.singer,
+            score=req.score,
+            rank_label=req.rank_label,
+            pitch=req.pitch,
+            timing=req.timing,
+            volume=req.volume,
+            expression=req.expression,
+        )
+    except Exception as exc:
+        # 점수를 못 남겼다고 해서 부스 화면이 멈추면 안 된다
+        logger.error(f"Failed to record score: {exc}")
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail={"code": "SCORE_SAVE_FAILED", "message": "점수를 저장하지 못했습니다."}
+        )
+
+    await ws_manager.broadcast({
+        "type": "score_recorded",
+        "nickname": saved.get("nickname"),
+        "title": saved.get("title"),
+        "score": saved.get("score"),
+        "timestamp": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+    })
+    return {"data": saved}
+
+
+@scores_router.get("/top")
+async def list_top_scores(
+    period: str = Query("today", pattern="^(today|all)$"),
+    limit: int = Query(5, ge=1, le=20),
+) -> Dict[str, Any]:
+    """오늘의 순위(today) 또는 명예의 전당(all). DB가 없어도 빈 목록으로 degrade한다."""
+    try:
+        return {"data": db.get_top_scores(period=period, limit=limit)}
+    except Exception as exc:
+        logger.error(f"Failed to fetch top scores: {exc}")
+        return {"data": []}
+
+
+@scores_router.get("/recent")
+async def list_recent_scores(limit: int = Query(10, ge=1, le=50)) -> Dict[str, Any]:
+    """최근 기록 순."""
+    try:
+        return {"data": db.get_recent_scores(limit=limit)}
+    except Exception as exc:
+        logger.error(f"Failed to fetch recent scores: {exc}")
+        return {"data": []}

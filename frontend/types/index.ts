@@ -46,7 +46,26 @@ export interface WebSocketMessage {
   detected?: boolean;
   count?: number;
   confidence?: number;
+  // score_recorded (부록G §2-④)
+  nickname?: string;
+  title?: string;
+  score?: number;
   success?: boolean;
   timestamp?: string;
   created_at?: string;
+}
+
+/** 채점 결과 한 건 (부록G §2-④ 점수 저장 + 실시간 랭킹) */
+export interface ScoreRecord {
+  id: number;
+  nickname: string;
+  title: string;
+  singer: string;
+  score: number;
+  rank_label?: string | null;
+  pitch?: number | null;
+  timing?: number | null;
+  volume?: number | null;
+  expression?: number | null;
+  created_at?: string | null;
 }
