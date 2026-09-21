@@ -284,8 +284,8 @@ export function VirtualBoothSimulator({
     <div className="space-y-6">
       {/* Top Notification Banner */}
       {lastEventMessage && (
-        <div className="flex items-center gap-3 p-4 rounded-xl bg-indigo-950/40 border border-indigo-500/30 text-indigo-200 text-sm animate-fade-in shadow-inner">
-          <Sparkles className="w-5 h-5 text-indigo-400 shrink-0" />
+        <div className="flex items-center gap-3 p-4 rounded-xl bg-brass-soft/40 border border-brass/30 text-brass text-sm animate-fade-in shadow-inner">
+          <Sparkles className="w-5 h-5 text-brass shrink-0" />
           <span className="font-medium">{lastEventMessage}</span>
         </div>
       )}
@@ -293,14 +293,14 @@ export function VirtualBoothSimulator({
       {/* Main Grid: Left is 3D-styled Booth State, Right is Keypad Controller */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         {/* Left: Virtual Booth Physical State (7 Cols) */}
-        <div className="lg:col-span-7 bg-slate-900/90 border border-slate-800 rounded-2xl p-6 shadow-xl space-y-6">
-          <div className="flex items-center justify-between border-b border-slate-800 pb-4">
+        <div className="lg:col-span-7 bg-surface/90 border border-line rounded-2xl p-6 shadow-xl space-y-6">
+          <div className="flex items-center justify-between border-b border-line pb-4">
             <div>
-              <h3 className="text-lg font-bold text-white flex items-center gap-2">
-                <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></span>
+              <h3 className="text-lg font-bold text-ink flex items-center gap-2">
+                <span className="w-2.5 h-2.5 rounded-full bg-free animate-pulse"></span>
                 가상 노래방 부스 실시간 물리 상태
               </h3>
-              <p className="text-xs text-slate-400 mt-0.5">
+              <p className="text-xs text-ink-3 mt-0.5">
                 라즈베리파이 5 액추에이터 4종 & 센서 2종의 가동 상태를 시뮬레이션합니다.
               </p>
             </div>
@@ -309,15 +309,15 @@ export function VirtualBoothSimulator({
                 onClick={() => setIsVoiceEnabled(!isVoiceEnabled)}
                 className={`text-xs px-2.5 py-1 rounded-lg border transition-colors cursor-pointer flex items-center gap-1.5 ${
                   isVoiceEnabled
-                    ? "bg-indigo-950 text-indigo-300 border-indigo-500/50"
-                    : "bg-slate-800 text-slate-500 border-slate-700"
+                    ? "bg-brass-soft text-brass border-brass/50"
+                    : "bg-raised text-ink-3 border-line-strong"
                 }`}
                 title="음성 안내 (TTS) 켜기/끄기"
               >
-                {isVoiceEnabled ? <Volume2 className="w-3.5 h-3.5 text-indigo-400" /> : <VolumeX className="w-3.5 h-3.5 text-slate-500" />}
+                {isVoiceEnabled ? <Volume2 className="w-3.5 h-3.5 text-brass" /> : <VolumeX className="w-3.5 h-3.5 text-ink-3" />}
                 음성(TTS) {isVoiceEnabled ? "ON" : "OFF"}
               </button>
-              <span className="text-xs font-mono px-2.5 py-1 rounded bg-slate-800 text-slate-300 border border-slate-700">
+              <span className="text-xs font-mono px-2.5 py-1 rounded bg-raised text-ink-2 border border-line-strong">
                 Mockup 100% 모드
               </span>
             </div>
@@ -328,8 +328,8 @@ export function VirtualBoothSimulator({
           <div
             className={`relative w-full h-64 rounded-xl border-2 transition-all duration-500 flex flex-col justify-between p-6 overflow-hidden ${
               isPowerOn
-                ? "bg-slate-950 border-emerald-500/50 shadow-emerald-950/30 shadow-2xl"
-                : "bg-slate-950/60 border-slate-800"
+                ? "bg-canvas border-free/50 shadow-2xl"
+                : "bg-canvas/60 border-line"
             }`}
           >
             {/* Ceiling LED Light Visual */}
@@ -337,10 +337,10 @@ export function VirtualBoothSimulator({
               <div
                 className={`px-8 py-1.5 rounded-full text-xs font-semibold flex items-center gap-2 transition-all duration-300 ${
                   isLedBlink
-                    ? "bg-amber-400 text-slate-950 animate-bounce shadow-lg shadow-amber-400/50"
+                    ? "bg-brass text-on-accent animate-bounce shadow-lg"
                     : isLedOn
-                    ? "bg-yellow-300 text-slate-950 shadow-md shadow-yellow-300/40"
-                    : "bg-slate-800 text-slate-500"
+                    ? "bg-brass text-on-accent shadow-md"
+                    : "bg-raised text-ink-3"
                 }`}
               >
                 <Lightbulb className={`w-4 h-4 ${isLedBlink ? "animate-spin" : ""}`} />
@@ -357,19 +357,19 @@ export function VirtualBoothSimulator({
               <div
                 className={`w-40 h-28 rounded-lg border flex flex-col items-center justify-center p-3 text-center transition-all duration-500 ${
                   isPowerOn
-                    ? "bg-gradient-to-br from-indigo-900/60 to-purple-900/60 border-indigo-500 text-white shadow-lg shadow-indigo-500/20"
-                    : "bg-slate-900 border-slate-800 text-slate-600"
+                    ? "bg-raised border-brass text-ink shadow-lg"
+                    : "bg-surface border-line text-ink-3"
                 }`}
               >
-                <Power className={`w-6 h-6 mb-1 ${isPowerOn ? "text-emerald-400 animate-pulse" : "text-slate-600"}`} />
+                <Power className={`w-6 h-6 mb-1 ${isPowerOn ? "text-free animate-pulse" : "text-ink-3"}`} />
                 <span className="text-xs font-bold">노래방 반주기 & 앰프</span>
-                <span className="text-[10px] text-slate-400 mt-0.5">
+                <span className="text-[10px] text-ink-3 mt-0.5">
                   릴레이 전원: {isPowerOn ? "ON (공급 중)" : "OFF (차단됨)"}
                 </span>
                 {isPowerOn && onOpenKaraoke && (
                   <button
                     onClick={onOpenKaraoke}
-                    className="mt-1 px-2 py-0.5 rounded bg-indigo-600 hover:bg-indigo-500 text-white text-[10px] font-bold shadow transition-all cursor-pointer flex items-center gap-1"
+                    className="mt-1 px-2 py-0.5 rounded bg-brass hover:bg-brass/90 text-on-accent text-[10px] font-bold shadow transition-all cursor-pointer flex items-center gap-1"
                   >
                     <Mic className="w-2.5 h-2.5" />
                     노래방 시작
@@ -381,14 +381,14 @@ export function VirtualBoothSimulator({
               <div
                 className={`flex flex-col items-center justify-center w-36 h-28 rounded-lg border transition-all duration-300 ${
                   isDoorUnlocked
-                    ? "bg-emerald-950/40 border-emerald-500/60 text-emerald-300"
-                    : "bg-rose-950/40 border-rose-500/60 text-rose-300"
+                    ? "bg-free-soft/40 border-free/60 text-free"
+                    : "bg-live-soft/40 border-live/60 text-live"
                 }`}
               >
                 {isDoorUnlocked ? (
-                  <Unlock className="w-8 h-8 text-emerald-400 mb-1 animate-bounce" />
+                  <Unlock className="w-8 h-8 text-free mb-1 animate-bounce" />
                 ) : (
-                  <Lock className="w-8 h-8 text-rose-400 mb-1" />
+                  <Lock className="w-8 h-8 text-live mb-1" />
                 )}
                 <span className="text-xs font-bold">솔레노이드 도어락</span>
                 <span className="text-[10px] mt-0.5 font-mono">
@@ -400,17 +400,17 @@ export function VirtualBoothSimulator({
               <div
                 className={`w-36 h-28 rounded-lg border flex flex-col items-center justify-center p-2 text-center transition-all duration-300 ${
                   isSpeakerPlaying || isPlayingClosingAudio
-                    ? "bg-amber-950/40 border-amber-500/60 text-amber-300 animate-pulse"
-                    : "bg-slate-900 border-slate-800 text-slate-600"
+                    ? "bg-brass-soft/40 border-brass/60 text-brass animate-pulse"
+                    : "bg-surface border-line text-ink-3"
                 }`}
               >
                 {isSpeakerPlaying || isPlayingClosingAudio ? (
-                  <Volume2 className="w-7 h-7 text-amber-400 mb-1 animate-bounce" />
+                  <Volume2 className="w-7 h-7 text-brass mb-1 animate-bounce" />
                 ) : (
-                  <VolumeX className="w-7 h-7 text-slate-600 mb-1" />
+                  <VolumeX className="w-7 h-7 text-ink-3 mb-1" />
                 )}
                 <span className="text-xs font-bold">안내 스피커</span>
-                <span className="text-[10px] text-slate-400 truncate max-w-[120px]">
+                <span className="text-[10px] text-ink-3 truncate max-w-[120px]">
                   {isPlayingClosingAudio
                     ? "더윈드 - 다시 만나 🎵"
                     : isSpeakerPlaying
@@ -423,16 +423,16 @@ export function VirtualBoothSimulator({
             </div>
 
             {/* Bottom: Presence Sensor & Foot Floor */}
-            <div className="flex items-center justify-between border-t border-slate-800/80 pt-2 text-xs">
+            <div className="flex items-center justify-between border-t border-line/80 pt-2 text-xs">
               <div className="flex items-center gap-2">
                 <span
                   className={`w-2 h-2 rounded-full ${
-                    isPersonDetected ? "bg-cyan-400 animate-ping" : "bg-slate-600"
+                    isPersonDetected ? "bg-free animate-ping" : "bg-line-strong"
                   }`}
                 />
-                <span className="text-slate-400">
+                <span className="text-ink-3">
                   입장 감지 센서 (PIR):{" "}
-                  <strong className={isPersonDetected ? "text-cyan-400" : "text-slate-500"}>
+                  <strong className={isPersonDetected ? "text-free" : "text-ink-3"}>
                     {isPersonDetected ? "사람 입장 감지됨" : "대기 중"}
                   </strong>
                 </span>
@@ -440,9 +440,9 @@ export function VirtualBoothSimulator({
               <button
                 onClick={handleTriggerEntryWithVoice}
                 disabled={!isAdmin}
-                className="px-3 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 text-[11px] transition-colors flex items-center gap-1.5 cursor-pointer"
+                className="px-3 py-1 rounded bg-raised hover:bg-line-strong/90 text-ink-2 border border-line-strong text-[11px] transition-colors flex items-center gap-1.5 cursor-pointer"
               >
-                <UserCheck className="w-3.5 h-3.5 text-cyan-400" />
+                <UserCheck className="w-3.5 h-3.5 text-free" />
                 입장 감지 테스트
               </button>
             </div>
@@ -450,41 +450,41 @@ export function VirtualBoothSimulator({
 
           {/* Quick Scenario Test Buttons */}
           <div className="space-y-2 pt-2">
-            <h4 className="text-xs font-semibold text-slate-400">PRD 자동화 시나리오 원클릭 시뮬레이션</h4>
+            <h4 className="text-xs font-semibold text-ink-3">PRD 자동화 시나리오 원클릭 시뮬레이션</h4>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
               <button
                 onClick={handleTriggerWarningWithVoice}
                 disabled={!isAdmin}
-                className="px-3 py-2 rounded-lg bg-slate-800/80 hover:bg-slate-800 border border-slate-700 text-xs font-medium text-amber-300 flex items-center justify-center gap-2 transition-colors cursor-pointer"
+                className="px-3 py-2 rounded-lg bg-raised/80 hover:bg-raised/90 border border-line-strong text-xs font-medium text-brass flex items-center justify-center gap-2 transition-colors cursor-pointer"
               >
-                <AlertTriangle className="w-4 h-4 text-amber-400" />
+                <AlertTriangle className="w-4 h-4 text-brass" />
                 종료 10분 전 (LED 깜빡임)
               </button>
               <button
                 onClick={handleTriggerEndWithVoice}
                 disabled={!isAdmin}
-                className="px-3 py-2 rounded-lg bg-slate-800/80 hover:bg-slate-800 border border-slate-700 text-xs font-medium text-rose-300 flex items-center justify-center gap-2 transition-colors cursor-pointer"
+                className="px-3 py-2 rounded-lg bg-raised/80 hover:bg-raised/90 border border-line-strong text-xs font-medium text-live flex items-center justify-center gap-2 transition-colors cursor-pointer"
               >
-                <PlayCircle className="w-4 h-4 text-rose-400" />
+                <PlayCircle className="w-4 h-4 text-live" />
                 이용 종료 (퇴실곡+전원차단)
               </button>
             </div>
           </div>
 
           {/* Closing Song Player Banner */}
-          <div className="p-3.5 rounded-xl bg-slate-950/80 border border-amber-500/30 flex items-center justify-between gap-3 shadow-inner">
+          <div className="p-3.5 rounded-xl bg-canvas/80 border border-brass/30 flex items-center justify-between gap-3 shadow-inner">
             <div className="flex items-center gap-3 min-w-0">
-              <div className={`w-9 h-9 rounded-lg flex items-center justify-center shrink-0 ${isPlayingClosingAudio ? "bg-amber-500/20 text-amber-400 animate-pulse" : "bg-slate-800 text-slate-400"}`}>
+              <div className={`w-9 h-9 rounded-lg flex items-center justify-center shrink-0 ${isPlayingClosingAudio ? "bg-brass/20 text-brass animate-pulse" : "bg-raised text-ink-3"}`}>
                 <Music className="w-5 h-5" />
               </div>
               <div className="min-w-0">
                 <div className="flex items-center gap-2">
-                  <span className="text-xs font-bold text-slate-200 truncate">더윈드(The Wind) - 다시 만나</span>
-                  <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300 font-mono">
+                  <span className="text-xs font-bold text-ink-2 truncate">더윈드(The Wind) - 다시 만나</span>
+                  <span className="text-[10px] px-1.5 py-0.5 rounded bg-brass/20 text-brass font-mono">
                     퇴실곡 (0:58~)
                   </span>
                 </div>
-                <p className="text-[11px] text-slate-400 truncate">
+                <p className="text-[11px] text-ink-3 truncate">
                   {isPlayingClosingAudio ? "🎵 실제 음원 재생 중... (부스 전원 차단과 함께 울림)" : "이용 종료 시 자동 재생되는 공식 퇴실곡 음원"}
                 </p>
               </div>
@@ -493,8 +493,8 @@ export function VirtualBoothSimulator({
               onClick={toggleClosingSong}
               className={`px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 shrink-0 transition-all cursor-pointer ${
                 isPlayingClosingAudio
-                  ? "bg-amber-500 hover:bg-amber-400 text-slate-950 shadow-md shadow-amber-500/20"
-                  : "bg-slate-800 hover:bg-slate-700 text-amber-300 border border-amber-500/30"
+                  ? "bg-brass hover:bg-brass/90 text-on-accent shadow-md"
+                  : "bg-raised hover:bg-line-strong/90 text-brass border border-brass/30"
               }`}
             >
               {isPlayingClosingAudio ? (
@@ -518,8 +518,8 @@ export function VirtualBoothSimulator({
               disabled={!isAdmin}
               className={`p-3 rounded-xl border text-xs font-medium flex flex-col items-center gap-1.5 transition-all cursor-pointer ${
                 isDoorUnlocked
-                  ? "bg-emerald-950/30 border-emerald-500/50 text-emerald-300"
-                  : "bg-slate-800/50 border-slate-700 text-slate-400 hover:text-white"
+                  ? "bg-free-soft/30 border-free/50 text-free"
+                  : "bg-raised/50 border-line-strong text-ink-3 hover:text-ink"
               }`}
             >
               {isDoorUnlocked ? <Unlock className="w-4 h-4" /> : <Lock className="w-4 h-4" />}
@@ -531,8 +531,8 @@ export function VirtualBoothSimulator({
               disabled={!isAdmin}
               className={`p-3 rounded-xl border text-xs font-medium flex flex-col items-center gap-1.5 transition-all cursor-pointer ${
                 isPowerOn
-                  ? "bg-indigo-950/30 border-indigo-500/50 text-indigo-300"
-                  : "bg-slate-800/50 border-slate-700 text-slate-400 hover:text-white"
+                  ? "bg-brass-soft/30 border-brass/50 text-brass"
+                  : "bg-raised/50 border-line-strong text-ink-3 hover:text-ink"
               }`}
             >
               <Power className="w-4 h-4" />
@@ -544,8 +544,8 @@ export function VirtualBoothSimulator({
               disabled={!isAdmin}
               className={`p-3 rounded-xl border text-xs font-medium flex flex-col items-center gap-1.5 transition-all cursor-pointer ${
                 isLedOn
-                  ? "bg-yellow-950/30 border-yellow-500/50 text-yellow-300"
-                  : "bg-slate-800/50 border-slate-700 text-slate-400 hover:text-white"
+                  ? "bg-brass-soft/30 border-brass/50 text-brass"
+                  : "bg-raised/50 border-line-strong text-ink-3 hover:text-ink"
               }`}
             >
               <Lightbulb className="w-4 h-4" />
@@ -557,8 +557,8 @@ export function VirtualBoothSimulator({
               disabled={!isAdmin}
               className={`p-3 rounded-xl border text-xs font-medium flex flex-col items-center gap-1.5 transition-all cursor-pointer ${
                 isSpeakerPlaying
-                  ? "bg-amber-950/30 border-amber-500/50 text-amber-300"
-                  : "bg-slate-800/50 border-slate-700 text-slate-400 hover:text-white"
+                  ? "bg-brass-soft/30 border-brass/50 text-brass"
+                  : "bg-raised/50 border-line-strong text-ink-3 hover:text-ink"
               }`}
             >
               <Volume2 className="w-4 h-4" />
@@ -568,36 +568,36 @@ export function VirtualBoothSimulator({
         </div>
 
         {/* Right: Interactive 4x4 Physical Keypad (5 Cols) */}
-        <div className="lg:col-span-5 bg-slate-900/90 border border-slate-800 rounded-2xl p-6 shadow-xl flex flex-col justify-between">
+        <div className="lg:col-span-5 bg-surface/90 border border-line rounded-2xl p-6 shadow-xl flex flex-col justify-between">
           <div>
-            <div className="flex items-center justify-between border-b border-slate-800 pb-3 mb-4">
-              <h3 className="text-base font-bold text-white flex items-center gap-2">
-                <span className="w-2 h-2 rounded-full bg-blue-400"></span>
+            <div className="flex items-center justify-between border-b border-line pb-3 mb-4">
+              <h3 className="text-base font-bold text-ink flex items-center gap-2">
+                <span className="w-2 h-2 rounded-full bg-brass"></span>
                 부스 4x4 도어 키패드
               </h3>
-              <span className="text-[11px] text-slate-400">F-02 인증 모듈</span>
+              <span className="text-[11px] text-ink-3">F-02 인증 모듈</span>
             </div>
 
             {/* LCD Matrix Screen */}
             <div
               className={`w-full p-4 rounded-xl border font-mono text-center mb-6 transition-all duration-300 shadow-inner ${
                 displayStatus === "success"
-                  ? "bg-emerald-950/80 border-emerald-500 text-emerald-300"
+                  ? "bg-free-soft/80 border-free text-free"
                   : displayStatus === "admin"
-                  ? "bg-indigo-950/80 border-indigo-500 text-indigo-300"
+                  ? "bg-brass-soft/80 border-brass text-brass"
                   : displayStatus === "error"
-                  ? "bg-rose-950/80 border-rose-500 text-rose-300 animate-shake"
-                  : "bg-slate-950 border-slate-700 text-slate-200"
+                  ? "bg-live-soft/80 border-live text-live animate-shake"
+                  : "bg-canvas border-line-strong text-ink-2"
               }`}
             >
-              <div className="text-[11px] text-slate-400 uppercase tracking-widest mb-1 flex items-center justify-center gap-1.5">
-                {displayStatus === "success" && <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />}
-                {displayStatus === "admin" && <ShieldCheck className="w-3.5 h-3.5 text-indigo-400" />}
-                {displayStatus === "error" && <XCircle className="w-3.5 h-3.5 text-rose-400" />}
+              <div className="text-[11px] text-ink-3 uppercase tracking-widest mb-1 flex items-center justify-center gap-1.5">
+                {displayStatus === "success" && <CheckCircle2 className="w-3.5 h-3.5 text-free" />}
+                {displayStatus === "admin" && <ShieldCheck className="w-3.5 h-3.5 text-brass" />}
+                {displayStatus === "error" && <XCircle className="w-3.5 h-3.5 text-live" />}
                 {displayStatus === "idle" && "SMART BOOTH SECURITY SYSTEM"}
               </div>
               <div className="text-xl font-bold tracking-wider py-1">{displayMessage}</div>
-              <div className="text-xs text-slate-500 mt-1">
+              <div className="text-xs text-ink-3 mt-1">
                 {displayStatus === "idle" && "예약자 4자리 PIN 또는 관리자 PIN"}
               </div>
             </div>
@@ -609,7 +609,7 @@ export function VirtualBoothSimulator({
                   key={num}
                   onClick={() => handleKeypadPress(num)}
                   disabled={isVerifying}
-                  className="h-14 rounded-xl bg-slate-800 hover:bg-slate-700 active:bg-slate-600 border border-slate-700/80 text-xl font-semibold text-white shadow-md active:scale-95 transition-all cursor-pointer flex items-center justify-center disabled:opacity-50"
+                  className="h-14 rounded-xl bg-raised hover:bg-line-strong/90 active:bg-line-strong/80 border border-line-strong/80 text-xl font-semibold text-ink shadow-md active:scale-95 transition-all cursor-pointer flex items-center justify-center disabled:opacity-50"
                 >
                   {num}
                 </button>
@@ -617,7 +617,7 @@ export function VirtualBoothSimulator({
               <button
                 onClick={handleClear}
                 disabled={isVerifying}
-                className="h-14 rounded-xl bg-rose-900/40 hover:bg-rose-900/60 border border-rose-700/60 text-xs font-bold text-rose-300 shadow-md active:scale-95 transition-all cursor-pointer flex items-center justify-center gap-1 disabled:opacity-50"
+                className="h-14 rounded-xl bg-live-soft/40 hover:bg-live-soft/60 border border-live/60 text-xs font-bold text-live shadow-md active:scale-95 transition-all cursor-pointer flex items-center justify-center gap-1 disabled:opacity-50"
               >
                 <Delete className="w-4 h-4" />
                 지움
@@ -625,14 +625,14 @@ export function VirtualBoothSimulator({
               <button
                 onClick={() => handleKeypadPress("0")}
                 disabled={isVerifying}
-                className="h-14 rounded-xl bg-slate-800 hover:bg-slate-700 active:bg-slate-600 border border-slate-700/80 text-xl font-semibold text-white shadow-md active:scale-95 transition-all cursor-pointer flex items-center justify-center disabled:opacity-50"
+                className="h-14 rounded-xl bg-raised hover:bg-line-strong/90 active:bg-line-strong/80 border border-line-strong/80 text-xl font-semibold text-ink shadow-md active:scale-95 transition-all cursor-pointer flex items-center justify-center disabled:opacity-50"
               >
                 0
               </button>
               <button
                 onClick={handleEnter}
                 disabled={isVerifying}
-                className="h-14 rounded-xl bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 border border-emerald-500 text-sm font-bold text-white shadow-lg shadow-emerald-900/30 active:scale-95 transition-all cursor-pointer flex items-center justify-center gap-1 disabled:opacity-50"
+                className="h-14 rounded-xl bg-free hover:bg-free/90 active:bg-free/80 border border-free text-sm font-bold text-on-accent shadow-lg active:scale-95 transition-all cursor-pointer flex items-center justify-center gap-1 disabled:opacity-50"
               >
                 {isVerifying ? "확인중..." : "확인"}
               </button>
@@ -640,13 +640,13 @@ export function VirtualBoothSimulator({
           </div>
 
           {/* Quick Guide */}
-          <div className="mt-6 pt-4 border-t border-slate-800/80 text-[11px] text-slate-400 space-y-1">
+          <div className="mt-6 pt-4 border-t border-line/80 text-[11px] text-ink-3 space-y-1">
             <p className="flex items-center gap-1.5">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+              <span className="w-1.5 h-1.5 rounded-full bg-free" />
               <strong>예약자 PIN 입력 시:</strong> 도어락 해제 + 기기 전원 ON + 조명 ON
             </p>
             <p className="flex items-center gap-1.5">
-              <span className="w-1.5 h-1.5 rounded-full bg-indigo-400" />
+              <span className="w-1.5 h-1.5 rounded-full bg-brass" />
               <strong>관리자 PIN 입력 시:</strong> 도어락 해제 + 조명 ON (기기 전원 OFF 유지)
             </p>
           </div>

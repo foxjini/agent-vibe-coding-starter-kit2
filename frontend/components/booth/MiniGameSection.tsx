@@ -76,56 +76,56 @@ export function MiniGameSection() {
   };
 
   return (
-    <div className="max-w-2xl mx-auto bg-slate-900/90 border border-slate-800 rounded-2xl p-8 shadow-2xl space-y-6">
-      <div className="flex items-center justify-between border-b border-slate-800 pb-4">
+    <div className="max-w-2xl mx-auto bg-surface/90 border border-line rounded-2xl p-8 shadow-2xl space-y-6">
+      <div className="flex items-center justify-between border-b border-line pb-4">
         <div className="flex items-center gap-3">
-          <div className="p-2.5 rounded-xl bg-indigo-600/20 text-indigo-400 border border-indigo-500/30">
+          <div className="p-2.5 rounded-xl bg-brass/20 text-brass border border-brass/30">
             <Gamepad2 className="w-6 h-6" />
           </div>
           <div>
-            <h3 className="text-lg font-bold text-white flex items-center gap-2">
+            <h3 className="text-lg font-bold text-ink flex items-center gap-2">
               K-POP 노래 제목 초성 퀴즈
-              <span className="text-xs px-2 py-0.5 rounded-full bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">
+              <span className="text-xs px-2 py-0.5 rounded-full bg-brass/20 text-brass border border-brass/30">
                 Q4 미니게임
               </span>
             </h3>
-            <p className="text-xs text-slate-400">초성과 가수를 보고 노래 제목을 맞춰보세요!</p>
+            <p className="text-xs text-ink-3">초성과 가수를 보고 노래 제목을 맞춰보세요!</p>
           </div>
         </div>
 
-        <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-800 border border-slate-700 font-mono text-xs font-bold text-amber-400">
-          <Trophy className="w-4 h-4 text-amber-400" />
+        <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-raised border border-line-strong font-mono text-xs font-bold text-brass">
+          <Trophy className="w-4 h-4 text-brass" />
           <span>점수: {score}점</span>
         </div>
       </div>
 
       {!isGameOver ? (
         <div className="space-y-6">
-          <div className="flex items-center justify-between text-xs text-slate-400">
+          <div className="flex items-center justify-between text-xs text-ink-3">
             <span>
               문제 <strong>{currentIndex + 1}</strong> / {QUIZ_LIST.length}
             </span>
-            <span className="text-indigo-400 font-medium">가수: {currentQuiz.singer}</span>
+            <span className="text-brass font-medium">가수: {currentQuiz.singer}</span>
           </div>
 
           {/* Consonant Quiz Display Box */}
-          <div className="p-8 rounded-2xl bg-gradient-to-br from-indigo-950/60 to-slate-950 border border-indigo-500/40 text-center space-y-3 relative overflow-hidden shadow-inner">
-            <span className="text-[11px] uppercase tracking-widest text-indigo-300 block font-semibold">
+          <div className="p-8 rounded-2xl bg-raised border border-brass/40 text-center space-y-3 relative overflow-hidden shadow-inner">
+            <span className="text-[11px] uppercase tracking-widest text-brass block font-semibold">
               노래 제목 초성
             </span>
-            <div className="text-3xl sm:text-4xl font-black text-white font-mono tracking-wider">
+            <div className="text-3xl sm:text-4xl font-black text-ink font-mono tracking-wider">
               {currentQuiz.consonant}
             </div>
 
             {showHint ? (
-              <div className="text-xs text-amber-300 bg-amber-950/40 py-1 px-3 rounded-lg border border-amber-500/30 inline-block animate-fade-in">
+              <div className="text-xs text-brass bg-brass-soft/40 py-1 px-3 rounded-lg border border-brass/30 inline-block animate-fade-in">
                 💡 힌트: {currentQuiz.hint}
               </div>
             ) : (
               <button
                 type="button"
                 onClick={() => setShowHint(true)}
-                className="text-[11px] text-slate-400 hover:text-amber-300 flex items-center gap-1 mx-auto transition-colors cursor-pointer"
+                className="text-[11px] text-ink-3 hover:text-ink flex items-center gap-1 mx-auto transition-colors cursor-pointer"
               >
                 <HelpCircle className="w-3.5 h-3.5" /> 힌트 보기
               </button>
@@ -135,18 +135,18 @@ export function MiniGameSection() {
               <div
                 className={`absolute inset-0 flex items-center justify-center gap-2 text-xl font-bold backdrop-blur-sm animate-fade-in ${
                   feedback === "correct"
-                    ? "bg-emerald-950/90 text-emerald-300 border-2 border-emerald-500"
-                    : "bg-rose-950/90 text-rose-300 border-2 border-rose-500"
+                    ? "bg-free-soft/90 text-free border-2 border-free"
+                    : "bg-live-soft/90 text-live border-2 border-live"
                 }`}
               >
                 {feedback === "correct" ? (
                   <>
-                    <CheckCircle2 className="w-8 h-8 text-emerald-400" />
+                    <CheckCircle2 className="w-8 h-8 text-free" />
                     정답입니다! (+20점)
                   </>
                 ) : (
                   <>
-                    <XCircle className="w-8 h-8 text-rose-400" />
+                    <XCircle className="w-8 h-8 text-live" />
                     틀렸습니다! (정답: {currentQuiz.answer})
                   </>
                 )}
@@ -162,12 +162,12 @@ export function MiniGameSection() {
               value={userGuess}
               onChange={(e) => setUserGuess(e.target.value)}
               disabled={feedback !== null}
-              className="flex-1 px-4 py-3 rounded-xl bg-slate-800 border border-slate-700 text-white text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
+              className="flex-1 min-w-0 px-4 py-3 rounded-xl bg-raised border border-line-strong text-ink text-sm outline-none"
             />
             <button
               type="submit"
               disabled={feedback !== null || !userGuess.trim()}
-              className="px-6 py-3 rounded-xl bg-indigo-600 hover:bg-indigo-500 active:bg-indigo-700 text-white font-bold text-sm shadow-md transition-all cursor-pointer disabled:opacity-50"
+              className="shrink-0 px-5 py-3 rounded-xl bg-ink hover:bg-ink/90 text-surface font-bold text-sm transition-colors cursor-pointer disabled:opacity-40"
             >
               정답 확인
             </button>
@@ -176,19 +176,19 @@ export function MiniGameSection() {
       ) : (
         /* Game Over Screen */
         <div className="text-center py-8 space-y-5">
-          <div className="w-16 h-16 rounded-full bg-amber-500/20 text-amber-400 border border-amber-500/40 flex items-center justify-center mx-auto animate-bounce">
+          <div className="w-16 h-16 rounded-full bg-brass/20 text-brass border border-brass/40 flex items-center justify-center mx-auto animate-bounce">
             <Trophy className="w-8 h-8" />
           </div>
           <div className="space-y-1">
-            <h4 className="text-2xl font-bold text-white">퀴즈 종료!</h4>
-            <p className="text-sm text-slate-400">
-              최종 획득 점수: <strong className="text-amber-400 text-lg">{score}점</strong> / 100점
+            <h4 className="text-2xl font-bold text-ink">퀴즈 종료!</h4>
+            <p className="text-sm text-ink-3">
+              최종 획득 점수: <strong className="text-brass text-lg">{score}점</strong> / 100점
             </p>
           </div>
 
           <button
             onClick={handleRestart}
-            className="px-6 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 text-xs font-bold transition-all inline-flex items-center gap-2 cursor-pointer shadow-md"
+            className="px-6 py-2.5 rounded-xl bg-raised hover:bg-line-strong/90 text-ink-2 border border-line-strong text-xs font-bold transition-all inline-flex items-center gap-2 cursor-pointer shadow-md"
           >
             <RotateCcw className="w-4 h-4" /> 다시 도전하기
           </button>

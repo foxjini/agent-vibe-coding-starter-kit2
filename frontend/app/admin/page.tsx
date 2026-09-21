@@ -118,7 +118,7 @@ export default function AdminPage() {
   );
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 font-sans">
+    <div className="theme-day min-h-screen bg-canvas text-ink">
       <AppHeader
         title="관리자 운영 화면"
         subtitle="기기 제어 · 시나리오 실행 · 예약 관리 (선생님 전용)"
@@ -128,14 +128,14 @@ export default function AdminPage() {
           <div className="flex items-center gap-2">
             <Link
               href="/booth"
-              className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-xs font-bold text-slate-200 transition-colors"
+              className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-raised hover:bg-line-strong/90 border border-line-strong text-xs font-bold text-ink-2 transition-colors"
             >
               <Monitor className="w-3.5 h-3.5" />
               부스 화면
             </Link>
             <Link
               href="/"
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-xs font-bold text-slate-200 transition-colors"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-raised hover:bg-line-strong/90 border border-line-strong text-xs font-bold text-ink-2 transition-colors"
             >
               <Home className="w-3.5 h-3.5" />
               예약 화면
@@ -183,7 +183,7 @@ export default function AdminPage() {
         )}
       </main>
 
-      <footer className="max-w-7xl mx-auto px-4 lg:px-8 py-8 mt-12 border-t border-slate-900 text-center text-xs text-slate-600 space-y-1">
+      <footer className="max-w-7xl mx-auto px-4 lg:px-8 py-8 mt-12 border-t border-line text-center text-xs text-ink-3 space-y-1">
         <p>관리자 운영 화면 · 전시 전에 backend/.env 의 ADMIN_PIN 을 바꾸고 ALLOW_TEST_PIN 을 false 로 두세요</p>
       </footer>
     </div>

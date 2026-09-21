@@ -648,17 +648,17 @@ export function KaraokeRoomSection({ devices, onSongCompleted }: KaraokeRoomSect
     local: {
       icon: HardDrive,
       label: "로컬 반주 파일",
-      className: "bg-emerald-950/50 border-emerald-500/40 text-emerald-300",
+      className: "bg-free-soft/50 border-free/40 text-free",
     },
     youtube: {
       icon: Tv,
       label: "유튜브 노래방 영상",
-      className: "bg-rose-950/50 border-rose-500/40 text-rose-300",
+      className: "bg-live-soft/50 border-live/40 text-live",
     },
     synth: {
       icon: Radio,
       label: "내장 자동 반주",
-      className: "bg-indigo-950/50 border-indigo-500/40 text-indigo-300",
+      className: "bg-brass-soft/50 border-brass/40 text-brass",
     },
   }[media?.source ?? "synth"];
   const SourceIcon = sourceBadge.icon;
@@ -667,17 +667,17 @@ export function KaraokeRoomSection({ devices, onSongCompleted }: KaraokeRoomSect
     <div className="space-y-6">
       {/* 전원 차단 경고 */}
       {!isPowerOn && (
-        <div className="p-4 rounded-2xl bg-amber-950/40 border border-amber-500/40 text-amber-200 text-sm flex items-center justify-between shadow-lg">
+        <div className="p-4 rounded-2xl bg-live-soft border border-live/40 text-ink text-sm flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-3">
-            <PowerOff className="w-5 h-5 text-amber-400 shrink-0" />
+            <PowerOff className="w-5 h-5 text-live shrink-0" />
             <div>
               <p className="font-bold">현재 부스 반주기 전원(릴레이)이 차단되어 있습니다.</p>
-              <p className="text-xs text-amber-300/80 mt-0.5">
-                첫 번째 탭의 키패드에 예약 비밀번호를 입력하거나, 부스 반주기 전원을 켜 주세요.
+              <p className="text-xs text-ink-2 mt-0.5">
+                부스 앞 키패드에 예약 비밀번호를 입력하면 전원이 켜집니다.
               </p>
             </div>
           </div>
-          <span className="text-xs font-mono px-2.5 py-1 rounded bg-amber-900/60 text-amber-300 border border-amber-700 shrink-0">
+          <span className="text-xs font-mono tnum px-2.5 py-1 rounded bg-surface text-live border border-live/40 shrink-0">
             Relay Power: OFF
           </span>
         </div>
@@ -685,17 +685,17 @@ export function KaraokeRoomSection({ devices, onSongCompleted }: KaraokeRoomSect
 
       {/* 입장 게이트 — 브라우저 자동재생 정책 대응 (마이크 권한·소음 측정을 여기서 끝낸다) */}
       {!hasEntered && (
-        <div className="p-6 rounded-2xl bg-gradient-to-br from-indigo-950/70 to-purple-950/50 border border-indigo-500/40 shadow-xl text-center space-y-4">
-          <div className="w-14 h-14 rounded-2xl bg-indigo-600/30 border border-indigo-500/50 flex items-center justify-center text-indigo-200 mx-auto">
+        <div className="p-6 rounded-2xl bg-raised border border-brass/40 shadow-xl text-center space-y-4">
+          <div className="w-14 h-14 rounded-2xl bg-brass/30 border border-brass/50 flex items-center justify-center text-brass mx-auto">
             <Mic2 className="w-7 h-7" />
           </div>
           <div className="space-y-1.5">
-            <h3 className="text-lg font-black text-white">노래방에 입장하세요</h3>
-            <p className="text-xs text-slate-300 leading-relaxed max-w-md mx-auto">
+            <h3 className="text-lg font-black text-ink">노래방에 입장하세요</h3>
+            <p className="text-xs text-ink-2 leading-relaxed max-w-md mx-auto">
               브라우저는 사용자가 버튼을 눌러야 소리를 낼 수 있습니다.
               <br />
-              입장할 때 <strong className="text-indigo-200">마이크 권한</strong>과{" "}
-              <strong className="text-indigo-200">주변 소음</strong>을 한 번에 확인해 두면,
+              입장할 때 <strong className="text-brass">마이크 권한</strong>과{" "}
+              <strong className="text-brass">주변 소음</strong>을 한 번에 확인해 두면,
               이후에는 [반주 시작]만 눌러도 영상이 바로 재생됩니다.
             </p>
           </div>
@@ -703,7 +703,7 @@ export function KaraokeRoomSection({ devices, onSongCompleted }: KaraokeRoomSect
           <button
             onClick={() => void handleEnter()}
             disabled={isEntering}
-            className="px-7 py-3 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 disabled:opacity-60 disabled:cursor-not-allowed text-white font-black text-sm shadow-lg shadow-indigo-600/30 transition-all cursor-pointer inline-flex items-center gap-2"
+            className="px-7 py-3 rounded-xl bg-brass disabled:opacity-60 disabled:cursor-not-allowed text-on-accent font-black text-sm shadow-lg transition-all cursor-pointer inline-flex items-center gap-2"
           >
             {isEntering ? (
               <>
@@ -718,11 +718,11 @@ export function KaraokeRoomSection({ devices, onSongCompleted }: KaraokeRoomSect
             )}
           </button>
 
-          {enterNotice && <p className="text-[11px] text-indigo-200/90">{enterNotice}</p>}
+          {enterNotice && <p className="text-[11px] text-brass/90">{enterNotice}</p>}
 
           <button
             onClick={() => setHasEntered(true)}
-            className="block mx-auto text-[11px] text-slate-500 hover:text-slate-300 underline underline-offset-2 cursor-pointer"
+            className="block mx-auto text-[11px] text-ink-3 hover:text-ink underline underline-offset-2 cursor-pointer"
           >
             마이크 없이 둘러보기
           </button>
@@ -730,30 +730,30 @@ export function KaraokeRoomSection({ devices, onSongCompleted }: KaraokeRoomSect
       )}
 
       {hasEntered && enterNotice && (
-        <p className="text-[11px] text-slate-500 flex items-center gap-1.5">
-          <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500/70 shrink-0" />
+        <p className="text-[11px] text-ink-3 flex items-center gap-1.5">
+          <CheckCircle2 className="w-3.5 h-3.5 text-free/70 shrink-0" />
           {enterNotice}
         </p>
       )}
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         {/* ── 왼쪽: 노래방 화면 ─────────────────────────────── */}
-        <div className="lg:col-span-8 bg-slate-900/90 border border-slate-800 rounded-2xl p-6 shadow-2xl flex flex-col space-y-4">
+        <div className="lg:col-span-8 bg-surface/90 border border-line rounded-2xl p-6 shadow-2xl flex flex-col space-y-4">
           {/* 헤더 */}
-          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-800 pb-3">
+          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-line pb-3">
             <div className="flex items-center gap-2.5 min-w-0">
-              <div className="p-2 rounded-xl bg-gradient-to-tr from-purple-600 to-indigo-600 text-white shadow-md shrink-0">
+              <div className="p-2 rounded-xl bg-brass text-on-accent shadow-md shrink-0">
                 <Tv className="w-4 h-4" />
               </div>
               <div className="min-w-0">
-                <h3 className="text-base font-bold text-white flex items-center gap-2 flex-wrap">
+                <h3 className="text-base font-bold text-ink flex items-center gap-2 flex-wrap">
                   <span className="truncate">{selectedSong.title}</span>
-                  <span className="text-xs font-normal text-slate-400">- {selectedSong.singer}</span>
-                  <span className="text-[10px] px-2 py-0.5 rounded-full bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 shrink-0">
+                  <span className="text-xs font-normal text-ink-3">- {selectedSong.singer}</span>
+                  <span className="text-[10px] px-2 py-0.5 rounded-full bg-brass/20 text-brass border border-brass/30 shrink-0">
                     {selectedSong.tag}
                   </span>
                 </h3>
-                <p className="text-[11px] text-slate-400">
+                <p className="text-[11px] text-ink-3">
                   {isPlaying
                     ? `가창 중 · ${formatSeconds(elapsed)} / ${formatSeconds(duration)}`
                     : "대기 중 · 곡을 고르고 [반주 시작]을 누르세요"}
@@ -771,20 +771,20 @@ export function KaraokeRoomSection({ devices, onSongCompleted }: KaraokeRoomSect
           </div>
 
           {/* 화면 */}
-          <div className="relative w-full aspect-video rounded-2xl overflow-hidden bg-slate-950 border-2 border-indigo-500/40 shadow-2xl">
+          <div className="relative w-full aspect-video rounded-2xl overflow-hidden bg-canvas border-2 border-brass/40 shadow-2xl">
             {media?.source === "youtube" ? (
               /* 유튜브 노래방 영상 — 가사는 영상이 직접 표시한다 */
               <div className="relative w-full h-full">
                 <div ref={ytHostRef} className="w-full h-full" />
                 {/* 구간 안내 오버레이 (영상 위, 클릭은 통과시킨다) */}
                 {isPlaying && currentCue && (
-                  <div className="absolute bottom-0 inset-x-0 pointer-events-none p-3 bg-gradient-to-t from-slate-950/90 to-transparent">
+                  <div className="absolute bottom-0 inset-x-0 pointer-events-none p-3 bg-gradient-to-t from-canvas/95 to-transparent">
                     <div className="flex items-center gap-2 text-xs">
-                      <span className="px-2 py-0.5 rounded-full bg-amber-400/25 text-amber-200 border border-amber-400/40 font-bold shrink-0">
+                      <span className="px-2 py-0.5 rounded-full bg-brass/25 text-brass border border-brass/40 font-bold shrink-0">
                         {currentCue.label}
                       </span>
                       {currentCue.hint && (
-                        <span className="text-slate-300 truncate">{currentCue.hint}</span>
+                        <span className="text-ink-2 truncate">{currentCue.hint}</span>
                       )}
                     </div>
                   </div>
@@ -807,7 +807,7 @@ export function KaraokeRoomSection({ devices, onSongCompleted }: KaraokeRoomSect
               /* 유튜브 영상이 아직 등록되지 않았거나 재생에 실패한 경우 */
               <div className="w-full h-full overflow-y-auto p-5 flex flex-col justify-center">
                 {playerError && (
-                  <div className="mb-3 flex items-start gap-2 p-2.5 rounded-xl bg-rose-950/50 border border-rose-500/40 text-rose-200 text-xs">
+                  <div className="mb-3 flex items-start gap-2 p-2.5 rounded-xl bg-live-soft/50 border border-live/40 text-live text-xs">
                     <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
                     <span>{playerError}</span>
                   </div>
@@ -819,8 +819,8 @@ export function KaraokeRoomSection({ devices, onSongCompleted }: KaraokeRoomSect
                   "영상은 있는데 퍼가기가 막힌 것"인지 바로 구분할 수 있다.
                 */}
                 {failedAttempts.length > 0 && (
-                  <div className="mb-3 p-2.5 rounded-xl bg-slate-900/70 border border-slate-700 text-[11px] text-slate-300">
-                    <p className="font-bold text-slate-200 mb-1.5">
+                  <div className="mb-3 p-2.5 rounded-xl bg-surface/70 border border-line-strong text-[11px] text-ink-2">
+                    <p className="font-bold text-ink-2 mb-1.5">
                       재생하지 못한 영상 {failedAttempts.length}개 (직접 열어서 확인해 보세요)
                     </p>
                     <ul className="space-y-1">
@@ -830,11 +830,11 @@ export function KaraokeRoomSection({ devices, onSongCompleted }: KaraokeRoomSect
                             href={youtubeWatchUrl(f.videoId)}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="font-mono text-indigo-300 hover:text-indigo-200 underline underline-offset-2"
+                            className="font-mono text-brass hover:text-ink underline underline-offset-2"
                           >
                             {f.videoId}
                           </a>
-                          <span className="text-slate-500">
+                          <span className="text-ink-3">
                             코드 {f.code} ·{" "}
                             {f.code === 101 || f.code === 150
                               ? "영상은 있지만 퍼가기(임베드) 금지"
@@ -847,19 +847,19 @@ export function KaraokeRoomSection({ devices, onSongCompleted }: KaraokeRoomSect
                         </li>
                       ))}
                     </ul>
-                    <p className="mt-1.5 text-slate-500 leading-relaxed">
+                    <p className="mt-1.5 text-ink-3 leading-relaxed">
                       코드 101·150이면 영상 자체는 정상입니다. 유튜브에서 그 영상의{" "}
-                      <span className="text-slate-300">공유 → 퍼가기</span> 버튼이 보이는
+                      <span className="text-ink-2">공유 → 퍼가기</span> 버튼이 보이는
                       노래방 영상을 찾아 아래에 링크를 붙여넣어 주세요.
                     </p>
                   </div>
                 )}
 
                 <div className="text-center space-y-1 mb-4">
-                  <Link2 className="w-8 h-8 text-indigo-400 mx-auto" />
-                  <h4 className="text-base font-black text-white">노래방 영상 등록하기</h4>
-                  <p className="text-[11px] text-slate-400 leading-relaxed">
-                    <span className="text-indigo-300 font-bold">{selectedSong.title}</span>의 노래방
+                  <Link2 className="w-8 h-8 text-brass mx-auto" />
+                  <h4 className="text-base font-black text-ink">노래방 영상 등록하기</h4>
+                  <p className="text-[11px] text-ink-3 leading-relaxed">
+                    <span className="text-brass font-bold">{selectedSong.title}</span>의 노래방
                     영상을 유튜브에서 찾아 링크를 붙여넣으면, 가사가 나오는 영상이 이 화면에
                     재생됩니다.
                     <br />
@@ -872,7 +872,7 @@ export function KaraokeRoomSection({ devices, onSongCompleted }: KaraokeRoomSect
                     href={youtubeSearchUrl(selectedSong)}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="px-3 py-1.5 rounded-lg bg-red-600 hover:bg-red-500 text-white font-bold text-xs flex items-center gap-1.5 transition-colors shadow"
+                    className="px-3 py-1.5 rounded-lg bg-raised hover:bg-line-strong border border-line-strong text-ink font-bold text-xs flex items-center gap-1.5 transition-colors"
                   >
                     <ExternalLink className="w-3.5 h-3.5" />
                     유튜브에서 &quot;{selectedSong.youtubeSearchQuery}&quot; 검색
@@ -885,18 +885,18 @@ export function KaraokeRoomSection({ devices, onSongCompleted }: KaraokeRoomSect
                     value={registerInput}
                     onChange={(e) => setRegisterInput(e.target.value)}
                     placeholder="유튜브 링크를 붙여넣으세요"
-                    className="flex-1 px-3 py-2 rounded-xl bg-slate-900 border border-slate-700 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500"
+                    className="flex-1 px-3 py-2 rounded-xl bg-surface border border-line-strong text-xs text-ink placeholder-ink-3 focus:outline-none focus:border-brass"
                   />
                   <button
                     type="submit"
-                    className="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs transition-colors shrink-0 cursor-pointer"
+                    className="px-4 py-2 rounded-xl bg-ink hover:bg-ink/90 text-surface font-bold text-xs transition-colors shrink-0 cursor-pointer"
                   >
                     등록
                   </button>
                 </form>
 
                 {registerNotice && (
-                  <p className="text-center text-[11px] text-emerald-300 mt-2 flex items-center justify-center gap-1">
+                  <p className="text-center text-[11px] text-free mt-2 flex items-center justify-center gap-1">
                     <CheckCircle2 className="w-3.5 h-3.5" />
                     {registerNotice}
                   </p>
@@ -904,7 +904,7 @@ export function KaraokeRoomSection({ devices, onSongCompleted }: KaraokeRoomSect
 
                 {isPlaying && currentCue && (
                   <div className="mt-4 text-center">
-                    <span className="text-xs px-3 py-1 rounded-full bg-amber-400/20 text-amber-300 border border-amber-400/30 font-bold">
+                    <span className="text-xs px-3 py-1 rounded-full bg-brass/20 text-brass border border-brass/30 font-bold">
                       {currentCue.label}
                     </span>
                   </div>
@@ -915,13 +915,13 @@ export function KaraokeRoomSection({ devices, onSongCompleted }: KaraokeRoomSect
 
           {/* 진행 바 */}
           <div className="space-y-1">
-            <div className="h-1.5 w-full rounded-full bg-slate-800 overflow-hidden">
+            <div className="h-1.5 w-full rounded-full bg-raised overflow-hidden">
               <div
-                className="h-full rounded-full bg-gradient-to-r from-indigo-500 to-pink-400 transition-all duration-500"
+                className="h-full rounded-full bg-brass transition-all duration-500"
                 style={{ width: `${progressPct}%` }}
               />
             </div>
-            <div className="flex justify-between text-[10px] font-mono text-slate-500">
+            <div className="flex justify-between text-[10px] font-mono text-ink-3">
               <span>{formatSeconds(elapsed)}</span>
               <span>{duration > 0 ? formatSeconds(duration) : "--:--"}</span>
             </div>
@@ -929,8 +929,8 @@ export function KaraokeRoomSection({ devices, onSongCompleted }: KaraokeRoomSect
 
           {/* 재생 근거 안내 — 전시회 관람객에게 보여 줄 문구 */}
           {media && (
-            <p className="flex items-center gap-1.5 text-[11px] text-slate-500">
-              <ShieldCheck className="w-3.5 h-3.5 text-emerald-500/70 shrink-0" />
+            <p className="flex items-center gap-1.5 text-[11px] text-ink-3">
+              <ShieldCheck className="w-3.5 h-3.5 text-free/70 shrink-0" />
               {media.reason}
             </p>
           )}
@@ -948,7 +948,7 @@ export function KaraokeRoomSection({ devices, onSongCompleted }: KaraokeRoomSect
                     ? "영상을 불러오는 중입니다"
                     : undefined
                 }
-                className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 disabled:opacity-40 disabled:cursor-not-allowed text-slate-200 border border-slate-700 text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer"
+                className="px-4 py-2 rounded-xl bg-raised hover:bg-line-strong/90 disabled:opacity-40 disabled:cursor-not-allowed text-ink-2 border border-line-strong text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer"
               >
                 {waitingForPlayer ? (
                   <Loader2 className="w-3.5 h-3.5 animate-spin" />
@@ -962,7 +962,7 @@ export function KaraokeRoomSection({ devices, onSongCompleted }: KaraokeRoomSect
 
               <button
                 onClick={finishAndScore}
-                className="px-4 py-2 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 text-slate-950 font-black text-xs flex items-center gap-1.5 shadow-lg shadow-amber-500/20 transition-all cursor-pointer"
+                className="px-4 py-2 rounded-xl bg-brass text-on-accent font-black text-xs flex items-center gap-1.5 shadow-lg transition-all cursor-pointer"
               >
                 <Trophy className="w-4 h-4" />
                 노래 완료 &amp; 점수 채점! 💯
@@ -973,7 +973,7 @@ export function KaraokeRoomSection({ devices, onSongCompleted }: KaraokeRoomSect
                   href={youtubeWatchUrl(media.youtubeId)}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="px-3 py-2 rounded-xl bg-slate-800/80 hover:bg-slate-800 text-slate-300 border border-slate-700 text-xs font-semibold flex items-center gap-1.5 transition-colors"
+                  className="px-3 py-2 rounded-xl bg-raised/80 hover:bg-raised/90 text-ink-2 border border-line-strong text-xs font-semibold flex items-center gap-1.5 transition-colors"
                   title="화면이 작으면 유튜브에서 직접 크게 열 수 있습니다"
                 >
                   <ExternalLink className="w-3.5 h-3.5" />
@@ -984,9 +984,9 @@ export function KaraokeRoomSection({ devices, onSongCompleted }: KaraokeRoomSect
 
             <div className="flex flex-wrap items-center gap-3">
               {/* MR 볼륨 */}
-              <div className="flex items-center gap-2 bg-slate-950/80 px-3 py-1.5 rounded-xl border border-slate-800 text-xs">
-                <SlidersHorizontal className="w-3.5 h-3.5 text-indigo-400" />
-                <span className="text-[11px] text-slate-400">반주 볼륨</span>
+              <div className="flex items-center gap-2 bg-canvas/80 px-3 py-1.5 rounded-xl border border-line text-xs">
+                <SlidersHorizontal className="w-3.5 h-3.5 text-brass" />
+                <span className="text-[11px] text-ink-3">반주 볼륨</span>
                 <input
                   type="range"
                   min="0"
@@ -994,26 +994,26 @@ export function KaraokeRoomSection({ devices, onSongCompleted }: KaraokeRoomSect
                   step="0.05"
                   value={mrVolume}
                   onChange={(e) => setMrVolume(parseFloat(e.target.value))}
-                  className="w-16 sm:w-20 h-1.5 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-indigo-500"
+                  className="w-16 sm:w-20 h-1.5 bg-raised rounded-lg appearance-none cursor-pointer accent-brass"
                 />
-                <span className="font-mono text-[10px] text-indigo-300 w-7 text-right">
+                <span className="font-mono text-[10px] text-brass w-7 text-right">
                   {Math.round(mrVolume * 100)}%
                 </span>
               </div>
 
               {/* 마이크 미터 */}
-              <div className="flex items-center gap-3 bg-slate-950/80 px-3 py-1.5 rounded-xl border border-slate-800 text-xs">
+              <div className="flex items-center gap-3 bg-canvas/80 px-3 py-1.5 rounded-xl border border-line text-xs">
                 <button
                   onClick={() => void toggleMicrophone()}
                   className={`p-1.5 rounded-lg border transition-colors cursor-pointer ${
                     isMicActive
-                      ? "bg-rose-950 text-rose-300 border-rose-500/50"
-                      : "bg-slate-800 text-slate-400 border-slate-700"
+                      ? "bg-live-soft text-live border-live/50"
+                      : "bg-raised text-ink-3 border-line-strong"
                   }`}
                   title={isMicActive ? "마이크 끄기" : "마이크 켜기"}
                 >
                   {isMicActive ? (
-                    <Mic className="w-4 h-4 text-rose-400 animate-pulse" />
+                    <Mic className="w-4 h-4 text-live animate-pulse" />
                   ) : (
                     <MicOff className="w-4 h-4" />
                   )}
@@ -1023,8 +1023,8 @@ export function KaraokeRoomSection({ devices, onSongCompleted }: KaraokeRoomSect
                   onClick={toggleVirtualMic}
                   className={`px-2 py-1 rounded text-[11px] font-mono border transition-colors cursor-pointer ${
                     isVirtualMic
-                      ? "bg-cyan-950 text-cyan-300 border-cyan-500/50"
-                      : "bg-slate-800 text-slate-400 border-slate-700"
+                      ? "bg-free-soft text-free border-free/50"
+                      : "bg-raised text-ink-3 border-line-strong"
                   }`}
                   title="마이크가 없을 때 채점을 체험하는 시뮬레이션 모드"
                 >
@@ -1032,15 +1032,15 @@ export function KaraokeRoomSection({ devices, onSongCompleted }: KaraokeRoomSect
                 </button>
 
                 <div className="flex items-center gap-1.5">
-                  <Volume2 className="w-3.5 h-3.5 text-slate-400" />
-                  <div className="w-20 sm:w-24 h-2.5 rounded-full bg-slate-800 overflow-hidden p-0.5 flex items-center">
+                  <Volume2 className="w-3.5 h-3.5 text-ink-3" />
+                  <div className="w-20 sm:w-24 h-2.5 rounded-full bg-raised overflow-hidden p-0.5 flex items-center">
                     <div
                       className={`h-full rounded-full transition-all duration-75 ${
                         audioData.volume > 70
-                          ? "bg-rose-500"
+                          ? "bg-live"
                           : audioData.volume > 40
-                          ? "bg-amber-400"
-                          : "bg-emerald-400"
+                          ? "bg-brass"
+                          : "bg-free"
                       }`}
                       style={{ width: `${Math.max(4, audioData.volume)}%` }}
                     />
@@ -1049,13 +1049,13 @@ export function KaraokeRoomSection({ devices, onSongCompleted }: KaraokeRoomSect
 
                 {/* 음정 정확도 게이지 — 가운데에 가까울수록 정확 */}
                 <div className="hidden sm:flex items-center gap-1.5" title="음정 정확도">
-                  <span className="font-mono text-[10px] text-slate-400">{audioData.note}</span>
-                  <div className="relative w-14 h-2.5 rounded-full bg-slate-800 overflow-hidden">
-                    <div className="absolute left-1/2 top-0 w-px h-full bg-slate-600" />
+                  <span className="font-mono text-[10px] text-ink-3">{audioData.note}</span>
+                  <div className="relative w-14 h-2.5 rounded-full bg-raised overflow-hidden">
+                    <div className="absolute left-1/2 top-0 w-px h-full bg-line-strong" />
                     {audioData.pitch > 0 && (
                       <div
                         className={`absolute top-0.5 w-1.5 h-1.5 rounded-full transition-all duration-75 ${
-                          Math.abs(audioData.cents) < 15 ? "bg-emerald-400" : "bg-amber-400"
+                          Math.abs(audioData.cents) < 15 ? "bg-free" : "bg-brass"
                         }`}
                         style={{
                           left: `calc(${50 + Math.max(-45, Math.min(45, audioData.cents))}% - 3px)`,
@@ -1070,23 +1070,23 @@ export function KaraokeRoomSection({ devices, onSongCompleted }: KaraokeRoomSect
         </div>
 
         {/* ── 오른쪽: 선곡 목록 ─────────────────────────────── */}
-        <div className="lg:col-span-4 bg-slate-900/90 border border-slate-800 rounded-2xl p-5 shadow-xl flex flex-col space-y-4">
-          <div className="flex items-center justify-between border-b border-slate-800 pb-3">
-            <h3 className="text-sm font-bold text-white flex items-center gap-2">
-              <Music className="w-4 h-4 text-amber-400" />
+        <div className="lg:col-span-4 bg-surface/90 border border-line rounded-2xl p-5 shadow-xl flex flex-col space-y-4">
+          <div className="flex items-center justify-between border-b border-line pb-3">
+            <h3 className="text-sm font-bold text-ink flex items-center gap-2">
+              <Music className="w-4 h-4 text-brass" />
               학생 애창곡 TOP 10
             </h3>
-            <span className="text-[11px] text-slate-400">2026.09 기준</span>
+            <span className="text-[11px] text-ink-3">2026.09 기준</span>
           </div>
 
           <div className="relative">
-            <Search className="w-4 h-4 text-slate-500 absolute left-3 top-2.5" />
+            <Search className="w-4 h-4 text-ink-3 absolute left-3 top-2.5" />
             <input
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="곡명 또는 가수 검색..."
-              className="w-full pl-9 pr-3 py-1.5 rounded-xl bg-slate-950 border border-slate-800 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500"
+              className="w-full pl-9 pr-3 py-1.5 rounded-xl bg-canvas border border-line text-xs text-ink placeholder-ink-3 focus:outline-none focus:border-brass"
             />
           </div>
 
@@ -1100,14 +1100,14 @@ export function KaraokeRoomSection({ devices, onSongCompleted }: KaraokeRoomSect
                   onClick={() => handleSelectSong(song)}
                   className={`w-full text-left p-2.5 rounded-xl border transition-all cursor-pointer ${
                     isCurrent
-                      ? "bg-indigo-950/60 border-indigo-500 text-white shadow-md shadow-indigo-950/40"
-                      : "bg-slate-950/50 border-slate-800/80 hover:bg-slate-800/50 text-slate-300"
+                      ? "bg-brass-soft/60 border-brass text-ink shadow-md"
+                      : "bg-canvas/50 border-line/80 hover:bg-raised/50 text-ink-2"
                   }`}
                 >
                   <div className="flex items-center gap-2">
                     <span
                       className={`w-5 text-center text-[11px] font-black shrink-0 ${
-                        isCurrent ? "text-amber-300" : "text-slate-600"
+                        isCurrent ? "text-brass" : "text-ink-3"
                       }`}
                     >
                       {KARAOKE_SONGS.indexOf(song) + 1}
@@ -1115,19 +1115,19 @@ export function KaraokeRoomSection({ devices, onSongCompleted }: KaraokeRoomSect
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-1.5">
                         <span className="text-xs font-bold truncate">{song.title}</span>
-                        <span className="text-[9px] px-1.5 py-px rounded bg-slate-800 text-amber-300 shrink-0">
+                        <span className="text-[9px] px-1.5 py-px rounded bg-raised text-brass shrink-0">
                           {song.tag}
                         </span>
                       </div>
-                      <p className="text-[11px] text-slate-400 truncate mt-0.5">
+                      <p className="text-[11px] text-ink-3 truncate mt-0.5">
                         {song.singer} · {song.genre}
                       </p>
                     </div>
                     <span
                       className={`text-[9px] px-1.5 py-0.5 rounded shrink-0 border ${
                         badge.registered
-                          ? "bg-emerald-950/60 text-emerald-300 border-emerald-700/60"
-                          : "bg-slate-800/60 text-slate-400 border-slate-700"
+                          ? "bg-free-soft/60 text-free border-free/60"
+                          : "bg-raised/60 text-ink-3 border-line-strong"
                       }`}
                       title={badge.title}
                     >
@@ -1135,7 +1135,7 @@ export function KaraokeRoomSection({ devices, onSongCompleted }: KaraokeRoomSect
                     </span>
                   </div>
                   {isCurrent && (
-                    <p className="text-[10px] text-indigo-300/80 mt-1.5 pl-7 leading-relaxed">
+                    <p className="text-[10px] text-brass/80 mt-1.5 pl-7 leading-relaxed">
                       {song.pickReason}
                     </p>
                   )}
@@ -1144,13 +1144,13 @@ export function KaraokeRoomSection({ devices, onSongCompleted }: KaraokeRoomSect
             })}
           </div>
 
-          <div className="pt-3 border-t border-slate-800/80 text-[11px] text-slate-500 leading-relaxed">
+          <div className="pt-3 border-t border-line/80 text-[11px] text-ink-3 leading-relaxed">
             <p className="flex items-start gap-1.5">
-              <ShieldCheck className="w-3.5 h-3.5 text-emerald-500/70 shrink-0 mt-0.5" />
+              <ShieldCheck className="w-3.5 h-3.5 text-free/70 shrink-0 mt-0.5" />
               <span>
-                노래방 영상은 <strong className="text-slate-400">내려받지 않고</strong> 유튜브 공식
+                노래방 영상은 <strong className="text-ink-3">내려받지 않고</strong> 유튜브 공식
                 플레이어로 재생합니다. 자세한 근거는{" "}
-                <code className="text-indigo-400">docs/부록F</code> 문서를 확인하세요.
+                <code className="text-brass">docs/부록F</code> 문서를 확인하세요.
               </span>
             </p>
           </div>
@@ -1183,31 +1183,31 @@ export function KaraokeRoomSection({ devices, onSongCompleted }: KaraokeRoomSect
 
       {/* ── 점수 결과 모달 ─────────────────────────────────── */}
       {showScoreModal && (
-        <div className="fixed inset-0 bg-slate-950/85 backdrop-blur-md flex items-center justify-center z-50 p-4">
-          <div className="w-full max-w-md bg-gradient-to-b from-slate-900 to-indigo-950 border-2 border-amber-500/60 rounded-3xl p-6 shadow-2xl text-center relative overflow-hidden space-y-5">
+        <div className="fixed inset-0 bg-canvas/85 backdrop-blur-md flex items-center justify-center z-50 p-4">
+          <div className="w-full max-w-md bg-surface border-2 border-brass/60 rounded-3xl p-6 shadow-2xl text-center relative overflow-hidden space-y-5">
             <div className="absolute inset-0 pointer-events-none opacity-40">
-              <div className="absolute w-2 h-2 rounded-full bg-amber-400 top-6 left-12 animate-ping" />
-              <div className="absolute w-3 h-3 rounded-full bg-rose-400 top-16 right-10 animate-bounce" />
-              <div className="absolute w-2.5 h-2.5 rounded-full bg-cyan-400 bottom-10 left-16 animate-pulse" />
-              <div className="absolute w-2 h-2 rounded-full bg-emerald-400 bottom-16 right-12 animate-ping" />
+              <div className="absolute w-2 h-2 rounded-full bg-brass top-6 left-12 animate-ping" />
+              <div className="absolute w-3 h-3 rounded-full bg-live top-16 right-10 animate-bounce" />
+              <div className="absolute w-2.5 h-2.5 rounded-full bg-free bottom-10 left-16 animate-pulse" />
+              <div className="absolute w-2 h-2 rounded-full bg-free bottom-16 right-12 animate-ping" />
             </div>
 
             <div className="relative">
-              <span className="text-[11px] uppercase tracking-wider px-3 py-1 rounded-full bg-amber-500/20 text-amber-300 font-bold border border-amber-500/30">
+              <span className="text-[11px] uppercase tracking-wider px-3 py-1 rounded-full bg-brass/20 text-brass font-bold border border-brass/30">
                 KARAOKE SCORE
               </span>
-              <h3 className="text-xl font-black text-white mt-2">{selectedSong.title}</h3>
-              <p className="text-xs text-slate-400">{selectedSong.singer}</p>
+              <h3 className="text-xl font-black text-ink mt-2">{selectedSong.title}</h3>
+              <p className="text-xs text-ink-3">{selectedSong.singer}</p>
             </div>
 
             <div className="relative py-2">
-              <div className="w-36 h-36 mx-auto rounded-full bg-gradient-to-br from-amber-500/20 via-purple-500/20 to-indigo-500/20 border-4 border-amber-400/80 flex flex-col items-center justify-center shadow-xl shadow-amber-500/20">
-                <span className="text-[10px] font-bold text-amber-300">FINAL SCORE</span>
-                <div className="text-5xl font-black text-amber-400 tracking-tighter my-0.5">
+              <div className="w-36 h-36 mx-auto rounded-full bg-brass/15 border-4 border-brass/80 flex flex-col items-center justify-center shadow-xl">
+                <span className="text-[10px] font-bold text-brass">FINAL SCORE</span>
+                <div className="text-5xl font-black text-brass tracking-tighter my-0.5">
                   {animatedScore}
-                  <span className="text-2xl font-bold text-amber-200">점</span>
+                  <span className="text-2xl font-bold text-brass">점</span>
                 </div>
-                <div className="px-2.5 py-0.5 rounded-full bg-amber-400 text-slate-950 font-black text-xs">
+                <div className="px-2.5 py-0.5 rounded-full bg-brass text-on-accent font-black text-xs">
                   등급 {finalScore?.rank ?? "-"}
                 </div>
               </div>
@@ -1224,16 +1224,16 @@ export function KaraokeRoomSection({ devices, onSongCompleted }: KaraokeRoomSect
                 ].map((item) => (
                   <div
                     key={item.label}
-                    className="bg-slate-900/70 border border-slate-800 rounded-xl p-2"
+                    className="bg-surface/70 border border-line rounded-xl p-2"
                   >
-                    <p className="text-[10px] text-slate-400">{item.label}</p>
-                    <p className="text-sm font-black text-indigo-300">
+                    <p className="text-[10px] text-ink-3">{item.label}</p>
+                    <p className="text-sm font-black text-brass">
                       {item.value}
-                      <span className="text-[10px] font-normal text-slate-500">/{item.max}</span>
+                      <span className="text-[10px] font-normal text-ink-3">/{item.max}</span>
                     </p>
-                    <div className="h-1 mt-1 rounded-full bg-slate-800 overflow-hidden">
+                    <div className="h-1 mt-1 rounded-full bg-raised overflow-hidden">
                       <div
-                        className="h-full rounded-full bg-indigo-500"
+                        className="h-full rounded-full bg-brass"
                         style={{ width: `${(item.value / item.max) * 100}%` }}
                       />
                     </div>
@@ -1242,13 +1242,13 @@ export function KaraokeRoomSection({ devices, onSongCompleted }: KaraokeRoomSect
               </div>
             )}
 
-            <div className="relative bg-slate-900/80 border border-slate-800 rounded-2xl p-3.5 shadow-inner">
-              <p className="text-sm font-bold text-slate-100 flex items-center justify-center gap-1.5">
-                <Sparkles className="w-4 h-4 text-amber-400 shrink-0" />
+            <div className="relative bg-surface/80 border border-line rounded-2xl p-3.5 shadow-inner">
+              <p className="text-sm font-bold text-ink flex items-center justify-center gap-1.5">
+                <Sparkles className="w-4 h-4 text-brass shrink-0" />
                 {isCalculatingScore ? "점수를 채점하고 있습니다..." : finalScore?.comment}
               </p>
               {finalScore?.sangSomething && !isCalculatingScore && (
-                <p className="text-[11px] text-slate-400 mt-1">
+                <p className="text-[11px] text-ink-3 mt-1">
                   애창곡 DB에 가창 기록이 등록되었습니다!
                 </p>
               )}
@@ -1257,7 +1257,7 @@ export function KaraokeRoomSection({ devices, onSongCompleted }: KaraokeRoomSect
             <div className="relative flex items-center justify-center gap-3">
               <button
                 onClick={() => setShowScoreModal(false)}
-                className="px-5 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 font-bold text-xs transition-colors cursor-pointer flex items-center gap-1.5"
+                className="px-5 py-2.5 rounded-xl bg-raised hover:bg-line-strong/90 text-ink-2 border border-line-strong font-bold text-xs transition-colors cursor-pointer flex items-center gap-1.5"
               >
                 <RotateCcw className="w-3.5 h-3.5" />
                 닫기
@@ -1267,7 +1267,7 @@ export function KaraokeRoomSection({ devices, onSongCompleted }: KaraokeRoomSect
                   setShowScoreModal(false);
                   void handlePlay();
                 }}
-                className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 text-slate-950 font-black text-xs shadow-lg shadow-amber-500/30 transition-all cursor-pointer flex items-center gap-1.5"
+                className="px-5 py-2.5 rounded-xl bg-brass text-on-accent font-black text-xs shadow-lg transition-all cursor-pointer flex items-center gap-1.5"
               >
                 <Award className="w-4 h-4" />
                 한 번 더 부르기!
@@ -1306,10 +1306,10 @@ function GuideScreen({
 }) {
   return (
     <div className="h-full flex flex-col justify-between p-6">
-      <div className="flex items-center justify-between text-xs text-indigo-300/80 font-mono border-b border-indigo-500/20 pb-2">
+      <div className="flex items-center justify-between text-xs text-brass/80 font-mono border-b border-brass/20 pb-2">
         <div className="flex items-center gap-2">
-          <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-ping" />
-          <span className="font-bold text-white uppercase tracking-wider">KARAOKE LIVE</span>
+          <span className="w-2.5 h-2.5 rounded-full bg-free animate-ping" />
+          <span className="font-bold text-ink uppercase tracking-wider">KARAOKE LIVE</span>
         </div>
         <span>{headline}</span>
       </div>
@@ -1317,27 +1317,27 @@ function GuideScreen({
       <div className="flex flex-col items-center justify-center text-center my-auto space-y-4 px-4">
         {isPlaying ? (
           <>
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-400/20 text-amber-300 text-xs font-bold border border-amber-400/30">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-brass/20 text-brass text-xs font-bold border border-brass/30">
               🎤 {formatTime(elapsed)}
             </div>
-            <h2 className="text-2xl sm:text-3xl lg:text-4xl font-black text-transparent bg-clip-text bg-gradient-to-r from-yellow-300 via-amber-200 to-pink-300 drop-shadow-[0_0_20px_rgba(234,179,8,0.4)] leading-snug">
+            <h2 className="text-2xl sm:text-3xl lg:text-4xl font-black text-transparent bg-clip-text text-brass drop-shadow-[0_0_20px_rgba(234,179,8,0.4)] leading-snug">
               {cueLabel}
             </h2>
-            {cueHint && <p className="text-sm text-slate-300">{cueHint}</p>}
+            {cueHint && <p className="text-sm text-ink-2">{cueHint}</p>}
             {nextCueLabel && (
-              <p className="text-xs text-slate-500">다음 구간: {nextCueLabel}</p>
+              <p className="text-xs text-ink-3">다음 구간: {nextCueLabel}</p>
             )}
           </>
         ) : (
           <div className="space-y-3">
-            <div className="w-16 h-16 rounded-full bg-indigo-600/30 border border-indigo-500/50 flex items-center justify-center text-indigo-300 shadow-lg mx-auto">
+            <div className="w-16 h-16 rounded-full bg-brass/30 border border-brass/50 flex items-center justify-center text-brass shadow-lg mx-auto">
               <Play className="w-8 h-8 fill-current ml-1" />
             </div>
-            <h4 className="text-xl font-black text-white">{song.title}</h4>
-            <p className="text-xs text-slate-400">{song.singer}</p>
+            <h4 className="text-xl font-black text-ink">{song.title}</h4>
+            <p className="text-xs text-ink-3">{song.singer}</p>
             <button
               onClick={onStart}
-              className="px-6 py-2.5 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white font-bold text-xs shadow-lg shadow-indigo-600/30 transition-all cursor-pointer"
+              className="px-6 py-2.5 rounded-xl bg-brass text-on-accent font-bold text-xs shadow-lg transition-all cursor-pointer"
             >
               반주 시작 &amp; 가창하기
             </button>
@@ -1346,12 +1346,12 @@ function GuideScreen({
       </div>
 
       {/* 그래픽 이퀄라이저 */}
-      <div className="flex items-center gap-1.5 h-6 pt-3 border-t border-indigo-500/20">
+      <div className="flex items-center gap-1.5 h-6 pt-3 border-t border-brass/20">
         {[40, 75, 55, 90, 65, 80, 45, 100, 60, 85, 50, 70].map((h, i) => (
           <div
             key={i}
             className={`w-1.5 rounded-full transition-all duration-150 ${
-              isPlaying ? "bg-gradient-to-t from-indigo-500 to-pink-400" : "bg-slate-800"
+              isPlaying ? "bg-brass" : "bg-raised"
             }`}
             style={{ height: isPlaying ? `${Math.max(20, (h * (volume + 30)) / 100)}%` : "20%" }}
           />

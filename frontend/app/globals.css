@@ -1,26 +1,128 @@
 @import "tailwindcss";
+/* 한국어 제품 UI 표준 서체. 동적 서브셋이라 필요한 글자만 내려받는다. */
+@import "pretendard/dist/web/variable/pretendardvariable-dynamic-subset.css";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
+/* ==========================================================================
+   디자인 토큰
+   --------------------------------------------------------------------------
+   색을 Tailwind 팔레트(slate-800 같은 것)로 직접 쓰지 않고 "역할 이름"으로 쓴다.
+   그래야 화면마다 팔레트를 갈아 끼울 수 있고, 나중에 색을 바꿀 때 한 곳만 고친다.
+
+     canvas       페이지 바탕
+     surface      카드 바탕
+     raised       카드 안에서 한 단 올라온 면 (입력칸, 칩)
+     line         경계선          line-strong  더 진한 경계선
+     ink          본문 글자        ink-2 보조   ink-3 흐린 글자
+     brass        강조색 — 이 시스템의 유일한 브랜드색
+     on-accent    brass/live/free 위에 올라가는 글자
+     live         이용 중 · 위험 (빨강)
+     free         이용 가능 · 성공 (초록)
+
+   강조색을 하나로 줄인 이유: 예전에는 인디고와 앰버가 동시에 강조색 노릇을 해서
+   무엇이 중요한지 구분되지 않았다. 색이 많을수록 위계가 사라진다.
+   ========================================================================== */
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --color-canvas: var(--c-canvas);
+  --color-surface: var(--c-surface);
+  --color-raised: var(--c-raised);
+  --color-line: var(--c-line);
+  --color-line-strong: var(--c-line-strong);
+  --color-ink: var(--c-ink);
+  --color-ink-2: var(--c-ink-2);
+  --color-ink-3: var(--c-ink-3);
+  --color-brass: var(--c-brass);
+  --color-brass-soft: var(--c-brass-soft);
+  --color-on-accent: var(--c-on-accent);
+  --color-live: var(--c-live);
+  --color-live-soft: var(--c-live-soft);
+  --color-free: var(--c-free);
+  --color-free-soft: var(--c-free-soft);
+
+  --font-sans: "Pretendard Variable", Pretendard, -apple-system, BlinkMacSystemFont,
+    system-ui, "Apple SD Gothic Neo", "Noto Sans KR", "Malgun Gothic", sans-serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, "SFMono-Regular", Menlo, monospace;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+/* ── 낮 팔레트 — `/` 관람객 폰, `/admin` 선생님 노트북 ─────────────────────
+   예약은 복도에서 햇빛 아래 폰으로 한다. 어두운 화면은 그 상황에서 읽기 어렵고,
+   관리자 화면은 표와 숫자가 많아 밝은 바탕이 눈이 덜 피로하다.            */
+.theme-day {
+  --c-canvas: #F1F3F1;
+  --c-surface: #FFFFFF;
+  --c-raised: #F6F7F5;
+  --c-line: #E3E6E2;
+  --c-line-strong: #C9CDC6;
+  --c-ink: #15181A;
+  --c-ink-2: #51565B;
+  --c-ink-3: #868C90;
+  --c-brass: #7A5510;
+  --c-brass-soft: #F7EFDE;
+  --c-on-accent: #FFFFFF;
+  --c-live: #A92B22;
+  --c-live-soft: #FBEBE9;
+  --c-free: #116B4E;
+  --c-free-soft: #E4F2EC;
+}
+
+/* ── 무대 팔레트 — `/booth` 부스 대형 화면 ────────────────────────────────
+   부스 안은 실제로 어둡다. 영상과 가사가 주인공이므로 UI는 물러나고,
+   점수 같은 숫자만 밝게 남는다.                                          */
+.theme-stage {
+  --c-canvas: #0B0A0D;
+  --c-surface: #141318;
+  --c-raised: #1D1B22;
+  --c-line: #2A2830;
+  --c-line-strong: #3C3946;
+  --c-ink: #F3F1F5;
+  --c-ink-2: #B3AEBD;
+  --c-ink-3: #7D7889;
+  --c-brass: #E9BC5E;
+  --c-brass-soft: #2B2214;
+  --c-on-accent: #17130A;
+  --c-live: #FF6150;
+  --c-live-soft: #2C1513;
+  --c-free: #4FDCA6;
+  --c-free-soft: #0E2B22;
+}
+
+html {
+  color-scheme: light;
+}
+html:has(.theme-stage) {
+  color-scheme: dark;
+  /* 부스 화면은 2~3m 떨어져서 본다. 루트 글자 크기를 키우면 Tailwind 의 rem 기반
+     값(글자·여백·간격)이 함께 비례해 커져서, 클래스를 하나하나 고치지 않고도
+     화면 전체가 같은 비율로 확대된다. */
+  font-size: 18px;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-sans);
+  /* 한글은 자간이 조금 좁아야 단정해 보인다 */
+  letter-spacing: -0.01em;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* 숫자가 세로로 줄 맞아야 하는 곳 — 점수, PIN, 시간, 표 */
+.tnum {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum";
+}
+
+/* 키보드 포커스는 반드시 보여야 한다 (outline:none 만 주고 끝내지 않는다) */
+:where(a, button, input, select, textarea, [tabindex]):focus-visible {
+  outline: 2px solid var(--c-brass);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }

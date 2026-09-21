@@ -42,27 +42,27 @@ export function AppHeader({
     doorLock?.current_state === "unlocked" || doorLock?.current_state === "open";
 
   return (
-    <header className="sticky top-0 z-50 bg-slate-900/80 backdrop-blur-md border-b border-slate-800 px-4 lg:px-8 py-3.5">
+    <header className="sticky top-0 z-50 bg-surface/80 backdrop-blur-md border-b border-line px-4 lg:px-8 py-3.5">
       <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
         <Link href={homeHref} className="flex items-center gap-3 min-w-0">
-          <div className="p-2 rounded-xl bg-gradient-to-tr from-indigo-600 to-purple-600 text-white shadow-lg shadow-indigo-600/30 shrink-0">
+          <div className="p-2 rounded-xl bg-brass text-on-accent shadow-lg shrink-0">
             <Mic2 className="w-5 h-5" />
           </div>
           <div className="min-w-0">
-            <h1 className="text-base sm:text-lg font-extrabold tracking-tight text-white truncate">
+            <h1 className="text-base sm:text-lg font-extrabold tracking-tight text-ink truncate">
               {title}
             </h1>
-            <p className="text-[11px] text-slate-400 truncate">{subtitle}</p>
+            <p className="text-[11px] text-ink-3 truncate">{subtitle}</p>
           </div>
         </Link>
 
         <div className="flex items-center gap-3">
-          <div className="hidden md:flex items-center gap-2 text-xs font-mono">
+          <div className="hidden md:flex items-center gap-2 text-xs font-mono tnum">
             <span
               className={`px-2.5 py-1 rounded-full border ${
                 isPowerOn
-                  ? "bg-emerald-950 text-emerald-300 border-emerald-500/40"
-                  : "bg-slate-800 text-slate-400 border-slate-700"
+                  ? "bg-free-soft text-free border-free/40"
+                  : "bg-raised text-ink-3 border-line-strong"
               }`}
             >
               전원: {isPowerOn ? "ON" : "OFF"}
@@ -70,8 +70,8 @@ export function AppHeader({
             <span
               className={`px-2.5 py-1 rounded-full border ${
                 isUnlocked
-                  ? "bg-cyan-950 text-cyan-300 border-cyan-500/40"
-                  : "bg-slate-800 text-slate-400 border-slate-700"
+                  ? "bg-free-soft text-free border-free/40"
+                  : "bg-raised text-ink-3 border-line-strong"
               }`}
             >
               도어락: {isUnlocked ? "열림" : "잠김"}
@@ -82,9 +82,9 @@ export function AppHeader({
 
           <div
             suppressHydrationWarning
-            className="hidden sm:flex items-center gap-1.5 px-3 py-1 rounded-lg bg-slate-800/80 border border-slate-700 font-mono text-xs text-slate-300"
+            className="hidden sm:flex items-center gap-1.5 px-3 py-1 rounded-lg bg-raised/80 border border-line font-mono tnum text-xs text-ink-2"
           >
-            <Clock className="w-3.5 h-3.5 text-slate-400" />
+            <Clock className="w-3.5 h-3.5 text-ink-3" />
             <span>{timeStr || "--:--:--"}</span>
           </div>
 
