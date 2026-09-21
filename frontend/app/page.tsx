@@ -32,7 +32,7 @@ export default function HomePage() {
   } = useBoothData();
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 font-sans">
+    <div className="theme-day min-h-screen bg-canvas text-ink">
       <AppHeader
         title="학교 노래방 부스 예약"
         subtitle="인천전자마이스터고 정보통신과 2학년 팀 프로젝트"
@@ -60,12 +60,12 @@ export default function HomePage() {
         <MiniGameSection />
       </main>
 
-      <footer className="max-w-7xl mx-auto px-4 lg:px-8 py-8 mt-12 border-t border-slate-900 text-center text-xs text-slate-600 space-y-2">
+      <footer className="max-w-7xl mx-auto px-4 lg:px-8 py-8 mt-12 border-t border-line text-center text-xs text-ink-3 space-y-2">
         <p>웹 예약 연동 자동화 학교 노래방 부스 관리 시스템</p>
         <p>백승환(H/W조장) · 조민규(H/W기구) · 김민제(BE/FE) · 박민성(BE/FE)</p>
         <Link
           href="/admin"
-          className="inline-flex items-center gap-1.5 mt-2 text-slate-700 hover:text-slate-400 transition-colors"
+          className="inline-flex items-center gap-1.5 mt-2 text-ink-3 hover:text-ink transition-colors"
         >
           <Settings className="w-3 h-3" />
           관리자

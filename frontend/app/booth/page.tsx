@@ -20,7 +20,7 @@ export default function BoothPage() {
   const { devices, isConnected, fetchSongs } = useBoothData();
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 font-sans">
+    <div className="theme-stage min-h-screen bg-canvas text-ink">
       <main className="max-w-7xl mx-auto px-4 lg:px-8 py-6">
         <KaraokeRoomSection devices={devices} onSongCompleted={fetchSongs} />
       </main>
@@ -31,13 +31,13 @@ export default function BoothPage() {
       */}
       <div
         className="fixed bottom-3 right-3 flex items-center gap-1.5 px-2 py-1 rounded-full
-                   bg-slate-900/70 border border-slate-800 text-[10px] font-mono text-slate-500
+                   bg-surface/70 border border-line text-[10px] font-mono text-ink-3
                    pointer-events-none select-none"
         aria-live="polite"
       >
         <span
           className={`w-1.5 h-1.5 rounded-full ${
-            isConnected ? "bg-emerald-400" : "bg-rose-500"
+            isConnected ? "bg-free" : "bg-live"
           }`}
         />
         {isConnected ? "연결됨" : "서버 끊김"}

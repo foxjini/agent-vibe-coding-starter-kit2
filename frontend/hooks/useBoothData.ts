@@ -118,7 +118,13 @@ export function useClock(): string {
   const [timeStr, setTimeStr] = useState<string>("");
 
   useEffect(() => {
-    const tick = () => setTimeStr(new Date().toLocaleTimeString("ko-KR", { hour12: false }));
+    // ko-KR 기본 형식은 "1시 16분 39초"라 자리수가 들쭉날쭉하고 제품 화면에 어울리지 않는다.
+    // 두 자리로 고정해 숫자가 흔들리지 않게 한다 (.tnum 과 함께 쓴다).
+    const pad = (n: number) => String(n).padStart(2, "0");
+    const tick = () => {
+      const d = new Date();
+      setTimeStr(`${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`);
+    };
     tick();
     const id = setInterval(tick, 1000);
     return () => clearInterval(id);
