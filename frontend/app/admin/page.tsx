@@ -10,6 +10,8 @@ import { AdminGate } from "@/components/booth/AdminGate";
 import { VirtualBoothSimulator } from "@/components/booth/VirtualBoothSimulator";
 import { ReservationSection } from "@/components/booth/ReservationSection";
 import { SongHistorySection } from "@/components/booth/SongHistorySection";
+import { VideoCheckPanel } from "@/components/booth/VideoCheckPanel";
+import { OpsSummary } from "@/components/admin/OpsSummary";
 import { useBoothData } from "@/hooks/useBoothData";
 import { apiUrl } from "@/utils/apiConfig";
 import {
@@ -154,6 +156,18 @@ export default function AdminPage() {
         */}
         {adminAuthed && (
           <>
+            {/*
+              1. 지금 무슨 일이 벌어지고 있나 — 선생님이 이 화면을 여는 이유다.
+                 예전에는 이 정보가 아래 시뮬레이터 카드 안의 작은 글자로 흩어져
+                 있어서, 상황 파악에 스크롤이 필요했다.
+            */}
+            <OpsSummary
+              devices={devices}
+              reservations={reservations}
+              isConnected={isConnected}
+            />
+
+            {/* 2. 개입 — 기기 제어와 시나리오 강제 실행 */}
             <VirtualBoothSimulator
               devices={devices}
               onDeviceControl={handleDeviceControl}
@@ -166,13 +180,26 @@ export default function AdminPage() {
               isAdmin={adminAuthed}
             />
 
+            {/*
+              3. 예약 관리 — 여기서는 '현황 목록'이 일이다. 신청 폼은 관람객
+                 화면(`/`)의 몫이라 띄우지 않는다 (부록G §3-3).
+            */}
             <ReservationSection
               reservations={reservations}
               onReservationCreated={fetchReservations}
-              /* 관리자 화면에서는 예약 PIN을 눌러 키패드 인증을 바로 시험할 수 있다 */
+              /* 예약 PIN을 눌러 키패드 인증을 바로 시험할 수 있다 */
               onSelectPinForSimulator={handleVerifyPin}
+              sections="list"
             />
 
+            {/*
+              4. 준비 작업 — 노래방 영상 점검. 부스 화면(`/booth`)에 있던 것을
+                 옮겨 왔다. 전시 중 관람객이 보는 화면에 설정 도구가 있을 이유가
+                 없고, 영상 등록은 관리자 인증이 필요한 작업이다.
+            */}
+            <VideoCheckPanel />
+
+            {/* 5. 기록 — 전체 노래 통계 */}
             <SongHistorySection
               allSongs={allSongs}
               favoriteSongs={favoriteSongs}
