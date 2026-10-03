@@ -1,11 +1,12 @@
 from datetime import datetime, timezone
 import logging
 import random
-from typing import Any, Dict
+import secrets
+from typing import Any, Dict, Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, Header, HTTPException, Query, status
 
-from auth import verify_admin_token
+from auth import verify_admin_token, is_valid_admin_token
 from db import database as db
 from schemas.reservation import (
     KeypadVerifyRequest,
@@ -13,9 +14,10 @@ from schemas.reservation import (
     ScoreRecordRequest,
     SongRecordRequest,
     SongVideoRequest,
+    TicketIssueRequest,
 )
 from services.booth_service import BoothService
-from services import scheduler
+from services import scheduler, experience
 from websocket_manager import ws_manager
 
 logger = logging.getLogger("backend.routers.reservations")
@@ -26,6 +28,7 @@ songs_router = APIRouter(prefix="/api/songs", tags=["songs"])
 videos_router = APIRouter(prefix="/api/song-videos", tags=["song-videos"])
 scores_router = APIRouter(prefix="/api/scores", tags=["scores"])
 scheduler_router = APIRouter(prefix="/api/scheduler", tags=["scheduler"])
+experience_router = APIRouter(prefix="/api/experience", tags=["experience"])
 
 
 # ==============================================================================
@@ -338,3 +341,100 @@ async def scheduler_run_once(_admin: str = Depends(verify_admin_token)) -> Dict[
     """지금 즉시 한 바퀴 돌립니다 (관리자 전용)."""
     result = await scheduler.run_once()
     return {"data": result}
+
+
+# ==============================================================================
+# 전시 체험 모드 — QR 체험권 + 대기열 (부록G §2-③)
+#
+# 발급과 조회는 인증 없이 열어 둔다. 관람객이 QR을 찍자마자 바로 써야 하는데
+# 여기에 로그인을 붙이면 줄이 더 길어진다.
+# 줄을 건너뛰는 조작(강제 호출·취소)만 관리자 전용이다.
+# ==============================================================================
+
+@experience_router.post("/tickets")
+async def issue_experience_ticket(req: TicketIssueRequest) -> Dict[str, Any]:
+    """QR을 찍은 관람객에게 체험권을 발급합니다."""
+    if not experience.ENABLED:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail={"code": "EXPERIENCE_DISABLED", "message": "지금은 체험 모드를 운영하지 않습니다."}
+        )
+    try:
+        ticket = await experience.issue_ticket(req.nickname)
+    except Exception as exc:
+        logger.error(f"Failed to issue experience ticket: {exc}")
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail={"code": "TICKET_ISSUE_FAILED", "message": "체험권을 발급하지 못했습니다."}
+        )
+    return {"data": ticket}
+
+
+@experience_router.get("/queue")
+async def experience_queue() -> Dict[str, Any]:
+    """대기열 현황 — 부스 대형 화면과 관람객 폰이 같은 것을 봅니다."""
+    return {"data": experience.snapshot()}
+
+
+@experience_router.get("/tickets/{ticket_id}")
+async def experience_ticket(
+    ticket_id: int,
+    pin: Optional[str] = None,
+    x_admin_token: Optional[str] = Header(None, alias="X-Admin-Token"),
+) -> Dict[str, Any]:
+    """내 체험권 상태와 남은 순번. 관람객 폰이 주기적으로 확인합니다.
+
+    체험권 번호는 1, 2, 3... 으로 이어지므로 남의 번호를 넣어 보는 것은 쉽다.
+    그래서 비밀번호는 발급받을 때 한 번만 알려 주고, 이 조회에서는
+    자기 비밀번호를 같이 보낸 사람(= 실제 체험권 주인)에게만 돌려준다.
+    그러지 않으면 호출된 사람의 비밀번호를 옆에서 읽어 새치기할 수 있다.
+    관리자 화면은 예외다 — 관람객이 폰에서 비밀번호를 놓쳤을 때 선생님이
+    읽어 줄 수 있어야 하므로, 관리자 토큰이 있으면 같이 돌려준다.
+    """
+    try:
+        ticket = db.get_queue_ticket(ticket_id)
+    except Exception as exc:
+        logger.error(f"Failed to read ticket {ticket_id}: {exc}")
+        ticket = None
+
+    if not ticket:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={"code": "TICKET_NOT_FOUND", "message": "체험권을 찾을 수 없습니다."}
+        )
+
+    try:
+        same_day = db.get_queue_tickets(str(ticket.get("issued_on"))[:10], list(experience.ACTIVE_STATUSES))
+    except Exception:
+        same_day = []
+
+    safe = {k: v for k, v in ticket.items() if k != "pin_code"}
+    owner = bool(pin) and secrets.compare_digest(str(pin), str(ticket.get("pin_code") or ""))
+    if owner or is_valid_admin_token(x_admin_token):
+        safe["pin_code"] = ticket.get("pin_code")
+
+    return {
+        "data": {
+            **safe,
+            "position": experience.position_of(ticket, same_day),
+            "estimated_wait_min": max(0, experience.position_of(ticket, same_day))
+            * experience.EXPERIENCE_MINUTES,
+        }
+    }
+
+
+@experience_router.post("/advance")
+async def experience_advance(_admin: str = Depends(verify_admin_token)) -> Dict[str, Any]:
+    """대기열을 지금 한 칸 굴립니다 (관리자 전용)."""
+    return {"data": {"actions": await experience.advance()}}
+
+
+@experience_router.post("/tickets/{ticket_id}/cancel")
+async def experience_cancel(
+    ticket_id: int,
+    _admin: str = Depends(verify_admin_token),
+) -> Dict[str, Any]:
+    """체험권을 취소합니다 (관리자 전용). 취소 후 다음 사람을 호출합니다."""
+    db.update_ticket_status(ticket_id, "expired")
+    await experience.advance()
+    return {"data": {"ticket_id": ticket_id, "cancelled": True}}

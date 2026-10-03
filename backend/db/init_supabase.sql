@@ -111,6 +111,25 @@ CREATE TRIGGER trg_song_last_sung_at
 --    곡별 기본 후보는 프론트엔드 코드에 있고, 이 테이블은 관리자가 직접 지정한
 --    영상만 담는다. 모든 기기가 같은 영상을 보게 하려고 서버에 저장한다.
 -- ==============================================================================
+-- 전시 체험 대기열 (부록G §2-③). MySQL 판과 같은 이유로 reservations 와 분리한다.
+-- ==============================================================================
+CREATE TABLE IF NOT EXISTS queue_tickets (
+  id         SERIAL PRIMARY KEY,
+  ticket_no  INTEGER NOT NULL,
+  issued_on  DATE NOT NULL,
+  nickname   VARCHAR(20) NOT NULL DEFAULT '관람객',
+  pin_code   VARCHAR(4) NOT NULL,
+  status     VARCHAR(20) NOT NULL DEFAULT 'waiting',
+  issued_at  TIMESTAMPTZ DEFAULT NOW(),
+  called_at  TIMESTAMPTZ NULL,
+  started_at TIMESTAMPTZ NULL,
+  ended_at   TIMESTAMPTZ NULL,
+  CONSTRAINT uq_ticket_day UNIQUE (issued_on, ticket_no)
+);
+
+CREATE INDEX IF NOT EXISTS idx_queue_status ON queue_tickets (issued_on, status);
+
+-- ==============================================================================
 -- 점수 기록 (부록G §2-④). MySQL 판과 같은 이유로 song_history 와 분리한다.
 -- ==============================================================================
 CREATE TABLE IF NOT EXISTS score_records (

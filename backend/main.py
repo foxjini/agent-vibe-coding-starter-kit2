@@ -29,6 +29,7 @@ from routers.reservations import (
     videos_router,
     scores_router,
     scheduler_router,
+    experience_router,
 )
 from websocket_manager import ws_manager
 
@@ -122,6 +123,7 @@ app.include_router(songs_router)
 app.include_router(videos_router)
 app.include_router(scores_router)
 app.include_router(scheduler_router)
+app.include_router(experience_router)
 
 
 

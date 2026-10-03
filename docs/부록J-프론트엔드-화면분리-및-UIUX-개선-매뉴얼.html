@@ -62,7 +62,8 @@
   ul,ol{margin:10px 0 0;padding-left:20px;display:flex;flex-direction:column;gap:7px;}
 
   /* 기기 카드 3종 */
-  .devices{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-top:20px;}
+  .devices{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-top:20px;}
+  @media(max-width:980px){.devices{grid-template-columns:repeat(2,1fr);}}
   .dev{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:18px 16px 16px;box-shadow:var(--sh);
        display:flex;flex-direction:column;gap:12px;align-items:center;text-align:center;}
   .frame{--c:var(--ink3);display:grid;place-items:center;height:92px;width:100%;}
@@ -81,6 +82,7 @@
   .d-home{--c:var(--home);} .d-home .route{color:var(--home);}
   .d-booth{--c:var(--booth);} .d-booth .route{color:var(--booth);}
   .d-admin{--c:var(--admin);} .d-admin .route{color:var(--admin);}
+  .d-try{--c:var(--home);} .d-try .route{color:var(--home);}
   @media(max-width:620px){.devices{grid-template-columns:1fr;} .dev{flex-direction:row;text-align:left;align-items:flex-start;flex-wrap:wrap;}
     .frame{height:auto;width:auto;}
     .dev ul{text-align:left;} .frame{flex:none;} .tv::after,.lp::after{display:none;}}
@@ -136,25 +138,30 @@
 <header class="cover">
   <div class="kicker">부록 J · 프론트엔드 담당</div>
   <h1>화면 분리와 UI/UX 개선 작업서</h1>
-  <p class="lede">지금 하나뿐인 화면을 <b>관람객 폰 · 부스 대형 화면 · 선생님 노트북</b> 세 개로 나누고, 각 기기에 맞게 다듬는 2차 작업 안내서입니다. 순서대로 따라가면 됩니다.</p>
+  <p class="lede">하나뿐이던 화면을 <b>학생 폰 · 관람객 폰 · 부스 대형 화면 · 선생님 노트북</b>으로 나누고, 각 기기에 맞게 다듬는 2차 작업 안내서입니다. 순서대로 읽으면 됩니다.</p>
 
   <div class="answer">
     <b>먼저 알아 둘 것 — 이건 디자인 취향 문제가 아닙니다</b>
     <p>지금은 관람객이 보는 화면에 <strong>도어락 해제 · 220V 전원 차단 · 이용 강제 종료</strong> 버튼이 그대로 놓여 있습니다. 전시가 "관람객 직접 체험 + 실기기 반출"로 정해졌으니, 남이 노래하는 중에 전원이 꺼지거나 부스 문이 열릴 수 있습니다. <strong>화면 분리는 이걸 막는 작업입니다.</strong></p>
   </div>
+
+  <div class="note n-tip" style="margin-top:14px">
+    <b>지금 저장소에는 이미 반영되어 있습니다</b>
+    <p>아래 작업 1~5는 <strong>코드에 적용이 끝난 상태</strong>입니다. 그러니 이 문서는 "지금부터 할 일"이 아니라 <strong>왜 이렇게 나뉘어 있는지 읽고, 내가 더 다듬을 때 지키는 기준</strong>으로 보면 됩니다. 실제 코드는 셋이 아니라 <strong>넷</strong>으로 나뉘어 있습니다 — 전시장 관람객용 <code>/try</code> 가 하나 더 있습니다. 예약이 있는 학교 학생과, 예약이 없어 QR로 체험권을 받는 관람객은 화면에서 할 일이 전혀 달라서 떼어 냈습니다.</p>
+  </div>
 </header>
 
 <!-- 1 -->
 <section>
-  <h2>1. 세 개로 나누는 이유 <em>보는 사람도, 기기도 다르다</em></h2>
-  <p>한 화면에 다 있으면 편해 보이지만, 실제로는 <strong>서로 다른 세 사람이 서로 다른 기기로</strong> 봅니다. 폰에서 쓰기 좋은 화면과 3m 떨어져 보는 대형 화면은 글자 크기부터 달라야 합니다.</p>
+  <h2>1. 화면을 나누는 이유 <em>보는 사람도, 기기도 다르다</em></h2>
+  <p>한 화면에 다 있으면 편해 보이지만, 실제로는 <strong>서로 다른 사람이 서로 다른 기기로</strong> 봅니다. 폰에서 쓰기 좋은 화면과 3m 떨어져 보는 대형 화면은 글자 크기부터 달라야 합니다.</p>
 
   <div class="devices">
     <div class="dev d-home">
       <div class="frame"><div class="screen ph"></div></div>
       <div>
         <div class="route">/</div>
-        <div class="who">학생·관람객 · 폰</div>
+        <div class="who">학교 학생 · 폰</div>
       </div>
       <ul><li>예약 신청과 PIN 발급</li><li>내 노래 기록</li><li>노래 퀴즈 미니게임</li></ul>
     </div>
@@ -173,6 +180,14 @@
         <div class="who">선생님 · 노트북</div>
       </div>
       <ul><li>기기 직접 제어</li><li>시나리오 강제 실행</li><li>예약·통계 관리</li></ul>
+    </div>
+    <div class="dev d-try">
+      <div class="frame"><div class="screen ph"></div></div>
+      <div>
+        <div class="route">/try</div>
+        <div class="who">전시장 관람객 · 폰</div>
+      </div>
+      <ul><li>QR로 체험권 받기</li><li>내 대기 번호</li><li>내 차례일 때 입장 비밀번호</li></ul>
     </div>
   </div>
 

@@ -68,8 +68,19 @@ class BoothService:
         except Exception as exc:
             logger.warning(f"DB lookup failed for PIN: {exc}")
 
-        # 예약이 없을 때만 개발용 만능 PIN을 인정한다 (기본은 차단)
-        if not reservation and not (_test_pin_allowed() and pin_code == TEST_PIN):
+        # 3. 전시 체험권 PIN 검증 (부록G §2-③)
+        #    전시장 관람객은 예약이 없다. 대신 QR로 받은 체험권을 쓴다.
+        #    '호출된(called)' 체험권만 통과한다 — 차례가 오지 않은 사람의 번호로
+        #    문이 열리면 줄을 선 의미가 없다.
+        ticket = None
+        if not reservation:
+            try:
+                ticket = db.get_called_ticket_by_pin(pin_code)
+            except Exception as exc:
+                logger.warning(f"DB lookup failed for queue ticket: {exc}")
+
+        # 예약도 체험권도 없을 때만 개발용 만능 PIN을 인정한다 (기본은 차단)
+        if not reservation and not ticket and not (_test_pin_allowed() and pin_code == TEST_PIN):
             event_msg = {
                 "type": "booth_auth",
                 "success": False,
@@ -80,10 +91,15 @@ class BoothService:
             return {
                 "success": False,
                 "mode": "none",
-                "message": "등록되지 않았거나 이미 사용한 비밀번호입니다. (PIN은 1회만 사용할 수 있습니다)"
+                "message": "등록되지 않았거나 아직 차례가 아닌 비밀번호입니다. (예약 PIN은 1회용이고, 체험권은 호출된 뒤에만 쓸 수 있습니다)"
             }
 
-        user_name = reservation.get("student_name", "학생") if reservation else "테스트 학생"
+        if reservation:
+            user_name = reservation.get("student_name", "학생")
+        elif ticket:
+            user_name = f"{ticket.get('ticket_no')}번 {ticket.get('nickname', '관람객')}"
+        else:
+            user_name = "테스트 학생"
         logger.info(f"Student reservation authenticated: {user_name}. Activating booth.")
 
         if reservation and reservation.get("id"):
@@ -91,6 +107,13 @@ class BoothService:
                 db.update_reservation_status(reservation["id"], "active")
             except Exception as exc:
                 logger.warning(f"Failed to update reservation status: {exc}")
+        elif ticket and ticket.get("id"):
+            try:
+                from services import experience
+
+                await experience.start_ticket(ticket)
+            except Exception as exc:
+                logger.warning(f"Failed to start queue ticket: {exc}")
 
         # 일반 사용자 정상 인증: 도어락 해제 + 전원 릴레이 공급 + LED 점등 + 환영음
         await provider.set_actuator_state("door_lock_1", "unlocked", operator="user")

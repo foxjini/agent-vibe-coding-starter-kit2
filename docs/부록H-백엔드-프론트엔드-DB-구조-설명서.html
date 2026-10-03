@@ -921,9 +921,9 @@ footer p { max-width: var(--measure); }
             <td>서버는 건드리지 않습니다. <strong>CSS만 고치는 작업</strong></td>
           </tr>
           <tr>
-            <td><strong>③ 체험 모드 · 대기열</strong></td>
-            <td><code>routers/reservations.py</code><br /><code>db/database.py</code><br />새 컴포넌트</td>
-            <td>예약 기능과 구조가 거의 같습니다. <strong>기존 예약 코드를 따라 만드는 것</strong>이 가장 빠릅니다</td>
+            <td><strong>③ 체험 모드 · 대기열</strong><br /><span style="font-size:12px;color:#64748b">구현 완료</span></td>
+            <td><code>services/experience.py</code><br /><code>routers/reservations.py</code> (experience_router)<br /><code>db/database.py</code> · <code>queue_tickets</code> 테이블<br /><code>app/try/page.tsx</code> · <code>components/admin/QueuePanel.tsx</code></td>
+            <td>예약 기능과 구조가 거의 같습니다. <strong>이미 들어가 있으니 새로 만들지 말고 이 파일들을 읽으세요</strong> — 상태는 <code>waiting → called → active → done</code> 네 단계뿐입니다</td>
           </tr>
         </tbody>
       </table>

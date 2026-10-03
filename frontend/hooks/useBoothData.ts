@@ -3,7 +3,14 @@
 import { useState, useEffect, useCallback } from "react";
 import { apiUrl } from "@/utils/apiConfig";
 import { useKaraokeSocket } from "@/hooks/useKaraokeSocket";
-import { Device, Reservation, ScoreRecord, Song, WebSocketMessage } from "@/types";
+import {
+  Device,
+  QueueSnapshot,
+  Reservation,
+  ScoreRecord,
+  Song,
+  WebSocketMessage,
+} from "@/types";
 
 /**
  * 부스 공용 데이터 훅 (부록G §3 화면 분리 / 부록J 작업 1)
@@ -28,6 +35,8 @@ export function useBoothData() {
   // 순위 (부록G §2-④) — 오늘 기록과 명예의 전당을 따로 본다
   const [topToday, setTopToday] = useState<ScoreRecord[]>([]);
   const [topAll, setTopAll] = useState<ScoreRecord[]>([]);
+  // 전시 체험 대기열 (부록G §2-③)
+  const [queue, setQueue] = useState<QueueSnapshot | null>(null);
 
   const fetchDevices = useCallback(async () => {
     try {
@@ -79,12 +88,22 @@ export function useBoothData() {
     }
   }, []);
 
+  const fetchQueue = useCallback(async () => {
+    try {
+      const res = await fetch(apiUrl("/api/experience/queue"));
+      if (res.ok) setQueue((await res.json()).data ?? null);
+    } catch {
+      // 대기열을 못 받아도 노래방은 돌아가야 한다
+    }
+  }, []);
+
   useEffect(() => {
     fetchDevices();
     fetchReservations();
     fetchSongs();
     fetchScores();
-  }, [fetchDevices, fetchReservations, fetchSongs, fetchScores]);
+    fetchQueue();
+  }, [fetchDevices, fetchReservations, fetchSongs, fetchScores, fetchQueue]);
 
   const handleWsMessage = useCallback(
     (msg: WebSocketMessage) => {
@@ -116,9 +135,14 @@ export function useBoothData() {
           `${msg.nickname ?? "익명"}님이 ${msg.title ?? "노래"}로 ${msg.score ?? 0}점을 받았습니다!`
         );
         fetchScores();
+      } else if (msg.type === "queue_called") {
+        setLastEventMsg(msg.message || `${msg.ticket_no ?? ""}번 입장해 주세요!`);
+        fetchQueue();
+      } else if (msg.type === "queue_updated") {
+        fetchQueue();
       }
     },
-    [fetchDevices, fetchReservations, fetchSongs, fetchScores]
+    [fetchDevices, fetchReservations, fetchSongs, fetchScores, fetchQueue]
   );
 
   const { isConnected } = useKaraokeSocket(handleWsMessage);
@@ -131,11 +155,13 @@ export function useBoothData() {
     lastEventMsg,
     topToday,
     topAll,
+    queue,
     isConnected,
     fetchDevices,
     fetchReservations,
     fetchSongs,
     fetchScores,
+    fetchQueue,
   };
 }
 

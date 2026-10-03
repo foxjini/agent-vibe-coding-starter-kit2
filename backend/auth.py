@@ -122,6 +122,18 @@ def _purge_expired_tokens() -> None:
         _admin_tokens.pop(tok, None)
 
 
+def is_valid_admin_token(token: Optional[str]) -> bool:
+    """토큰이 살아 있는 관리자 토큰인지 조용히 확인합니다 (막지 않는다).
+
+    "관리자면 조금 더 보여 주되, 아니어도 거절하지는 않는" 화면에 쓴다.
+    아예 막아야 하는 곳에는 아래 verify_admin_token 을 Depends 로 건다.
+    """
+    if not token:
+        return False
+    _purge_expired_tokens()
+    return token in _admin_tokens
+
+
 def verify_admin_token(
     x_admin_token: Optional[str] = Header(None, alias="X-Admin-Token")
 ) -> str:

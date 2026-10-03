@@ -17,6 +17,11 @@ class KeypadVerifyRequest(BaseModel):
     pin: str = Field(..., min_length=4, max_length=4, description="4자리 비밀번호 (숫자)")
 
 
+class TicketIssueRequest(BaseModel):
+    """전시 체험권 발급 요청 (부록G §2-③)"""
+    nickname: str = Field("관람객", max_length=20, description="폰에서 입력한 이름")
+
+
 class ScoreRecordRequest(BaseModel):
     """채점 결과 저장 요청 (부록G §2-④)"""
     nickname: str = Field("익명", max_length=20, description="부스에서 입력한 별명")

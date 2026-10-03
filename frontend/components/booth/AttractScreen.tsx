@@ -2,7 +2,8 @@
 
 import React, { useEffect, useState } from "react";
 import { Mic2, Loader2, KeyRound, Trophy, Crown, Flame } from "lucide-react";
-import { ScoreRecord } from "@/types";
+import { QueueSnapshot, ScoreRecord } from "@/types";
+import { QrCode } from "@/components/booth/QrCode";
 
 interface PopularSong {
   id: string;
@@ -21,6 +22,8 @@ interface AttractScreenProps {
   onBrowse: () => void;
   isEntering: boolean;
   enterNotice: string | null;
+  /** 전시 체험 대기열 (부록G §2-③). 체험 모드를 안 쓰면 null 이다 */
+  queue?: QueueSnapshot | null;
 }
 
 /** 순환 패널 정의 — 순서가 곧 화면에 도는 순서다 */
@@ -55,8 +58,30 @@ export function AttractScreen({
   onBrowse,
   isEntering,
   enterNotice,
+  queue = null,
 }: AttractScreenProps) {
   const [panelIndex, setPanelIndex] = useState(0);
+  /*
+    QR 이 가리킬 주소.
+
+    기본은 이 화면을 띄운 주소를 그대로 쓴다 — 전시장 주소가 바뀌어도 따라간다.
+    다만 부스 PC에서 `localhost` 로 띄워 두면 그 QR 은 **그 PC에서만** 열린다.
+    관람객 폰은 열 수 없으므로, 그럴 때는 `NEXT_PUBLIC_SITE_URL` 에 PC의
+    IPv4 주소(예: http://192.168.0.25:3000)를 넣어 덮어쓴다.
+  */
+  const [tryUrl, setTryUrl] = useState("");
+  const [localOnly, setLocalOnly] = useState(false);
+
+  useEffect(() => {
+    const id = setTimeout(() => {
+      const base =
+        process.env.NEXT_PUBLIC_SITE_URL?.trim().replace(/\/+$/, "") ||
+        window.location.origin;
+      setTryUrl(`${base}/try`);
+      setLocalOnly(/^https?:\/\/(localhost|127\.0\.0\.1)(:|$|\/)/i.test(base));
+    }, 0);
+    return () => clearTimeout(id);
+  }, []);
 
   // 패널 자동 순환. 사용자가 점을 누르면 그 패널부터 다시 센다.
   useEffect(() => {
@@ -90,10 +115,66 @@ export function AttractScreen({
             </p>
           </div>
 
-          <div className="flex items-center gap-3 px-4 py-3 rounded-xl bg-raised border border-line w-fit">
-            <KeyRound className="w-5 h-5 text-brass shrink-0" aria-hidden />
-            <span className="font-mono tnum text-2xl tracking-[0.35em] text-ink-3">● ● ● ●</span>
-          </div>
+          {/*
+            전시 체험 모드 — 관람객에게는 예약 PIN 이 없다. QR 을 찍어 그 자리에서
+            체험권을 받고 대기 번호를 받는다 (부록G §2-③).
+          */}
+          {queue?.enabled ? (
+            <div className="flex flex-wrap items-center gap-5 p-4 rounded-2xl bg-raised border border-line w-fit">
+              {tryUrl && <QrCode value={tryUrl} size={132} />}
+              <div className="min-w-0">
+                <p className="text-sm font-bold text-ink">
+                  예약이 없으신가요? <span className="text-brass">QR을 찍으세요</span>
+                </p>
+                <p className="text-xs text-ink-2 mt-1 leading-relaxed">
+                  폰으로 체험권을 받으면 대기 번호가 나옵니다.
+                </p>
+                {/* 전시 당일에 가장 자주 나는 사고 — 띄운 사람에게만 보이게 적어 둔다 */}
+                {localOnly && (
+                  <p className="text-[11px] text-live mt-1.5 leading-relaxed max-w-xs">
+                    이 QR은 <strong>이 PC에서만</strong> 열립니다. 관람객 폰으로 찍게 하려면
+                    <code className="mx-1">frontend/.env</code> 의
+                    <code className="mx-1">NEXT_PUBLIC_SITE_URL</code> 에 이 PC의 IP 주소를
+                    넣고 다시 띄우세요.
+                  </p>
+                )}
+                <div className="flex items-start gap-4 mt-3">
+                  <span>
+                    <span className="block text-[11px] text-ink-3">지금 호출</span>
+                    <span className="block font-mono tnum text-2xl font-extrabold text-brass leading-none">
+                      {queue.now_serving ? `${queue.now_serving.ticket_no}번` : "—"}
+                    </span>
+                    {/* 멀리서도 자기가 불린 줄 알아야 한다 — /try 에서 "호출할 때 부릅니다"로
+                        받아 둔 이름을 번호 아래에 같이 띄운다 */}
+                    {queue.now_serving?.nickname && (
+                      <span className="block text-[11px] text-ink-2 mt-0.5 max-w-[7rem] truncate">
+                        {queue.now_serving.nickname}님
+                      </span>
+                    )}
+                  </span>
+                  <span className="w-px h-8 bg-line" aria-hidden />
+                  <span>
+                    <span className="block text-[11px] text-ink-3">대기</span>
+                    <span className="block font-mono tnum text-2xl font-extrabold text-ink leading-none">
+                      {queue.waiting_count}명
+                    </span>
+                  </span>
+                  <span className="w-px h-8 bg-line" aria-hidden />
+                  <span>
+                    <span className="block text-[11px] text-ink-3">예상</span>
+                    <span className="block font-mono tnum text-2xl font-extrabold text-ink leading-none">
+                      {queue.estimated_wait_min}분
+                    </span>
+                  </span>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div className="flex items-center gap-3 px-4 py-3 rounded-xl bg-raised border border-line w-fit">
+              <KeyRound className="w-5 h-5 text-brass shrink-0" aria-hidden />
+              <span className="font-mono tnum text-2xl tracking-[0.35em] text-ink-3">● ● ● ●</span>
+            </div>
+          )}
 
           {/* 이름을 미리 받아 두면 채점할 때마다 묻지 않아도 순위에 올릴 수 있다 */}
           <div className="space-y-3 max-w-md">

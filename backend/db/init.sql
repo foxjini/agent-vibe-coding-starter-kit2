@@ -100,6 +100,35 @@ CREATE TABLE IF NOT EXISTS song_videos (
 );
 
 -- ==============================================================================
+-- 전시 체험 대기열 (부록G §2-③ 전시 체험 모드)
+--
+-- 전시장 관람객에게는 예약 PIN이 없다. QR을 찍어 그 자리에서 체험권을 받고,
+-- 대기 번호를 받아 기다리다가, 차례가 오면 그 체험권의 PIN으로 부스에 들어간다.
+--
+-- reservations 와 합치지 않은 이유:
+--   예약은 '날짜 + 타임슬롯' 단위라 하루 두 건뿐이고 미리 신청한다.
+--   체험권은 '줄 선 순서' 단위라 하루에 수십 건이 즉석에서 생긴다.
+--   같은 표에 넣으면 중복 예약 차단(uq_date_slot)에 바로 걸린다.
+--
+-- status 흐름: waiting → called → active → done
+--                             ↘ expired (호출했는데 오지 않음)
+-- ==============================================================================
+CREATE TABLE IF NOT EXISTS queue_tickets (
+  id         INT AUTO_INCREMENT PRIMARY KEY,
+  ticket_no  INT NOT NULL,                  -- 그날의 대기 번호 (1부터)
+  issued_on  DATE NOT NULL,                 -- 발급일 (번호는 날마다 1로 돌아간다)
+  nickname   VARCHAR(20) NOT NULL DEFAULT '관람객',
+  pin_code   VARCHAR(4) NOT NULL,           -- 이 체험권 전용 4자리
+  status     VARCHAR(20) NOT NULL DEFAULT 'waiting',
+  issued_at  DATETIME DEFAULT CURRENT_TIMESTAMP,
+  called_at  DATETIME NULL,
+  started_at DATETIME NULL,
+  ended_at   DATETIME NULL,
+  UNIQUE KEY uq_ticket_day (issued_on, ticket_no),
+  INDEX idx_queue_status (issued_on, status)
+);
+
+-- ==============================================================================
 -- 점수 기록 (부록G §2-④ 점수 저장 + 실시간 랭킹)
 --
 -- song_history 는 "어떤 곡을 몇 번 불렀나"를 누적한다. 랭킹은 그것과 다른
