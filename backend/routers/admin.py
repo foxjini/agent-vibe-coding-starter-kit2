@@ -9,10 +9,11 @@
 import logging
 from typing import Any, Dict
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from pydantic import BaseModel, Field
 
 from auth import is_admin_pin, issue_admin_token, revoke_admin_token, verify_admin_token
+from login_guard import admin_login_guard, client_key
 
 logger = logging.getLogger("backend.routers.admin")
 
@@ -25,15 +26,24 @@ class AdminLoginRequest(BaseModel):
 
 
 @admin_router.post("/login")
-async def admin_login(req: AdminLoginRequest) -> Dict[str, Any]:
-    """관리자 PIN을 검증하고 단기 토큰을 발급합니다."""
+async def admin_login(req: AdminLoginRequest, request: Request) -> Dict[str, Any]:
+    """관리자 PIN을 검증하고 단기 토큰을 발급합니다.
+
+    4자리라 막지 않으면 몇 분 만에 전부 넣어 볼 수 있다 — 연속으로 틀리면
+    잠시 막는다 (login_guard.py).
+    """
+    key = client_key(request)
+    admin_login_guard.check(key)
+
     if not is_admin_pin(req.pin):
+        admin_login_guard.fail(key)
         logger.warning("Admin login attempt failed.")
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail={"code": "INVALID_ADMIN_PIN", "message": "관리자 PIN이 올바르지 않습니다."}
         )
 
+    admin_login_guard.succeed(key)
     logger.info("Admin authenticated.")
     return {"data": issue_admin_token()}
 

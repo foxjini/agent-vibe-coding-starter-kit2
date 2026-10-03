@@ -19,6 +19,7 @@
                           ↘ expired (호출했는데 오지 않음)
 """
 
+import asyncio
 import logging
 import os
 import random
@@ -47,6 +48,31 @@ EXPERIENCE_MINUTES = _int_env("EXPERIENCE_MINUTES", 3)
 CALL_GRACE_MINUTES = _int_env("EXPERIENCE_CALL_GRACE_MIN", 2)
 
 ACTIVE_STATUSES = ("waiting", "called", "active")
+
+# advance()는 스케줄러(1분마다)·발급·관리자 버튼에서 동시에 불릴 수 있다.
+# 중간에 await(전원 차단, 방송)가 끼어 있어서, 둘이 겹치면 같은 사람의 체험을
+# 두 번 끝내고 종료곡을 두 번 트는 일이 생긴다. 한 번에 하나씩만 돌게 한다.
+_advance_lock = asyncio.Lock()
+
+
+_reserved_cache: Dict[str, Any] = {"until": 0.0, "value": None}
+
+
+def _reservation_in_progress() -> Optional[Dict[str, Any]]:
+    """지금 예약한 학생의 이용 시간인가 (그렇다면 대기열을 잠시 멈춘다).
+
+    관람객 폰 수십 대가 4초마다 대기열을 묻는다. 그때마다 예약 테이블까지
+    읽으면 DB 접속이 그만큼 늘어나므로 15초 동안은 같은 답을 쓴다.
+    """
+    import time
+
+    from services.scheduler import reservation_in_progress
+
+    now = time.monotonic()
+    if now >= _reserved_cache["until"]:
+        _reserved_cache["value"] = reservation_in_progress()
+        _reserved_cache["until"] = now + 15
+    return _reserved_cache["value"]
 
 
 def _parse(dt: Any) -> Optional[datetime]:
@@ -122,8 +148,14 @@ def snapshot() -> Dict[str, Any]:
     )
     waiting = [t for t in tickets if str(t.get("status")) == "waiting"]
 
+    reserved = _reservation_in_progress() if ENABLED else None
+
     return {
         "enabled": ENABLED,
+        # 예약 이용 시간에는 관람객을 부르지 않는다 — 화면이 그 이유를 보여 준다
+        "paused_reason": (
+            "지금은 예약한 학생의 이용 시간입니다. 끝나면 이어서 부릅니다." if reserved else None
+        ),
         "experience_minutes": EXPERIENCE_MINUTES,
         "call_grace_minutes": CALL_GRACE_MINUTES,
         "now": now_local().isoformat(timespec="seconds"),
@@ -166,12 +198,17 @@ async def advance() -> List[Dict[str, Any]]:
 
       1. 호출해 뒀는데 오지 않은 사람 → 만료
       2. 이용 시간이 끝난 사람 → 종료 처리 + 부스 전원 차단
-      3. 부스가 비어 있으면 → 다음 사람 호출
+      3. 부스가 비어 있으면 → 다음 사람 호출 (예약 이용 시간에는 부르지 않는다)
 
     DB가 꺼져 있으면 아무 일도 하지 않는다.
     """
     if not ENABLED:
         return []
+    async with _advance_lock:
+        return await _advance_locked()
+
+
+async def _advance_locked() -> List[Dict[str, Any]]:
 
     day = today_str()
     now = now_local()
@@ -201,7 +238,15 @@ async def advance() -> List[Dict[str, Any]]:
         if started_at and now >= started_at + timedelta(minutes=EXPERIENCE_MINUTES):
             from services.booth_service import BoothService
 
-            await BoothService.trigger_session_end()
+            # 예약한 학생이 이미 들어와 부스를 쓰고 있으면 전원을 끄지 않는다.
+            # (시작 10분 전에 미리 들어온 학생도 포함) 그 학생의 이용 종료는
+            # 스케줄러가 예약 시간에 맞춰 처리한다. 전원을 끄는 판단이라
+            # 캐시를 쓰지 않고 지금 DB를 직접 본다.
+            from services.scheduler import reservation_in_progress
+
+            reserved = reservation_in_progress()
+            if not (reserved and str(reserved.get("status")) == "active"):
+                await BoothService.trigger_session_end()
             db.update_ticket_status(int(t["id"]), "done")
             actions.append({"event": "finished", "ticket_no": t.get("ticket_no")})
             logger.info(f"[queue] {t.get('ticket_no')}번 체험 종료 ({EXPERIENCE_MINUTES}분 경과)")
@@ -213,6 +258,9 @@ async def advance() -> List[Dict[str, Any]]:
         tickets = []
 
     busy = any(str(t.get("status")) in ("called", "active") for t in tickets)
+    if not busy and tickets and _reservation_in_progress():
+        # 예약 시간 동안은 관람객을 부르지 않는다 (줄은 그대로 유지)
+        busy = True
     if not busy:
         nxt = next((t for t in tickets if str(t.get("status")) == "waiting"), None)
         if nxt:

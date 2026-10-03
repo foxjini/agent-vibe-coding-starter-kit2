@@ -473,6 +473,8 @@
           <tr><td>대시보드 <strong>확정 상태</strong>가<br>안 바뀜</td><td><code>main.py</code>가 꺼져 있거나 보고가 실패하고 있습니다. 고장이 아니라 <strong>정확한 신호</strong>입니다(8단계 참고). 데몬 화면에 <code>📤 보고 완료</code>가 찍히는지 보세요</td></tr>
           <tr><td>키패드가 <strong>아무 반응 없음</strong></td><td>행/열 핀이 서로 바뀐 경우가 가장 많습니다. <code>booth_pins.py</code>의 <code>KEYPAD_ROW_PINS</code>와 <code>KEYPAD_COL_PINS</code> 값을 서로 바꿔 보세요</td></tr>
           <tr><td>키를 하나 눌렀는데 <strong>여러 번</strong></td><td>키패드 배선이 헐거워 접촉이 튑니다. 점퍼선을 다시 꽂아 보세요</td></tr>
+          <tr><td>PIN이 맞는데 <strong>"아직 예약 시간이 아닙니다"</strong></td><td>정상입니다. 예약 PIN은 <strong>그 예약의 시작 10분 전부터 종료까지만</strong> 문을 엽니다. 개발 중에 바로 시험하려면 백엔드 <code>.env</code>의 <code>RESERVATION_TIME_CHECK=false</code> (전시 때는 반드시 <code>true</code>)</td></tr>
+          <tr><td><strong>"여러 번 틀려 잠시 막혔습니다"</strong></td><td>정상입니다. 5번 연속 틀리면 30초 동안 키패드 전체가 쉽니다 (시판 도어락과 같은 동작). 기다리면 풀리고, 급하면 백엔드를 재시작하면 됩니다</td></tr>
           <tr><td>PIR이 <strong>계속 감지</strong></td><td>정상입니다. 사람이 서 있으면 센서가 계속 HIGH라서, 데몬은 20초에 한 번만 보고합니다. 너무 민감하면 센서 뒷면의 감도 나사를 조절하세요</td></tr>
         </tbody>
       </table>

@@ -33,7 +33,9 @@ class WebSocketManager:
 
         payload = json.dumps(message)
         disconnected = []
-        for connection in self.active_connections:
+        # send_text 를 기다리는 사이 다른 연결이 끊겨 목록에서 빠질 수 있다.
+        # 원본 목록을 돌면 그때 한 명씩 건너뛰게 되므로 사본을 돈다.
+        for connection in list(self.active_connections):
             try:
                 await connection.send_text(payload)
             except Exception as e:

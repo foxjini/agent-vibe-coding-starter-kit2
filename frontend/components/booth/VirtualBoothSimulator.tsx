@@ -273,11 +273,13 @@ export function VirtualBoothSimulator({
   };
 
 
-  // Speak incoming lastEventMessage if updated
+  // 새 안내 문구가 올 때만 읽는다.
+  // isVoiceEnabled 를 의존성에 넣으면 음성을 켜는 순간 지난 안내를 다시 읽어 버린다.
   useEffect(() => {
     if (lastEventMessage && isVoiceEnabled) {
       speakVoice(lastEventMessage);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [lastEventMessage]);
 
   return (

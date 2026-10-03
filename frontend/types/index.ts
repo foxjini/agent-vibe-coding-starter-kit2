@@ -18,8 +18,9 @@ export interface Reservation {
   user_count: number;
   reservation_date: string;
   time_slot: "lunch" | "dinner" | string;
-  pin_code: string;
-  status: "reserved" | "active" | "completed" | "cancelled" | string;
+  /** 신청 응답과 관리자 화면에만 실린다 — 공개 목록에서는 서버가 뺀다 */
+  pin_code?: string;
+  status: "reserved" | "active" | "completed" | "cancelled" | "no_show" | string;
   created_at: string;
 }
 
@@ -93,6 +94,8 @@ export interface QueueTicket {
 /** 대기열 현황 — 부스 화면·관람객 폰·관리자 화면이 같은 것을 본다 */
 export interface QueueSnapshot {
   enabled: boolean;
+  /** 예약한 학생의 이용 시간이라 잠시 부르지 않을 때 그 이유 */
+  paused_reason?: string | null;
   experience_minutes: number;
   call_grace_minutes: number;
   now?: string;

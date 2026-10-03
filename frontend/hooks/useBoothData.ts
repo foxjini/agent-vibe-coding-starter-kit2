@@ -1,7 +1,13 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useSyncExternalStore } from "react";
 import { apiUrl } from "@/utils/apiConfig";
+import {
+  adminFetch,
+  subscribeAdminSession,
+  getAdminSnapshot,
+  getAdminServerSnapshot,
+} from "@/utils/adminSession";
 import { useKaraokeSocket } from "@/hooks/useKaraokeSocket";
 import {
   Device,
@@ -50,9 +56,11 @@ export function useBoothData() {
     }
   }, []);
 
+  // 예약 PIN은 서버가 관리자에게만 내려준다. adminFetch 는 관리자 토큰이 있을 때만
+  // 헤더에 붙이므로, 학생·부스 화면에서는 PIN 없이 목록만 받는다.
   const fetchReservations = useCallback(async () => {
     try {
-      const res = await fetch(apiUrl("/api/reservations"));
+      const res = await adminFetch("/api/reservations");
       if (res.ok) {
         const json = await res.json();
         setReservations(json.data || []);
@@ -97,13 +105,29 @@ export function useBoothData() {
     }
   }, []);
 
+  // 관리자로 로그인·로그아웃하면 예약 목록을 다시 받는다 (PIN이 보였다 사라졌다 한다)
+  const adminAuthed = useSyncExternalStore(
+    subscribeAdminSession,
+    getAdminSnapshot,
+    getAdminServerSnapshot
+  );
+
   useEffect(() => {
-    fetchDevices();
-    fetchReservations();
-    fetchSongs();
-    fetchScores();
-    fetchQueue();
-  }, [fetchDevices, fetchReservations, fetchSongs, fetchScores, fetchQueue]);
+    // effect 본문에서 곧바로 상태를 바꾸지 않도록 첫 조회를 한 틱 미룬다
+    // (React 19 규칙 react-hooks/set-state-in-effect)
+    const id = setTimeout(() => {
+      fetchDevices();
+      fetchSongs();
+      fetchScores();
+      fetchQueue();
+    }, 0);
+    return () => clearTimeout(id);
+  }, [fetchDevices, fetchSongs, fetchScores, fetchQueue]);
+
+  useEffect(() => {
+    const id = setTimeout(fetchReservations, 0);
+    return () => clearTimeout(id);
+  }, [fetchReservations, adminAuthed]);
 
   const handleWsMessage = useCallback(
     (msg: WebSocketMessage) => {
