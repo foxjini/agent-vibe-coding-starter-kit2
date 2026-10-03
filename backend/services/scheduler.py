@@ -58,18 +58,8 @@ NO_SHOW_GRACE_MIN = _int_env("SCHEDULER_NO_SHOW_GRACE_MIN", 15)
 # 나가지 않는다 (기억은 메모리에만 있어서 재시작하면 지워지기 때문이다).
 WARN_WINDOW_MIN = 2
 
-try:
-    from zoneinfo import ZoneInfo
-
-    _TZ: Optional[ZoneInfo] = ZoneInfo(os.getenv("BOOTH_TIMEZONE", "Asia/Seoul"))
-except Exception:  # tzdata가 없는 최소 이미지 등
-    _TZ = None
-    logger.warning("시간대 정보를 불러오지 못해 서버 로컬 시간으로 동작합니다.")
-
-
-def now_local() -> datetime:
-    """부스가 있는 곳의 현재 시각 (서버가 UTC여도 한국 시간으로 환산)"""
-    return datetime.now(_TZ) if _TZ else datetime.now()
+# 시간대 처리는 booth_time 한 곳에 둔다 — 대기열(③)도 같은 기준을 써야 한다.
+from booth_time import now_local, tz_name  # noqa: E402
 
 
 # ── 실행 상태 (관리자 화면에서 들여다본다) ───────────────────────────────
@@ -184,6 +174,21 @@ async def run_once() -> Dict[str, Any]:
             done.append(entry)
             await ws_manager.broadcast({"type": "scheduler_action", **entry})
 
+    # 전시 체험 대기열도 같은 주기로 굴린다 (부록G §2-③).
+    # 호출 만료 · 체험 종료 · 다음 사람 호출이 여기서 일어난다.
+    try:
+        from services import experience
+
+        queue_actions = await experience.advance()
+        for qa in queue_actions:
+            _state["actions"] = ([{
+                "action": f"queue_{qa['event']}",
+                "message": f"체험권 {qa.get('ticket_no')}번 — {qa['event']}",
+                "at": now.isoformat(timespec="seconds"),
+            }] + _state["actions"])[:20]
+    except Exception as exc:
+        logger.warning(f"대기열 진행 중 오류: {exc}")
+
     _state["last_tick"] = now.isoformat(timespec="seconds")
     return {"checked": len(reservations), "actions": done}
 
@@ -221,7 +226,7 @@ def get_status() -> Dict[str, Any]:
         "interval_sec": INTERVAL_SEC,
         "warn_before_min": WARN_BEFORE_MIN,
         "no_show_grace_min": NO_SHOW_GRACE_MIN,
-        "timezone": str(_TZ) if _TZ else "server-local",
+        "timezone": tz_name(),
         "now": now.isoformat(timespec="seconds"),
         "last_tick": _state["last_tick"],
         "last_error": _state["last_error"],

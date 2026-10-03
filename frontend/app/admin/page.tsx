@@ -13,6 +13,7 @@ import { SongHistorySection } from "@/components/booth/SongHistorySection";
 import { VideoCheckPanel } from "@/components/booth/VideoCheckPanel";
 import { OpsSummary } from "@/components/admin/OpsSummary";
 import { SchedulerPanel } from "@/components/admin/SchedulerPanel";
+import { QueuePanel } from "@/components/admin/QueuePanel";
 import { useBoothData } from "@/hooks/useBoothData";
 import { apiUrl } from "@/utils/apiConfig";
 import {
@@ -173,6 +174,8 @@ export default function AdminPage() {
                  '지금 무슨 일이 예정돼 있나'가 개입 도구보다 먼저 와야 한다.
             */}
             <SchedulerPanel />
+
+            <QueuePanel />
 
             {/* 3. 개입 — 기기 제어와 시나리오 강제 실행 */}
             <VirtualBoothSimulator

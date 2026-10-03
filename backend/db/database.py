@@ -612,6 +612,110 @@ def record_song(title: str, singer: str) -> Dict[str, Any]:
 
 
 # ==============================================================================
+# 전시 체험 대기열 (부록G §2-③)
+#
+# 전시장 관람객에게는 예약 PIN이 없다. QR을 찍어 그 자리에서 체험권을 받고,
+# 차례가 오면 그 체험권의 PIN으로 부스에 들어간다.
+#
+# 번호는 날마다 1부터 다시 센다 — 전시 둘째 날에 137번이 불리면 이상하다.
+# ==============================================================================
+
+def issue_queue_ticket(nickname: str, pin_code: str, issued_on: str) -> Dict[str, Any]:
+    """체험권을 발급하고 그날의 다음 대기 번호를 매깁니다."""
+    with get_db_cursor() as cursor:
+        cursor.execute(
+            "SELECT COALESCE(MAX(ticket_no), 0) AS last_no FROM queue_tickets WHERE issued_on = %s",
+            (issued_on,),
+        )
+        row = cursor.fetchone() or {}
+        next_no = int(row.get("last_no") or 0) + 1
+
+        cursor.execute(
+            """
+            INSERT INTO queue_tickets (ticket_no, issued_on, nickname, pin_code, status)
+            VALUES (%s, %s, %s, %s, 'waiting')
+            """ + (" RETURNING id" if IS_POSTGRES else ""),
+            (next_no, issued_on, nickname, pin_code),
+        )
+        new_id = cursor.fetchone()["id"] if IS_POSTGRES else cursor.lastrowid
+
+        cursor.execute("SELECT * FROM queue_tickets WHERE id = %s", (new_id,))
+        return _format_row(cursor.fetchone()) or {}
+
+
+def get_queue_tickets(issued_on: str, statuses: Optional[List[str]] = None) -> List[Dict[str, Any]]:
+    """그날의 체험권 목록 (번호 순)."""
+    sql = "SELECT * FROM queue_tickets WHERE issued_on = %s"
+    params: List[Any] = [issued_on]
+    if statuses:
+        sql += " AND status IN (" + ", ".join(["%s"] * len(statuses)) + ")"
+        params.extend(statuses)
+    sql += " ORDER BY ticket_no ASC"
+
+    with get_db_cursor() as cursor:
+        cursor.execute(sql, tuple(params))
+        return [_format_row(r) for r in (cursor.fetchall() or [])]
+
+
+def get_queue_ticket(ticket_id: int) -> Optional[Dict[str, Any]]:
+    """체험권 한 장 (관람객 폰이 자기 순번을 확인할 때)."""
+    with get_db_cursor() as cursor:
+        cursor.execute("SELECT * FROM queue_tickets WHERE id = %s", (ticket_id,))
+        return _format_row(cursor.fetchone())
+
+
+def get_called_ticket_by_pin(pin_code: str) -> Optional[Dict[str, Any]]:
+    """
+    PIN으로 체험권을 찾습니다.
+
+    status='called' 인 것만 찾는다 — 차례가 오지 않은 사람의 PIN으로는 문이 열리면
+    안 된다. 예약 PIN을 'reserved' 로 제한하는 것과 같은 이유다.
+    """
+    with get_db_cursor() as cursor:
+        cursor.execute(
+            "SELECT * FROM queue_tickets WHERE pin_code = %s AND status = 'called' "
+            "ORDER BY ticket_no ASC LIMIT 1",
+            (pin_code,),
+        )
+        return _format_row(cursor.fetchone())
+
+
+def update_ticket_status(ticket_id: int, status: str) -> bool:
+    """
+    체험권 상태를 바꾸고 해당 시각을 함께 기록합니다.
+    called → called_at, active → started_at, done/expired → ended_at
+    """
+    stamp = {"called": "called_at", "active": "started_at"}.get(status)
+    if status in ("done", "expired"):
+        stamp = "ended_at"
+
+    now_fn = "NOW()" if IS_POSTGRES else "CURRENT_TIMESTAMP"
+    extra = f", {stamp} = {now_fn}" if stamp else ""
+
+    with get_db_cursor() as cursor:
+        cursor.execute(
+            f"UPDATE queue_tickets SET status = %s{extra} WHERE id = %s",
+            (status, ticket_id),
+        )
+        return cursor.rowcount > 0
+
+
+def pins_in_use(issued_on: str) -> List[str]:
+    """지금 살아 있는 PIN 목록 — 새 체험권 번호가 겹치지 않게 하려고 본다."""
+    used: List[str] = []
+    with get_db_cursor() as cursor:
+        cursor.execute(
+            "SELECT pin_code FROM queue_tickets WHERE issued_on = %s "
+            "AND status IN ('waiting', 'called', 'active')",
+            (issued_on,),
+        )
+        used.extend(str(r["pin_code"]) for r in (cursor.fetchall() or []))
+        cursor.execute("SELECT pin_code FROM reservations WHERE status IN ('reserved', 'active')")
+        used.extend(str(r["pin_code"]) for r in (cursor.fetchall() or []))
+    return used
+
+
+# ==============================================================================
 # 점수 기록과 랭킹 (부록G §2-④)
 #
 # song_history 는 "어떤 곡을 몇 번 불렀나"의 누적이고, 여기는 "누가 언제 몇 점을

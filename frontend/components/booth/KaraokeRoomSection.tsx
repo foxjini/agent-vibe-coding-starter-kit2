@@ -45,7 +45,7 @@ import {
 } from "@/utils/karaokeMedia";
 import { KARAOKE_SONGS, KaraokeSong, youtubeSearchUrl } from "@/data/karaokeSongs";
 import { AttractScreen } from "@/components/booth/AttractScreen";
-import { Device, ScoreRecord } from "@/types";
+import { Device, QueueSnapshot, ScoreRecord } from "@/types";
 import { apiUrl } from "@/utils/apiConfig";
 
 interface KaraokeRoomSectionProps {
@@ -54,6 +54,8 @@ interface KaraokeRoomSectionProps {
   /** 어트랙트 화면에 돌려 보여 줄 순위 (부록G §2-④) */
   topToday?: ScoreRecord[];
   topAll?: ScoreRecord[];
+  /** 전시 체험 대기열 — 어트랙트 화면의 QR·대기 현황에 쓴다 */
+  queue?: QueueSnapshot | null;
   /** 점수를 남긴 뒤 순위를 다시 받아 오게 한다 */
   onScoreRecorded?: () => void;
 }
@@ -63,6 +65,7 @@ export function KaraokeRoomSection({
   onSongCompleted,
   topToday = [],
   topAll = [],
+  queue = null,
   onScoreRecorded,
 }: KaraokeRoomSectionProps) {
   // 부스 반주기 전원(relay_1) 확인
@@ -751,6 +754,7 @@ export function KaraokeRoomSection({
           onBrowse={() => setHasEntered(true)}
           isEntering={isEntering}
           enterNotice={enterNotice}
+          queue={queue}
         />
       )}
 
