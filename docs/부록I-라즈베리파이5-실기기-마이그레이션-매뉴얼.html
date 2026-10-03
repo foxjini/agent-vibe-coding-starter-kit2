@@ -444,7 +444,7 @@
     <div class="check" id="verifyList">
       <label><input type="checkbox" id="v1"><span><strong>웹 → 파이</strong> 대시보드에서 [도어락 해제]를 누르면, 몇 초 안에 실제 도어락이 "철컥" 열린다</span></label>
       <label><input type="checkbox" id="v2"><span><strong>웹 → 파이</strong> 열린 뒤 대시보드의 확정 상태가 <code>unlocked</code>로 바뀐다</span></label>
-      <label><input type="checkbox" id="v3"><span><strong>파이 → 웹</strong> 실물 키패드로 예약 PIN 4자리를 누르면 도어락이 열리고 릴레이가 켜진다</span></label>
+      <label><input type="checkbox" id="v3"><span><strong>파이 → 웹</strong> 실물 키패드로 PIN 4자리를 누르면 도어락이 열리고 릴레이가 켜진다 — 가장 빠른 시험은 <strong>폰으로 <code>/try</code>에서 체험권을 받아 그 PIN</strong>을 누르는 것입니다. 예약 PIN은 그 예약 시간(시작 10분 전~종료)에만 열립니다</span></label>
       <label><input type="checkbox" id="v4"><span><strong>파이 → 웹</strong> 같은 PIN을 한 번 더 누르면 "이미 사용한 비밀번호"로 거부된다</span></label>
       <label><input type="checkbox" id="v5"><span><strong>파이 → 웹</strong> PIR 센서 앞을 지나가면 대시보드에 입장 감지가 뜨고 환영 안내가 나온다</span></label>
       <label><input type="checkbox" id="v6"><span><strong>안전</strong> Ctrl+C로 데몬을 끄면 도어락이 잠기고 220V가 차단된다</span></label>
@@ -524,7 +524,7 @@ WantedBy=multi-user.target</pre>
       <label><input type="checkbox" id="d1"><span>파이 전원과 도어락 12V 전원 어댑터를 모두 챙겼다</span></label>
       <label><input type="checkbox" id="d2"><span>전시장 Wi-Fi에 파이가 붙었다 (<code>ping</code>으로 백엔드 확인)</span></label>
       <label><input type="checkbox" id="d3"><span><code>systemctl status karaoke-booth</code>가 <code>active (running)</code></span></label>
-      <label><input type="checkbox" id="d4"><span>키패드로 실제 예약 PIN을 눌러 도어락이 열리는 것을 확인했다</span></label>
+      <label><input type="checkbox" id="d4"><span>부스 화면 QR로 체험권을 받아, 호출된 PIN을 키패드로 눌러 도어락이 열리는 것을 확인했다</span></label>
       <label><input type="checkbox" id="d5"><span>여분 점퍼선과 SD카드 백업을 준비했다</span></label>
       <label><input type="checkbox" id="d6"><span>220V 배선이 노출되지 않게 정리하고 교사 확인을 받았다</span></label>
     </div>
