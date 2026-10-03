@@ -115,6 +115,11 @@ export function QueuePanel() {
       </div>
 
       {notice && <p className="text-xs text-ink-2">{notice}</p>}
+      {queue?.paused_reason && (
+        <p className="text-xs font-semibold text-brass bg-brass-soft border border-brass/30 rounded-lg px-3 py-2">
+          일시 정지 — {queue.paused_reason}
+        </p>
+      )}
 
       <div className="grid gap-5 sm:grid-cols-[auto_1fr] sm:gap-8">
         {/* 지금 호출 중 */}

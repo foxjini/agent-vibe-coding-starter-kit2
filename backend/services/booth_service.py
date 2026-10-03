@@ -20,6 +20,43 @@ def _test_pin_allowed() -> bool:
     return os.getenv("ALLOW_TEST_PIN", "false").strip().lower() == "true"
 
 
+# 예약 PIN은 **그 예약의 이용 시간에만** 문을 연다 (팀 트리거 규칙:
+# "예약된 이용 시간에 따라 부스 전원과 장치를 자동 제어한다").
+# 예전에는 다음 주 예약의 PIN으로도 오늘 아무 때나 문이 열리고 220V가 들어갔다.
+# 그러면 스케줄러는 "오늘 예약"만 끄므로 전원이 꺼지지도 않았다.
+#
+# 개발 중에는 내일 예약을 만들고 바로 PIN을 시험해 봐야 하므로 끌 수 있게 둔다.
+def _time_check_enabled() -> bool:
+    return os.getenv("RESERVATION_TIME_CHECK", "true").strip().lower() != "false"
+
+
+_SLOT_LABELS = {"lunch": "점심", "dinner": "저녁"}
+_WEEKDAYS = "월화수목금토일"
+
+
+def _entry_window(reservation: Dict[str, Any]):
+    """그 예약으로 들어갈 수 있는 시각 구간 (시작 10분 전, 끝). 알 수 없으면 None.
+
+    계산은 스케줄러에 한 벌만 둔다 — 대기열(③)도 같은 시간표를 봐야 한다.
+    (스케줄러가 이 파일을 import 하므로 여기서는 함수 안에서 늦게 불러온다)
+    """
+    from services.scheduler import entry_window
+
+    return entry_window(reservation)
+
+
+def _describe_window(reservation: Dict[str, Any]) -> str:
+    window = _entry_window(reservation)
+    if not window:
+        return "예약한 시간"
+    opens, closes = window
+    slot = _SLOT_LABELS.get(str(reservation.get("time_slot")), "")
+    return (
+        f"{opens.month}월 {opens.day}일({_WEEKDAYS[opens.weekday()]}) {slot} "
+        f"{opens:%H:%M}~{closes:%H:%M}"
+    )
+
+
 class BoothService:
     """
     학교 노래방 부스 자동화 제어 비즈니스 로직 서비스 (PRD F-01 ~ F-04).
@@ -62,11 +99,28 @@ class BoothService:
             }
 
         # 2. 학생 예약 일회성 비밀번호(OTP 4자리) 검증
+        #    PIN이 맞아도 **지금이 그 예약의 이용 시간**이어야 통과한다.
         reservation = None
+        too_early_or_late = None
         try:
-            reservation = db.get_reservation_by_pin(pin_code)
+            candidates = db.get_reservations_by_pin(pin_code)
         except Exception as exc:
             logger.warning(f"DB lookup failed for PIN: {exc}")
+            candidates = []
+
+        if candidates and not _time_check_enabled():
+            reservation = candidates[0]
+        elif candidates:
+            from booth_time import now_local
+
+            now = now_local()
+            for r in candidates:
+                window = _entry_window(r)
+                if window and window[0] <= now < window[1]:
+                    reservation = r
+                    break
+            if not reservation:
+                too_early_or_late = candidates[0]
 
         # 3. 전시 체험권 PIN 검증 (부록G §2-③)
         #    전시장 관람객은 예약이 없다. 대신 QR로 받은 체험권을 쓴다.
@@ -79,18 +133,40 @@ class BoothService:
             except Exception as exc:
                 logger.warning(f"DB lookup failed for queue ticket: {exc}")
 
+        # 예약 PIN은 맞지만 이용 시간이 아닐 때 — 틀린 비밀번호와는 다르게 알려 준다.
+        # (미리 온 학생이 "내 PIN이 틀렸나?" 하고 계속 누르지 않게)
+        if not reservation and not ticket and too_early_or_late:
+            when = _describe_window(too_early_or_late)
+            # 키패드 앞 학생은 부스 화면으로 이 안내를 본다 — 언제 오면 되는지까지 알려 준다.
+            # (숫자는 싣지 않는다. 예약 날짜·시간대는 원래 공개된 정보다)
+            await ws_manager.broadcast({
+                "type": "booth_auth",
+                "success": False,
+                "message": f"아직 예약 시간이 아닙니다 — {when}에 다시 입력해 주세요.",
+                "timestamp": now_str
+            })
+            return {
+                "success": False,
+                "mode": "none",
+                "reason": "not_now",
+                "message": f"지금은 예약 시간이 아닙니다. 이 비밀번호는 {when}에 쓸 수 있습니다."
+            }
+
         # 예약도 체험권도 없을 때만 개발용 만능 PIN을 인정한다 (기본은 차단)
         if not reservation and not ticket and not (_test_pin_allowed() and pin_code == TEST_PIN):
+            # ⚠️ 입력한 숫자는 방송하지 않는다. 이 메시지는 부스 대형 화면과 관람객
+            #    폰에도 간다 — 한 자리만 틀린 관리자 PIN이 그대로 노출될 수 있다.
             event_msg = {
                 "type": "booth_auth",
                 "success": False,
-                "message": f"비밀번호 [{pin_code}] 불일치 — 인증에 실패하였습니다.",
+                "message": "비밀번호 불일치 — 인증에 실패하였습니다.",
                 "timestamp": now_str
             }
             await ws_manager.broadcast(event_msg)
             return {
                 "success": False,
                 "mode": "none",
+                "reason": "invalid",
                 "message": "등록되지 않았거나 아직 차례가 아닌 비밀번호입니다. (예약 PIN은 1회용이고, 체험권은 호출된 뒤에만 쓸 수 있습니다)"
             }
 

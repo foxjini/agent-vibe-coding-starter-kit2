@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import { Reservation } from "@/types";
 import { apiUrl } from "@/utils/apiConfig";
+import { localDateString } from "@/utils/localDate";
 import {
   subscribeVoucher,
   getVoucherSnapshot,
@@ -82,15 +83,16 @@ export function ReservationSection({
   }, [voucherRaw]);
   const [copied, setCopied] = useState<boolean>(false);
 
-  // Today string for min attribute and validation
-  const todayStr = new Date().toISOString().split("T")[0];
+  // 당일 예약은 안 되므로 고를 수 있는 첫날은 내일이다.
+  // toISOString() 은 UTC 날짜라 한국 오전 9시 전에는 하루가 밀린다 — 이 기기의 날짜를 쓴다.
+  const tomorrowStr = localDateString(1);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMessage(null);
 
-    // 1. 당일 예약 차단 클라이언트 1차 체크
-    if (reservationDate <= todayStr) {
+    // 1. 당일 예약 차단 클라이언트 1차 체크 (최종 판단은 서버가 부스 시간으로 한다)
+    if (!reservationDate || reservationDate < tomorrowStr) {
       setErrorMessage("당일 예약은 불가능합니다. 내일 이후의 날짜를 선택해 주세요.");
       return;
     }
@@ -173,7 +175,7 @@ export function ReservationSection({
                 입장 비밀번호
               </span>
               <span className="block font-mono tnum text-5xl sm:text-6xl font-extrabold tracking-[0.18em] text-ink leading-none mt-1">
-                {issuedVoucher.pin_code}
+                {issuedVoucher.pin_code ?? "----"}
               </span>
             </div>
           </div>
@@ -182,13 +184,13 @@ export function ReservationSection({
             <p className="text-sm text-ink-2 flex items-start gap-2">
               <ArrowRight className="w-4 h-4 shrink-0 mt-0.5 text-free" />
               <span>
-                이용 시간에 <strong className="text-ink">부스 앞 키패드</strong>로 이 네 자리를 누르면 문이 열립니다.
+                이용 시간(시작 10분 전부터)에 <strong className="text-ink">부스 앞 키패드</strong>로 이 네 자리를 누르면 문이 열립니다.
                 <strong className="text-ink"> 한 번만 쓸 수 있으니</strong> 다른 사람에게 알려주지 마세요.
               </span>
             </p>
             <div className="flex flex-wrap items-center gap-2">
               <button
-                onClick={() => copyPin(issuedVoucher.pin_code)}
+                onClick={() => copyPin(issuedVoucher.pin_code ?? "")}
                 className="px-3 py-2 rounded-lg bg-raised hover:bg-line-strong border border-line text-ink text-xs font-bold transition-colors cursor-pointer inline-flex items-center gap-1.5"
               >
                 {copied ? <CheckCircle2 className="w-3.5 h-3.5 text-free" /> : <Copy className="w-3.5 h-3.5" />}
@@ -196,7 +198,7 @@ export function ReservationSection({
               </button>
               {onSelectPinForSimulator && (
                 <button
-                  onClick={() => onSelectPinForSimulator(issuedVoucher.pin_code)}
+                  onClick={() => onSelectPinForSimulator(issuedVoucher.pin_code ?? "")}
                   className="px-3 py-2 rounded-lg bg-ink hover:bg-ink/90 text-surface text-xs font-bold transition-colors cursor-pointer inline-flex items-center gap-1.5"
                 >
                   키패드로 인증 <ArrowRight className="w-3.5 h-3.5" />
@@ -281,6 +283,8 @@ export function ReservationSection({
                   placeholder="예: 김민제"
                   value={studentName}
                   onChange={(e) => setStudentName(e.target.value)}
+                  minLength={2}
+                  maxLength={50}
                   className="w-full px-3 py-2 rounded-lg bg-raised border border-line-strong text-ink text-xs focus:ring-2 focus:ring-brass outline-none placeholder:text-ink-3"
                   required
                 />
@@ -313,7 +317,7 @@ export function ReservationSection({
               </label>
               <input
                 type="date"
-                min={todayStr}
+                min={tomorrowStr}
                 value={reservationDate}
                 onChange={(e) => setReservationDate(e.target.value)}
                 className="w-full px-3 py-2 rounded-lg bg-raised border border-line-strong text-ink text-xs focus:ring-2 focus:ring-brass outline-none"
@@ -425,21 +429,31 @@ export function ReservationSection({
                               ? "bg-free-soft border-free text-free"
                               : r.status === "completed"
                               ? "bg-raised border-line-strong text-ink-3"
+                              : r.status === "no_show" || r.status === "cancelled"
+                              ? "bg-live-soft border-live/40 text-live"
                               : "bg-brass-soft border-brass text-brass"
                           }`}
                         >
-                          {r.status === "active" ? "이용 중" : r.status === "completed" ? "이용 완료" : "예약됨"}
+                          {r.status === "active"
+                            ? "이용 중"
+                            : r.status === "completed"
+                            ? "이용 완료"
+                            : r.status === "no_show"
+                            ? "노쇼 취소"
+                            : r.status === "cancelled"
+                            ? "취소됨"
+                            : "예약됨"}
                         </span>
                       </td>
                       <td className="py-3">
                         <span className="font-mono font-bold text-free bg-canvas px-2 py-1 rounded border border-line">
-                          {r.pin_code}
+                          {r.pin_code ?? "••••"}
                         </span>
                       </td>
                       <td className="py-3 text-right">
-                        {onSelectPinForSimulator && (
+                        {onSelectPinForSimulator && r.pin_code && (
                           <button
-                            onClick={() => onSelectPinForSimulator(r.pin_code)}
+                            onClick={() => onSelectPinForSimulator(r.pin_code ?? "")}
                             className="px-2.5 py-1 rounded bg-raised hover:bg-line-strong/90 text-ink-2 text-[11px] border border-line-strong transition-colors cursor-pointer"
                           >
                             입력

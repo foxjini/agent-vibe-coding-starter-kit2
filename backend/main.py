@@ -94,20 +94,67 @@ app.add_middleware(
 @app.exception_handler(HTTPException)
 async def custom_http_exception_handler(request: Request, exc: HTTPException):
     detail = exc.detail
+    # 예외에 실린 헤더(예: 429의 Retry-After)도 그대로 돌려준다
+    headers = getattr(exc, "headers", None)
     if isinstance(detail, dict) and "code" in detail and "message" in detail:
-        return JSONResponse(status_code=exc.status_code, content={"error": detail})
+        return JSONResponse(status_code=exc.status_code, content={"error": detail}, headers=headers)
 
     return JSONResponse(
         status_code=exc.status_code,
-        content={"error": {"code": f"HTTP_{exc.status_code}", "message": str(detail)}}
+        content={"error": {"code": f"HTTP_{exc.status_code}", "message": str(detail)}},
+        headers=headers,
     )
+
+
+# 입력 검증 오류를 사람이 읽을 수 있는 말로 바꾼다.
+# 예전에는 "[{'type': 'string_too_short', 'loc': ('body', 'student_name'), ...}]" 같은
+# 파이썬 내부 표현이 예약 화면에 그대로 떴다.
+_FIELD_LABELS = {
+    "grade": "학년", "department": "학과", "student_name": "이름", "user_count": "이용 인원",
+    "reservation_date": "예약 날짜", "time_slot": "시간대", "pin": "비밀번호",
+    "nickname": "이름", "title": "곡 제목", "singer": "가수", "score": "점수",
+    "video_id": "영상 ID", "desired_state": "목표 상태",
+}
+
+
+def _josa(word: str, with_batchim: str, without: str) -> str:
+    """받침 유무에 맞는 조사를 붙인다 (이름'을' / 학과'를')."""
+    last = word[-1] if word else ""
+    if "가" <= last <= "힣":
+        return word + (with_batchim if (ord(last) - 0xAC00) % 28 else without)
+    return word + with_batchim
+
+
+def _friendly_validation_message(err: Dict[str, Any]) -> str:
+    loc = [str(x) for x in err.get("loc", ()) if x not in ("body", "query", "path")]
+    field = _FIELD_LABELS.get(loc[-1], loc[-1]) if loc else "입력값"
+    kind = str(err.get("type", ""))
+    ctx = err.get("ctx") or {}
+    if kind == "missing":
+        return f"{_josa(field, '을', '를')} 입력해 주세요."
+    if kind == "string_too_short":
+        return f"{_josa(field, '은', '는')} {ctx.get('min_length')}자 이상이어야 합니다."
+    if kind == "string_too_long":
+        return f"{_josa(field, '은', '는')} {ctx.get('max_length')}자 이하여야 합니다."
+    if kind == "greater_than_equal":
+        return f"{_josa(field, '은', '는')} {ctx.get('ge')} 이상이어야 합니다."
+    if kind == "less_than_equal":
+        return f"{_josa(field, '은', '는')} {ctx.get('le')} 이하여야 합니다."
+    if kind == "string_pattern_mismatch":
+        return f"{field} 형식이 올바르지 않습니다."
+    if kind.startswith("int_"):
+        return f"{_josa(field, '은', '는')} 숫자여야 합니다."
+    return f"{field} 값이 올바르지 않습니다."
 
 
 @app.exception_handler(RequestValidationError)
 async def validation_exception_handler(request: Request, exc: RequestValidationError):
+    errors = exc.errors()
+    logger.info(f"Validation error on {request.url.path}: {errors}")
+    message = _friendly_validation_message(errors[0]) if errors else "입력값이 올바르지 않습니다."
     return JSONResponse(
         status_code=422,
-        content={"error": {"code": "VALIDATION_ERROR", "message": str(exc.errors())}}
+        content={"error": {"code": "VALIDATION_ERROR", "message": message}}
     )
 
 

@@ -60,6 +60,9 @@ interface KaraokeRoomSectionProps {
   onScoreRecorded?: () => void;
 }
 
+/** 이용 종료 후 대기 화면으로 돌아가기까지 (점수를 볼 시간) */
+const RETURN_TO_ATTRACT_MS = 15_000;
+
 export function KaraokeRoomSection({
   devices,
   onSongCompleted,
@@ -409,8 +412,39 @@ export function KaraokeRoomSection({
     // 만들어지고, 그때마다 유튜브 위젯이 새 iframe에 postMessage를 쏘면서
     // 콘솔에 target origin 경고가 쌓인다.
     // mrVolume도 아래 별도 effect에서 반영한다 (여기서 재생성되면 영상이 끊긴다)
+    //
+    // hasEntered 는 반드시 넣어야 한다. 입장 전에는 대기 화면만 그려져 플레이어를
+    // 붙일 자리(ytHostRef)가 없다. 그때 한 번 돌고 끝나면, 입장한 뒤 기본 선택곡을
+    // 그대로 고른 사람은 "영상 불러오는 중"에서 영원히 멈춘다 (실제로 그랬다).
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [media?.source, media?.youtubeId]);
+  }, [media?.source, media?.youtubeId, hasEntered]);
+
+  /*
+   * 이용이 끝나 부스 전원이 꺼지면 대기(어트랙트) 화면으로 돌아간다.
+   *
+   * QR 코드와 "지금 호출 N번"은 대기 화면에만 있다. 예전에는 첫 관람객이 입장한
+   * 뒤로 노래방 화면에 머물러서, 그다음 사람들은 부스 화면에서 QR도 호출 번호도
+   * 볼 수 없었다. 방금 부른 사람이 점수를 볼 수 있게 조금 기다렸다가 돌아간다.
+   */
+  const prevPowerRef = useRef(isPowerOn);
+  useEffect(() => {
+    const wasOn = prevPowerRef.current;
+    prevPowerRef.current = isPowerOn;
+    if (!wasOn || isPowerOn || !hasEntered) return;
+
+    const stopNow = setTimeout(() => stopAllPlayback(), 0);
+    const backToAttract = setTimeout(() => {
+      scorerRef.current?.stopMicrophone();
+      setIsMicActive(false);
+      setShowScoreModal(false);
+      setEnterNotice(null);
+      setHasEntered(false);
+    }, RETURN_TO_ATTRACT_MS);
+    return () => {
+      clearTimeout(stopNow);
+      clearTimeout(backToAttract);
+    };
+  }, [isPowerOn, hasEntered, stopAllPlayback]);
 
   /** MR 볼륨 변경을 각 재생 소스에 반영 */
   useEffect(() => {

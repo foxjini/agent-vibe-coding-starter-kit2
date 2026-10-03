@@ -4,10 +4,12 @@ import random
 import secrets
 from typing import Any, Dict, Optional
 
-from fastapi import APIRouter, Depends, Header, HTTPException, Query, status
+from fastapi import APIRouter, Depends, Header, HTTPException, Query, Request, status
 
-from auth import verify_admin_token, is_valid_admin_token
+from auth import get_admin_pin, verify_admin_token, is_valid_admin_token
+from booth_time import today_str as booth_today
 from db import database as db
+from login_guard import client_key, keypad_guard
 from schemas.reservation import (
     KeypadVerifyRequest,
     ReservationCreateRequest,
@@ -36,14 +38,24 @@ experience_router = APIRouter(prefix="/api/experience", tags=["experience"])
 # ==============================================================================
 
 @reservations_router.get("")
-async def list_reservations() -> Dict[str, Any]:
-    """예약 목록 조회"""
+async def list_reservations(
+    x_admin_token: Optional[str] = Header(None, alias="X-Admin-Token"),
+) -> Dict[str, Any]:
+    """예약 목록 조회
+
+    ⚠️ PIN은 관리자에게만 보여 준다. 이 목록은 부스 화면·학생 폰도 가져가는데,
+    예전에는 모든 예약의 PIN이 그대로 실려 있어서 주소창에 이 API를 치기만 하면
+    남의 예약 시간에 들어갈 수 있었다. 학생 본인은 신청할 때 받은 응답으로 PIN을 안다.
+    """
     try:
         items = db.get_reservations()
-        return {"data": items}
     except Exception as exc:
         logger.error(f"Failed to fetch reservations: {exc}")
         return {"data": []}
+
+    if not is_valid_admin_token(x_admin_token):
+        items = [{k: v for k, v in r.items() if k != "pin_code"} for r in items]
+    return {"data": items}
 
 
 @reservations_router.post("")
@@ -55,7 +67,9 @@ async def create_new_reservation(req: ReservationCreateRequest) -> Dict[str, Any
     - 4자리 일회성 비밀번호(OTP) 자동 생성
     """
     # 1. 날짜 유효성 검사 (당일 예약 불가)
-    today_str = datetime.now().strftime("%Y-%m-%d")
+    #    서버 시계가 아니라 부스 시간으로 판단한다. Render(UTC)에서 datetime.now()를
+    #    쓰면 한국 시간 0시~9시 사이에는 "어제"로 계산되어 당일 예약이 통과했다.
+    today_str = booth_today()
     if req.reservation_date <= today_str:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -76,29 +90,35 @@ async def create_new_reservation(req: ReservationCreateRequest) -> Dict[str, Any
         )
 
     # 3. 중복 예약 여부 확인
+    #    전체 목록(최근 50건)을 훑으면 예약이 많이 쌓였을 때 같은 날짜가 목록에서
+    #    잘려 중복이 통과할 수 있다. 그 날짜·시간대만 콕 집어서 묻는다.
     try:
-        existing_list = db.get_reservations()
-        for r in existing_list:
-            # reservation_date가 datetime/str 혼용될 수 있으므로 문자열 변환
-            r_date_str = str(r.get("reservation_date", ""))[:10]
-            if r_date_str == req.reservation_date and r.get("time_slot") == req.time_slot:
-                if r.get("status") in ("reserved", "active"):
-                    raise HTTPException(
-                        status_code=status.HTTP_409_CONFLICT,
-                        detail={
-                            "code": "SLOT_ALREADY_RESERVED",
-                            "message": f"선택하신 날짜({req.reservation_date})의 해당 시간대는 이미 예약이 완료되었습니다."
-                        }
-                    )
-    except HTTPException:
-        raise
+        existing = db.find_live_reservation(req.reservation_date, req.time_slot)
     except Exception as exc:
         logger.warning(f"Error checking duplicate reservation: {exc}")
+        existing = None
+    if existing:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail={
+                "code": "SLOT_ALREADY_RESERVED",
+                "message": f"선택하신 날짜({req.reservation_date})의 해당 시간대는 이미 예약이 완료되었습니다."
+            }
+        )
 
-    # 4. 무작위 4자리 OTP PIN 생성 (관리자 비번 9179 제외)
-    while True:
+    # 4. 무작위 4자리 OTP PIN 생성
+    #    관리자 PIN(.env 값 — 9179로 고정된 게 아니다)과 개발용 PIN, 그리고 지금
+    #    살아 있는 다른 예약·체험권의 PIN과 겹치지 않게 고른다. 겹치면 키패드가
+    #    엉뚱한 사람의 예약을 열거나, 학생이 관리자 모드로 들어가 버린다.
+    try:
+        taken = set(db.pins_in_use(today_str))
+    except Exception as exc:
+        logger.warning(f"Could not read PINs in use: {exc}")
+        taken = set()
+    taken |= {get_admin_pin(), "1234"}
+    for _ in range(500):
         pin = f"{random.randint(1000, 9999)}"
-        if pin != "9179":
+        if pin not in taken:
             break
 
     try:
@@ -112,12 +132,13 @@ async def create_new_reservation(req: ReservationCreateRequest) -> Dict[str, Any
             pin_code=pin
         )
     except Exception as exc:
+        # 다른 저장 API(점수·노래·체험권)와 같이 503 — "잠시 뒤 다시"가 맞는 상황이다
         logger.error(f"Failed to create reservation in DB: {exc}")
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail={
                 "code": "RESERVATION_CREATION_FAILED",
-                "message": "예약 등록 중 데이터베이스 오류가 발생했습니다."
+                "message": "예약을 저장하지 못했습니다. 잠시 뒤 다시 시도해 주세요."
             }
         )
 
@@ -139,16 +160,29 @@ async def create_new_reservation(req: ReservationCreateRequest) -> Dict[str, Any
 # ==============================================================================
 
 @booth_router.post("/verify-keypad")
-async def verify_keypad(req: KeypadVerifyRequest) -> Dict[str, Any]:
+async def verify_keypad(req: KeypadVerifyRequest, request: Request) -> Dict[str, Any]:
     """
-    4x4 키패드 입력 비밀번호 검증 (사용자 OTP 또는 관리자 고정 비번 9179)
+    4x4 키패드 입력 비밀번호 검증 (사용자 OTP 또는 .env의 관리자 PIN)
+
+    연속으로 틀리면 잠시 막는다 (login_guard.py) — 시판 도어락과 같은 동작이다.
+    "PIN은 맞는데 예약 시간이 아님"은 틀린 것으로 세지 않는다.
     """
+    key = client_key(request)
+    keypad_guard.check(key)
+
     result = await BoothService.verify_and_trigger(req.pin)
     if not result.get("success"):
+        if result.get("reason") == "not_now":
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail={"code": "NOT_RESERVATION_TIME", "message": result.get("message")}
+            )
+        keypad_guard.fail(key)
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail={"code": "INVALID_PIN", "message": result.get("message")}
         )
+    keypad_guard.succeed(key)
     return {"data": result}
 
 
@@ -203,7 +237,15 @@ async def list_songs(min_count: int = Query(3, ge=1)) -> Dict[str, Any]:
 @songs_router.post("")
 async def add_song(req: SongRecordRequest) -> Dict[str, Any]:
     """부른 노래 기록 등록 (기존 곡이면 카운트 1 증가)"""
-    recorded = db.record_song(title=req.title, singer=req.singer)
+    try:
+        recorded = db.record_song(title=req.title, singer=req.singer)
+    except Exception as exc:
+        # 다른 저장 API(점수)와 같이 503으로 알려 준다 — 정체 모를 500을 내지 않는다
+        logger.error(f"Failed to record song: {exc}")
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail={"code": "SONG_SAVE_FAILED", "message": "노래 기록을 저장하지 못했습니다."}
+        )
     await ws_manager.broadcast({
         "type": "song_recorded",
         "title": req.title,

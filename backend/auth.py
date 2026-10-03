@@ -10,6 +10,15 @@ from fastapi import Header, HTTPException, status
 logger = logging.getLogger("backend.auth")
 
 
+def _same_secret(given: str, expected: str) -> bool:
+    """두 비밀 문자열을 타이밍 공격에 안전하게 비교한다.
+
+    hmac.compare_digest 에 문자열을 그대로 넣으면 한글 같은 비ASCII 글자가
+    섞였을 때 TypeError 가 나서 500 오류가 된다. 바이트로 바꿔서 비교한다.
+    """
+    return hmac.compare_digest(given.encode("utf-8"), expected.encode("utf-8"))
+
+
 def verify_device_api_key(
     x_device_api_key: Optional[str] = Header(None, alias="X-Device-Api-Key")
 ) -> str:
@@ -25,7 +34,7 @@ def verify_device_api_key(
             detail={"code": "SERVER_MISCONFIGURED", "message": "서버 인증 키가 설정되지 않았습니다."}
         )
 
-    if not x_device_api_key or not hmac.compare_digest(x_device_api_key, server_key):
+    if not x_device_api_key or not _same_secret(x_device_api_key, server_key):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail={"code": "INVALID_DEVICE_KEY", "message": "유효하지 않은 X-Device-Api-Key 입니다."}
@@ -100,7 +109,7 @@ def get_admin_pin() -> str:
 
 def is_admin_pin(pin: str) -> bool:
     """입력 PIN이 관리자 PIN인지 타이밍 공격에 안전하게 비교합니다."""
-    return hmac.compare_digest(pin, get_admin_pin())
+    return _same_secret(pin, get_admin_pin())
 
 
 def issue_admin_token() -> Dict[str, Any]:

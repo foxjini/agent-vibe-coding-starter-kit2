@@ -54,6 +54,12 @@ INTERVAL_SEC = _int_env("SCHEDULER_INTERVAL_SEC", 60)
 WARN_BEFORE_MIN = _int_env("SCHEDULER_WARN_BEFORE_MIN", 10)
 NO_SHOW_GRACE_MIN = _int_env("SCHEDULER_NO_SHOW_GRACE_MIN", 15)
 
+# 예약 PIN이 시작 몇 분 전부터 문을 여는가 (미리 와서 기다리는 학생). 0도 허용.
+try:
+    EARLY_ENTRY_MIN = max(0, int(os.getenv("RESERVATION_EARLY_ENTRY_MIN", "10")))
+except ValueError:
+    EARLY_ENTRY_MIN = 10
+
 # 경고를 쏘는 시간 창. 창을 좁게 두면, 서버가 그 사이에 재시작해도 중복 경고가
 # 나가지 않는다 (기억은 메모리에만 있어서 재시작하면 지워지기 때문이다).
 WARN_WINDOW_MIN = 2
@@ -95,6 +101,46 @@ def slot_bounds(day: datetime, time_slot: str) -> Optional[tuple]:
     return start, end
 
 
+def entry_window(reservation: Dict[str, Any], tzinfo=None) -> Optional[tuple]:
+    """그 예약의 PIN이 문을 여는 시각 구간 (시작 EARLY_ENTRY_MIN분 전, 종료)."""
+    day_text = str(reservation.get("reservation_date") or "")[:10]
+    try:
+        day = datetime.strptime(day_text, "%Y-%m-%d").replace(tzinfo=tzinfo or now_local().tzinfo)
+    except ValueError:
+        return None
+    bounds = slot_bounds(day, str(reservation.get("time_slot") or ""))
+    if not bounds:
+        return None
+    return bounds[0] - timedelta(minutes=EARLY_ENTRY_MIN), bounds[1]
+
+
+def reservation_in_progress(now: Optional[datetime] = None) -> Optional[Dict[str, Any]]:
+    """예약한 학생의 시간인 예약이 있으면 돌려준다.
+
+    - 이미 들어와 쓰고 있는 예약(status='active')
+    - 아직 안 들어왔지만 PIN이 문을 여는 시간(시작 10분 전 ~ 종료)인 예약
+
+    전시 체험 대기열(③)이 이걸 보고 잠시 멈춘다. 예약한 학생의 시간에 관람객을
+    부르거나, 관람객의 3분이 끝났다고 학생이 쓰는 부스의 전원을 끄면 안 된다.
+    DB를 못 읽으면 None — 대기열을 멈출 근거가 없으므로 그대로 돌린다.
+    """
+    now = now or now_local()
+    try:
+        todays = db.get_reservations_on(now.strftime("%Y-%m-%d"))
+    except Exception:
+        return None
+    for r in todays:
+        status = str(r.get("status") or "")
+        if status == "active":
+            return r
+        if status != "reserved":
+            continue
+        window = entry_window(r, now.tzinfo)
+        if window and window[0] <= now < window[1]:
+            return r
+    return None
+
+
 async def run_once() -> Dict[str, Any]:
     """
     한 번 훑는다. 스케줄러 루프가 부르고, 관리자가 수동으로도 부를 수 있다.
@@ -107,7 +153,9 @@ async def run_once() -> Dict[str, Any]:
     done: List[Dict[str, Any]] = []
 
     try:
-        reservations = db.get_reservations()
+        # 전체 목록(최근 50건)이 아니라 오늘 예약만 묻는다. 몇 주 치 예약이 쌓이면
+        # 오늘 예약이 50건 밖으로 밀려 자동 종료·노쇼 처리가 빠질 수 있었다.
+        reservations = db.get_reservations_on(today)
     except Exception as exc:
         _state["last_error"] = f"예약 목록을 읽지 못했습니다: {exc}"
         _state["last_tick"] = now.isoformat(timespec="seconds")
@@ -200,7 +248,7 @@ def get_status() -> Dict[str, Any]:
 
     upcoming: List[Dict[str, Any]] = []
     try:
-        for r in db.get_reservations():
+        for r in db.get_reservations_on(today):
             if str(r.get("reservation_date") or "")[:10] != today:
                 continue
             if str(r.get("status") or "") not in ("reserved", "active"):

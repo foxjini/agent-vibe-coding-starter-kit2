@@ -7,6 +7,8 @@ from typing import Any, Dict, Generator, List, Optional
 
 from dotenv import load_dotenv
 import pymysql
+
+from booth_time import today_utc_range
 from pymysql.cursors import DictCursor
 
 logger = logging.getLogger("backend.db")
@@ -78,6 +80,11 @@ def get_db_connection(include_database: bool = True):
             dsn += ("&" if "?" in dsn else "?") + "sslmode=require"
         return psycopg.connect(dsn, row_factory=dict_row, autocommit=True)
 
+    # ⚠️ 접속할 때마다 세션 시간대를 UTC로 맞춘다.
+    #    DATETIME 컬럼의 기본값(CURRENT_TIMESTAMP)은 "그 DB 서버의 시간대" 시각이다.
+    #    한국 PC에 깐 XAMPP는 한국 시간이라, 그대로 두면 저장된 시각을 UTC로 읽는
+    #    _format_row 와 9시간 어긋난다. 실제로 체험 대기열이 "9시간 뒤에 호출된
+    #    사람"으로 보여 만료·종료가 9시간 동안 일어나지 않았다.
     return pymysql.connect(
         host=DB_HOST,
         port=DB_PORT,
@@ -86,7 +93,8 @@ def get_db_connection(include_database: bool = True):
         database=DB_NAME if include_database else None,
         charset="utf8mb4",
         cursorclass=DictCursor,
-        autocommit=True
+        autocommit=True,
+        init_command="SET time_zone = '+00:00'",
     )
 
 
@@ -293,7 +301,48 @@ def init_db() -> None:
                 );
             """)
 
-        # 7~8. 시드 데이터 등록 (MySQL/PostgreSQL 공용)
+            # 7. 전시 체험 대기열 (부록G §2-③)
+            # 8. 점수 기록 (부록G §2-④)
+            #
+            # init.sql 에도 같은 정의가 있지만, 1주차에 이미 DB를 만들어 둔 학생은
+            # init.sql 을 다시 돌리지 않는다. 서버가 켜질 때 여기서 만들어 줘야
+            # git pull 만 하고도 순위·체험 모드가 동작한다.
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS queue_tickets (
+                  id         INT AUTO_INCREMENT PRIMARY KEY,
+                  ticket_no  INT NOT NULL,
+                  issued_on  DATE NOT NULL,
+                  nickname   VARCHAR(20) NOT NULL DEFAULT '관람객',
+                  pin_code   VARCHAR(4) NOT NULL,
+                  status     VARCHAR(20) NOT NULL DEFAULT 'waiting',
+                  issued_at  DATETIME DEFAULT CURRENT_TIMESTAMP,
+                  called_at  DATETIME NULL,
+                  started_at DATETIME NULL,
+                  ended_at   DATETIME NULL,
+                  UNIQUE KEY uq_ticket_day (issued_on, ticket_no),
+                  INDEX idx_queue_status (issued_on, status)
+                );
+            """)
+
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS score_records (
+                  id         INT AUTO_INCREMENT PRIMARY KEY,
+                  nickname   VARCHAR(20) NOT NULL DEFAULT '익명',
+                  title      VARCHAR(100) NOT NULL,
+                  singer     VARCHAR(100) NOT NULL,
+                  score      INT NOT NULL,
+                  rank_label VARCHAR(20),
+                  pitch      INT,
+                  timing     INT,
+                  volume     INT,
+                  expression INT,
+                  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                  INDEX idx_score (score DESC),
+                  INDEX idx_created (created_at DESC)
+                );
+            """)
+
+        # 9. 시드 데이터 등록 (MySQL/PostgreSQL 공용)
         _seed_initial_rows()
 
         logger.info(f"Database '{DB_NAME}' initialized successfully with devices, reservations, and songs.")
@@ -332,7 +381,9 @@ def update_desired_state(
     """
     serialized_val = _serialize_json(desired_value)
     with get_db_cursor() as cursor:
-        affected = cursor.execute(
+        # execute()의 반환값은 드라이버마다 다르다 (pymysql: 행 수, psycopg: 커서).
+        # 두 드라이버 모두에서 같은 뜻인 rowcount 를 쓴다.
+        cursor.execute(
             """
             UPDATE devices
             SET desired_state = %s, desired_value = %s
@@ -340,7 +391,7 @@ def update_desired_state(
             """,
             (desired_state, serialized_val, device_id)
         )
-        return affected > 0
+        return cursor.rowcount > 0
 
 
 def update_current_state(
@@ -353,7 +404,7 @@ def update_current_state(
     """
     serialized_val = _serialize_json(current_value)
     with get_db_cursor() as cursor:
-        affected = cursor.execute(
+        cursor.execute(
             """
             UPDATE devices
             SET current_state = %s, current_value = %s
@@ -361,7 +412,7 @@ def update_current_state(
             """,
             (current_state, serialized_val, device_id)
         )
-        return affected > 0
+        return cursor.rowcount > 0
 
 
 # ==============================================================================
@@ -532,35 +583,67 @@ def get_reservations(limit: int = 50) -> List[Dict[str, Any]]:
         return [_format_row(row) for row in rows]  # type: ignore
 
 
-def get_reservation_by_pin(pin_code: str) -> Optional[Dict[str, Any]]:
+def get_reservations_by_pin(pin_code: str) -> List[Dict[str, Any]]:
     """
-    4자리 PIN 코드로 **아직 사용하지 않은** 예약을 조회합니다.
+    4자리 PIN 코드로 **아직 사용하지 않은** 예약을 모두 찾습니다.
 
     PIN은 일회성이므로 status='reserved'인 예약만 찾는다.
     인증에 성공하면 곧바로 'active'로 바뀌므로 같은 PIN을 다시 넣어도
     여기서 걸리지 않아 재사용이 차단된다.
+
+    한 건이 아니라 목록을 돌려주는 이유: 날짜가 다른 두 예약이 우연히 같은
+    PIN을 받았다면, 그중 **지금 이용 시간인 예약**을 골라야 하기 때문이다
+    (고르는 일은 BoothService 가 한다).
     """
     with get_db_cursor() as cursor:
         cursor.execute(
             """
             SELECT * FROM reservations
             WHERE pin_code = %s AND status = 'reserved'
-            ORDER BY id DESC LIMIT 1
+            ORDER BY reservation_date ASC, id ASC
             """,
             (pin_code,)
         )
-        row = cursor.fetchone()
-        return _format_row(row)
+        return [_format_row(r) for r in (cursor.fetchall() or [])]  # type: ignore
+
+
+def get_reservations_on(reservation_date: str) -> List[Dict[str, Any]]:
+    """그날의 예약만 조회합니다 (스케줄러가 씁니다).
+
+    get_reservations() 는 최근 50건만 돌려주므로, 몇 주 뒤 예약이 많이 쌓이면
+    정작 오늘 예약이 목록에서 잘려 자동 종료·노쇼 처리가 빠질 수 있다.
+    """
+    with get_db_cursor() as cursor:
+        cursor.execute(
+            "SELECT * FROM reservations WHERE reservation_date = %s ORDER BY time_slot ASC",
+            (reservation_date,),
+        )
+        return [_format_row(r) for r in (cursor.fetchall() or [])]  # type: ignore
+
+
+def find_live_reservation(reservation_date: str, time_slot: str) -> Optional[Dict[str, Any]]:
+    """같은 날짜·시간대에 살아 있는(예약됨/이용 중) 예약이 있으면 돌려줍니다."""
+    with get_db_cursor() as cursor:
+        cursor.execute(
+            """
+            SELECT * FROM reservations
+            WHERE reservation_date = %s AND time_slot = %s
+              AND status IN ('reserved', 'active')
+            LIMIT 1
+            """,
+            (reservation_date, time_slot),
+        )
+        return _format_row(cursor.fetchone())
 
 
 def update_reservation_status(reservation_id: int, status: str) -> bool:
     """예약 상태를 갱신합니다 ('active', 'completed', 'cancelled')"""
     with get_db_cursor() as cursor:
-        affected = cursor.execute(
+        cursor.execute(
             "UPDATE reservations SET status = %s WHERE id = %s",
             (status, reservation_id)
         )
-        return affected > 0
+        return cursor.rowcount > 0
 
 
 # ==============================================================================
@@ -759,12 +842,16 @@ def get_top_scores(period: str = "today", limit: int = 5) -> List[Dict[str, Any]
     period="today" 는 오늘 기록만 본다 — 전시장에서는 "오늘의 1등"이라야
     관람객이 순위를 깨러 다시 온다. "all" 은 명예의 전당이다.
     """
-    # 날짜 비교 문법이 MySQL 과 PostgreSQL 에서 다르다
+    # "오늘"은 부스 시간 기준이다. DB의 CURDATE()/CURRENT_DATE 는 UTC 날짜라
+    # 한국에서는 오전 9시에야 하루가 바뀐다. 그래서 부스 기준 하루를 UTC 구간으로
+    # 바꿔서 자른다 — 두 DB 모두 같은 문법으로 쓸 수 있다는 장점도 있다.
+    where, params = "", []
     if period == "today":
-        where = "WHERE created_at::date = CURRENT_DATE" if IS_POSTGRES \
-            else "WHERE DATE(created_at) = CURDATE()"
-    else:
-        where = ""
+        start, end = today_utc_range()
+        if not IS_POSTGRES:
+            # MySQL DATETIME 에는 시간대가 없다 (세션을 UTC로 맞춰 두었다)
+            start, end = start.replace(tzinfo=None), end.replace(tzinfo=None)
+        where, params = "WHERE created_at >= %s AND created_at < %s", [start, end]
 
     with get_db_cursor() as cursor:
         cursor.execute(
@@ -774,7 +861,7 @@ def get_top_scores(period: str = "today", limit: int = 5) -> List[Dict[str, Any]
             ORDER BY score DESC, created_at ASC
             LIMIT %s
             """,
-            (limit,),
+            tuple(params + [limit]),
         )
         return [_format_row(r) for r in (cursor.fetchall() or [])]
 

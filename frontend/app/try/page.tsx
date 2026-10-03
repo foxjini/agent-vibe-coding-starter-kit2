@@ -251,6 +251,11 @@ export default function TryPage() {
                     </span>
                   </span>
                 </div>
+                {queue?.paused_reason && (
+                  <p className="text-sm font-semibold text-brass text-center">
+                    {queue.paused_reason}
+                  </p>
+                )}
                 <p className="text-sm text-ink-2 text-center leading-relaxed">
                   차례가 되면 이 화면에 비밀번호가 뜹니다.
                   <br />이 페이지를 닫아도 괜찮습니다 — 다시 열면 그대로 남아 있습니다.
