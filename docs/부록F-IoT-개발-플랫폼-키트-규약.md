@@ -771,11 +771,13 @@ python conformance_test.py      # DB를 켜고 한 번, 끄고 한 번 돌려 �
 
 | 무엇 | 실행 | 항목 |
 |---|---|---|
-| 키트 적합성 | `cd backend && python conformance_test.py` | 69 |
+| 키트 적합성 | `cd backend && python conformance_test.py` | 75 |
 | 백엔드 기본 동작 | `cd backend && python smoke_test.py` | 32 |
 | pi 드라이버·배치표 | `cd pi && python test_slot_daemon.py` | 39 |
-| 시나리오 판정 규칙 | `cd frontend && node --experimental-strip-types scenarios/wakeupEngine.test.ts` | 30 |
-| 영상인식 설정·검출기 계층 | `cd vision && python test_vision_config.py` | 38 |
+| 시나리오 판정 규칙 | `cd frontend && node --experimental-strip-types scenarios/wakeupEngine.test.ts` | 81 |
+| study 집중도 판정 규칙 | `cd frontend && node --experimental-strip-types scenarios/studyEngine.test.ts` | 56 |
+| 영상인식 설정·검출기 계층 | `cd vision && python test_vision_config.py` | 45 |
+| study 집중도 측정 | `cd vision && python test_study_focus.py` | 63 |
 | 팀별 배치표 예시 | `cd pi && python test_team_examples.py` | 32 |
 
 > 8번 검사는 **모든 팀 고유 이름**을 실패로 셉니다(wakeup의 `buzzer_1` 포함).

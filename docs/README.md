@@ -98,7 +98,9 @@ AI에게 묻기 전에 이것부터 돌리세요. 전부 **서버·DB·GPIO·웹
 | `pi/daemon.py --check` | `cd pi` | 배치표·백엔드 주소·핀 충돌을 GPIO 없이 점검 | — |
 | `pi/test_slot_daemon.py` | `cd pi` | 드라이버·배치표·부품 추가/제거 | 39 |
 | `pi/test_team_examples.py` | `cd pi` | 4팀 배치표 예시가 바로 쓸 수 있는 상태인지 | 32 |
-| `vision/test_vision_config.py` | `cd vision` | 감지 대상이 설정에서 오는지 · 검출기 플러그인 계약 | 43 |
-| `frontend/scenarios/wakeupEngine.test.ts` | `cd frontend` | 미션 판정 규칙 (`node --experimental-strip-types`) | 30 |
+| `vision/test_vision_config.py` | `cd vision` | 감지 대상이 설정에서 오는지 · 검출기 플러그인 계약 | 45 |
+| `vision/test_study_focus.py` | `cd vision` | study 집중도 측정 (눈 감음·시선·고개) | 63 |
+| `frontend/scenarios/wakeupEngine.test.ts` | `cd frontend` | 미션 판정 규칙 — 가위바위보·사물·패턴 (`node --experimental-strip-types`) | 81 |
+| `frontend/scenarios/studyEngine.test.ts` | `cd frontend` | study 집중도 판정 규칙 (`node --experimental-strip-types`) | 56 |
 | `npx eslint . && npm run build` | `cd frontend` | 화면 코드 | — |
 | `tools/context_pack.py` | 최상위 | (점검 아님) 채팅형 AI에 올릴 컨텍스트 팩 생성 | — |
