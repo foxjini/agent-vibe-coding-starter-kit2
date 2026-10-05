@@ -141,6 +141,74 @@ def reservation_in_progress(now: Optional[datetime] = None) -> Optional[Dict[str
     return None
 
 
+def finish_active_reservations() -> int:
+    """관리자가 [이용 종료]로 끝낸 예약을 완료 처리한다.
+
+    그대로 두면 예약은 '이용 중'으로 남아서, 엔진이 그 예약의 종료 10분 전과
+    종료 시각에 빈 부스에 알림·퇴실곡을 한 번 더 내고, 그동안 체험 대기열도 멈춰 있다.
+    """
+    today = now_local().strftime("%Y-%m-%d")
+    finished = 0
+    try:
+        for r in db.get_reservations_on(today):
+            if str(r.get("status") or "") != "active":
+                continue
+            db.update_reservation_status(r.get("id"), "completed")
+            _state["warned_ids"].discard(r.get("id"))
+            _remember("session_end", r, "관리자가 이용을 종료해 예약을 완료 처리했습니다.")
+            finished += 1
+    except Exception as exc:
+        logger.warning(f"이용 중인 예약을 완료 처리하지 못했습니다: {exc}")
+    return finished
+
+
+def current_session(now: Optional[datetime] = None) -> Dict[str, Any]:
+    """지금 부스를 쓰는 사람과 끝나는 시각 — 부스 화면(/booth) 표시용.
+
+    부스 대형 화면에 그대로 뜨므로 비밀번호 같은 것은 싣지 않는다. 이름은 인증
+    성공 방송에도 이미 나가는 정보다. 남은 시간은 서버 시계로 계산해 보낸다 —
+    부스 PC의 시계가 틀려도 화면의 남은 시간은 맞게 나온다.
+
+    예약도 체험도 아닌데 전원이 켜져 있으면(관리자가 직접 켠 경우) kind 가 None 이다.
+    """
+    now = now or now_local()
+    today = now.strftime("%Y-%m-%d")
+
+    def _session(kind: str, user_name: str, nickname: str, ends: datetime) -> Dict[str, Any]:
+        return {
+            "kind": kind,
+            "user_name": user_name,
+            "nickname": nickname,
+            "ends_at": ends.isoformat(timespec="minutes"),
+            "remaining_sec": max(0, int((ends - now).total_seconds())),
+        }
+
+    try:
+        for r in db.get_reservations_on(today):
+            if str(r.get("status") or "") != "active":
+                continue
+            bounds = slot_bounds(now, str(r.get("time_slot") or ""))
+            if bounds:
+                name = str(r.get("student_name") or "학생")
+                return _session("reservation", name, name, bounds[1])
+    except Exception as exc:
+        logger.warning(f"이용 중인 예약 조회 실패: {exc}")
+
+    try:
+        from services import experience
+
+        if experience.ENABLED:
+            for t in db.get_queue_tickets(today, ["active"]):
+                ends = experience.ticket_ends_at(t)
+                if ends:
+                    nickname = str(t.get("nickname") or "관람객")
+                    return _session("experience", f"{t.get('ticket_no')}번 {nickname}", nickname, ends)
+    except Exception as exc:
+        logger.warning(f"이용 중인 체험권 조회 실패: {exc}")
+
+    return {"kind": None}
+
+
 async def run_once() -> Dict[str, Any]:
     """
     한 번 훑는다. 스케줄러 루프가 부르고, 관리자가 수동으로도 부를 수 있다.

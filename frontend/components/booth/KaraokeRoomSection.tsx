@@ -13,12 +13,9 @@ import {
   RotateCcw,
   Search,
   Tv,
-  PowerOff,
   Volume2,
-  ExternalLink,
   SlidersHorizontal,
   AlertTriangle,
-  Link2,
   CheckCircle2,
   HardDrive,
   Radio,
@@ -27,24 +24,19 @@ import {
 } from "lucide-react";
 import { KaraokeAudioScorer, AudioAnalysisResult, FinalScore } from "@/utils/audioScorer";
 import { KaraokeAccompanimentEngine } from "@/utils/karaokeAccompaniment";
-import {
-  createYouTubePlayer,
-  parseYouTubeId,
-  youtubeWatchUrl,
-  YouTubePlayerHandle,
-  YT_STATE,
-} from "@/utils/youtubePlayer";
+import { createYouTubePlayer, YouTubePlayerHandle, YT_STATE } from "@/utils/youtubePlayer";
 import {
   resolveMedia,
   loadVideoOverrides,
-  registerVideoId,
   hasNextAttempt,
-  getRegisteredVideoId,
-  videoBadge,
   ResolvedMedia,
 } from "@/utils/karaokeMedia";
-import { KARAOKE_SONGS, KaraokeSong, youtubeSearchUrl } from "@/data/karaokeSongs";
+import { KARAOKE_SONGS, KaraokeSong } from "@/data/karaokeSongs";
 import { AttractScreen } from "@/components/booth/AttractScreen";
+import { BoothKeypad } from "@/components/booth/BoothKeypad";
+import { SessionStrip } from "@/components/booth/SessionStrip";
+import type { BoothAuthNotice } from "@/hooks/useBoothData";
+import type { BoothSessionState } from "@/hooks/useBoothSession";
 import { Device, QueueSnapshot, ScoreRecord } from "@/types";
 import { apiUrl } from "@/utils/apiConfig";
 
@@ -58,6 +50,12 @@ interface KaraokeRoomSectionProps {
   queue?: QueueSnapshot | null;
   /** 점수를 남긴 뒤 순위를 다시 받아 오게 한다 */
   onScoreRecorded?: () => void;
+  /** 지금 부스를 쓰는 사람과 남은 시간 (GET /api/booth/session) */
+  session?: BoothSessionState | null;
+  /** 키패드 인증 결과 방송 — 실물 키패드로 누른 결과도 화면 키패드에 띄운다 */
+  authNotice?: BoothAuthNotice | null;
+  /** 화면 키패드로 인증을 마쳤을 때 (기기 상태를 곧바로 다시 받는다) */
+  onKeypadVerified?: () => void;
 }
 
 /** 이용 종료 후 대기 화면으로 돌아가기까지 (점수를 볼 시간) */
@@ -70,10 +68,19 @@ export function KaraokeRoomSection({
   topAll = [],
   queue = null,
   onScoreRecorded,
+  session = null,
+  authNotice = null,
+  onKeypadVerified,
 }: KaraokeRoomSectionProps) {
-  // 부스 반주기 전원(relay_1) 확인
+  /*
+   * 부스 반주기 전원(relay_1)이 곧 "인증된 이용 중"이다.
+   * 전원은 예약 PIN(예약 시간에만)·호출된 체험권 PIN으로 인증했거나 관리자가
+   * 직접 켰을 때만 들어온다. 전원이 꺼져 있으면 노래방을 열 방법을 주지 않는다 —
+   * 예전에는 [노래방 시작하기]를 누르면 예약 없이도 노래방이 열리고 반주가 나왔다.
+   */
   const relayDevice = devices.find((d) => d.id === "relay_1");
   const isPowerOn = relayDevice?.current_state === "on";
+  const ledBlink = devices.find((d) => d.id === "led_1")?.current_state === "blink";
 
   // ── 선곡 & 재생 ──────────────────────────────────────────
   const [selectedSong, setSelectedSong] = useState<KaraokeSong>(KARAOKE_SONGS[0]);
@@ -86,12 +93,6 @@ export function KaraokeRoomSection({
   const [elapsed, setElapsed] = useState(0);
   const [duration, setDuration] = useState(0);
   const [playerError, setPlayerError] = useState<string | null>(null);
-  /**
-   * 이 곡에서 재생에 실패한 영상들 — 영상 ID와 유튜브 오류 코드를 그대로 남긴다.
-   * "모두 안 된다"는 말만으로는 원인을 못 찾는다. ID가 틀린 것(코드 2·100)인지,
-   * 영상 주인이 임베드를 막은 것(코드 101·150)인지 코드로 갈린다.
-   */
-  const [failedAttempts, setFailedAttempts] = useState<{ videoId: string; code: number }[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
 
   /** 유튜브 시도 목록에서 몇 번째를 쓰는 중인지 — 실패하면 +1 해서 다음 후보로 */
@@ -110,10 +111,6 @@ export function KaraokeRoomSection({
   const [nickname, setNickname] = useState("");
   const [enterNotice, setEnterNotice] = useState<string | null>(null);
 
-  // ── 영상 등록 ────────────────────────────────────────────
-  const [registerInput, setRegisterInput] = useState("");
-  const [registerNotice, setRegisterNotice] = useState<string | null>(null);
-
   // ── 마이크 & 채점 ────────────────────────────────────────
   const [isMicActive, setIsMicActive] = useState(false);
   const [isVirtualMic, setIsVirtualMic] = useState(false);
@@ -128,6 +125,14 @@ export function KaraokeRoomSection({
   const [isCalculatingScore, setIsCalculatingScore] = useState(false);
   const [finalScore, setFinalScore] = useState<FinalScore | null>(null);
   const [animatedScore, setAnimatedScore] = useState(0);
+  /**
+   * 이번 점수를 기록에 남겼는가.
+   *   excluded — 가상보컬로 부른 점수 (순위·애창곡에 올리지 않는다)
+   *   saving / saved / failed — 순위·애창곡 기록 저장 결과
+   */
+  const [recordStatus, setRecordStatus] = useState<
+    "excluded" | "saving" | "saved" | "failed" | null
+  >(null);
 
   // ── refs ─────────────────────────────────────────────────
   const scorerRef = useRef<KaraokeAudioScorer | null>(null);
@@ -139,6 +144,12 @@ export function KaraokeRoomSection({
   const tickTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   /** 곡이 끝났을 때 채점을 한 번만 실행하기 위한 플래그 */
   const scoredRef = useRef(false);
+  /**
+   * 이번 곡에서 가상보컬(마이크 없이 채점 체험)을 썼는가.
+   * 가상보컬은 아무도 안 불러도 그럴듯한 점수가 나온다. 그 점수가 순위에 오르면
+   * 실제로 부른 사람의 순위가 밀린다 — 체험용으로만 보여 주고 기록하지 않는다.
+   */
+  const usedVirtualRef = useRef(false);
   /** ticker가 항상 최신 채점 함수를 부르도록 담아 두는 상자 */
   const finishAndScoreRef = useRef<(() => void) | null>(null);
   /** 유튜브 콜백이 항상 최신 곡·후보 번호를 보도록 담아 두는 상자 */
@@ -200,16 +211,18 @@ export function KaraokeRoomSection({
    * 채점 실행 (곡 종료 자동 호출 + 버튼 수동 호출 공용)
    * ──────────────────────────────────────────────────────── */
   const recordSongToDB = useCallback(
-    async (song: KaraokeSong) => {
+    async (song: KaraokeSong): Promise<boolean> => {
       try {
-        await fetch(apiUrl("/api/songs"), {
+        const res = await fetch(apiUrl("/api/songs"), {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ title: song.title, singer: song.singer }),
         });
         onSongCompleted?.();
+        return res.ok;
       } catch {
         /* 백엔드가 꺼져 있어도 노래방 기능 자체는 계속 동작해야 한다 */
+        return false;
       }
     },
     [onSongCompleted]
@@ -223,9 +236,9 @@ export function KaraokeRoomSection({
    * 별명은 입장할 때 한 번만 받는다.
    */
   const recordScoreToDB = useCallback(
-    async (song: KaraokeSong, result: FinalScore) => {
+    async (song: KaraokeSong, result: FinalScore): Promise<boolean> => {
       try {
-        await fetch(apiUrl("/api/scores"), {
+        const res = await fetch(apiUrl("/api/scores"), {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -241,8 +254,10 @@ export function KaraokeRoomSection({
           }),
         });
         onScoreRecorded?.();
+        return res.ok;
       } catch {
         /* 순위 등록 실패는 노래방 진행을 막지 않는다 */
+        return false;
       }
     },
     [nickname, onScoreRecorded]
@@ -256,7 +271,9 @@ export function KaraokeRoomSection({
     setIsCalculatingScore(true);
     setShowScoreModal(true);
     setAnimatedScore(0);
+    setRecordStatus(null);
     KaraokeAudioScorer.playDrumrollSound();
+    const virtual = usedVirtualRef.current;
 
     const result =
       scorerRef.current?.calculateFinalScore() ?? {
@@ -292,8 +309,15 @@ export function KaraokeRoomSection({
               /* TTS 미지원 브라우저는 건너뛴다 */
             }
           }
-          void recordSongToDB(selectedSong);
-          void recordScoreToDB(selectedSong, result);
+          if (virtual) {
+            setRecordStatus("excluded");
+          } else {
+            setRecordStatus("saving");
+            void Promise.all([
+              recordSongToDB(selectedSong),
+              recordScoreToDB(selectedSong, result),
+            ]).then(([song, score]) => setRecordStatus(song && score ? "saved" : "failed"));
+          }
         }
       }
     }, 40);
@@ -339,6 +363,8 @@ export function KaraokeRoomSection({
         handle.setVolume(mrVolume * 100);
         setDuration(handle.getDuration());
         setPlayerReady(true);
+        // "다음 영상으로 넘어갑니다" · "불러오는 중입니다" 같은 잠깐짜리 안내를 지운다
+        setPlayerError(null);
       },
       onStateChange: (state) => {
         if (disposed) return;
@@ -356,28 +382,22 @@ export function KaraokeRoomSection({
         if (disposed) return;
         setPlayerReady(false);
 
-        // 어떤 영상이 몇 번 코드로 실패했는지 콘솔과 화면에 모두 남긴다
+        // 어떤 영상이 몇 번 코드로 실패했는지는 콘솔에 남긴다. 영상 점검과 등록은
+        // 관리자 화면(/admin)의 [노래방 영상 점검]에서 한다 — 부스 화면은 관람객용이다.
         console.warn(
           `[노래방] 재생 실패 — 곡=${selectedSongRef.current.id} 영상=${videoId} 코드=${code} (${message})`
         );
-        setFailedAttempts((prev) =>
-          prev.some((f) => f.videoId === videoId) ? prev : [...prev, { videoId, code }]
-        );
-
-        const prefix =
-          getRegisteredVideoId(selectedSongRef.current.id) === videoId
-            ? "직접 등록하신 영상이 재생되지 않습니다. "
-            : "";
 
         // 임베드가 막혔거나 삭제된 영상 — 같은 곡의 다음 후보로 자동 전환한다.
         // 후보를 다 쓴 뒤에야 내장 반주로 떨어진다.
         if (hasNextAttempt(selectedSongRef.current, attemptIndexRef.current)) {
-          setPlayerError(`${prefix}${message} (코드 ${code}) 다음 후보 영상으로 넘어갑니다.`);
+          setPlayerError("이 영상을 재생할 수 없어 다음 노래방 영상으로 넘어갑니다.");
           setAttemptIndex((prev) => prev + 1);
           return;
         }
 
-        setPlayerError(`${prefix}${message} (코드 ${code})`);
+        // 내장 반주로 바뀐 이유는 화면 아래 재생 안내(media.reason)가 이미 말해 준다
+        setPlayerError(null);
         setResolved({
           songId: selectedSongRef.current.id,
           media: {
@@ -388,8 +408,9 @@ export function KaraokeRoomSection({
       },
     }).catch((err: Error) => {
       if (disposed) return;
+      console.warn(`[노래방] 유튜브 플레이어를 만들지 못했습니다: ${err.message}`);
       setPlayerReady(false);
-      setPlayerError(err.message);
+      setPlayerError(null);
       setResolved({
         songId: selectedSongRef.current.id,
         media: {
@@ -419,32 +440,76 @@ export function KaraokeRoomSection({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [media?.source, media?.youtubeId, hasEntered]);
 
+  const stopVirtualMic = useCallback(() => {
+    setIsVirtualMic(false);
+    if (virtualTimerRef.current) {
+      clearInterval(virtualTimerRef.current);
+      virtualTimerRef.current = null;
+    }
+    setAudioData({ volume: 0, pitch: 0, note: "-", cents: 0 });
+  }, []);
+
   /*
    * 이용이 끝나 부스 전원이 꺼지면 대기(어트랙트) 화면으로 돌아간다.
    *
-   * QR 코드와 "지금 호출 N번"은 대기 화면에만 있다. 예전에는 첫 관람객이 입장한
-   * 뒤로 노래방 화면에 머물러서, 그다음 사람들은 부스 화면에서 QR도 호출 번호도
-   * 볼 수 없었다. 방금 부른 사람이 점수를 볼 수 있게 조금 기다렸다가 돌아간다.
+   * 팀 트리거 규칙이 "이용 종료 시 … 전원과 마이크를 차단한다"이므로 반주와
+   * 마이크는 그 자리에서 끊는다. 방금 부른 사람이 점수를 볼 수 있게 화면만 조금
+   * 기다렸다가 돌아간다. 대기 화면에는 키패드·QR·"지금 호출 N번"이 있어서 다음
+   * 사람이 그것을 봐야 한다.
    */
   const prevPowerRef = useRef(isPowerOn);
   useEffect(() => {
     const wasOn = prevPowerRef.current;
     prevPowerRef.current = isPowerOn;
-    if (!wasOn || isPowerOn || !hasEntered) return;
+    if (wasOn === isPowerOn) return;
 
-    const stopNow = setTimeout(() => stopAllPlayback(), 0);
-    const backToAttract = setTimeout(() => {
+    if (isPowerOn) {
+      // 새 사람이 인증했다. 앞사람의 종료 화면(15초)이 아직 떠 있으면 곧바로 걷어 내고
+      // 환영 화면부터 시작한다 — 그대로 두면 앞사람 이름으로 점수가 올라간다.
+      if (!hasEntered) return;
+      const reset = setTimeout(() => {
+        setShowScoreModal(false);
+        setEnterNotice(null);
+        setNickname("");
+        setHasEntered(false);
+      }, 0);
+      return () => clearTimeout(reset);
+    }
+
+    if (!hasEntered) {
+      // 시작 버튼을 누르기 전에 끝났다 — 다음 사람에게 앞사람 이름이 남지 않게만 한다
+      const clearName = setTimeout(() => setNickname(""), 0);
+      return () => clearTimeout(clearName);
+    }
+
+    const stopNow = setTimeout(() => {
+      stopAllPlayback();
       scorerRef.current?.stopMicrophone();
       setIsMicActive(false);
+      stopVirtualMic();
+    }, 0);
+    const backToAttract = setTimeout(() => {
       setShowScoreModal(false);
       setEnterNotice(null);
+      setNickname("");
       setHasEntered(false);
     }, RETURN_TO_ATTRACT_MS);
     return () => {
       clearTimeout(stopNow);
       clearTimeout(backToAttract);
     };
-  }, [isPowerOn, hasEntered, stopAllPlayback]);
+  }, [isPowerOn, hasEntered, stopAllPlayback, stopVirtualMic]);
+
+  /*
+   * 순위에 올릴 이름은 인증한 사람의 이름으로 미리 채워 둔다 (예약자 이름 ·
+   * 체험권에 적은 이름). 직접 고친 뒤에는 덮어쓰지 않는다.
+   */
+  const sessionNickname = isPowerOn ? session?.nickname ?? "" : "";
+  useEffect(() => {
+    if (!sessionNickname || hasEntered) return;
+    const id = setTimeout(() => setNickname((cur) => cur || sessionNickname.slice(0, 10)), 0);
+    return () => clearTimeout(id);
+  }, [sessionNickname, hasEntered]);
 
   /** MR 볼륨 변경을 각 재생 소스에 반영 */
   useEffect(() => {
@@ -483,15 +548,6 @@ export function KaraokeRoomSection({
   /* ─────────────────────────────────────────────────────────
    * 마이크
    * ──────────────────────────────────────────────────────── */
-  const stopVirtualMic = useCallback(() => {
-    setIsVirtualMic(false);
-    if (virtualTimerRef.current) {
-      clearInterval(virtualTimerRef.current);
-      virtualTimerRef.current = null;
-    }
-    setAudioData({ volume: 0, pitch: 0, note: "-", cents: 0 });
-  }, []);
-
   const startMicrophone = useCallback(async (): Promise<boolean> => {
     if (isVirtualMic) stopVirtualMic();
     const ok = (await scorerRef.current?.startMicrophone(setAudioData)) ?? false;
@@ -525,6 +581,7 @@ export function KaraokeRoomSection({
     }
     scorerRef.current?.resetScore();
     setIsVirtualMic(true);
+    usedVirtualRef.current = true;
     const notes = ["C4", "D4", "E4", "F4", "G4", "A4", "B4", "C5"];
     virtualTimerRef.current = setInterval(() => {
       const volume = Math.floor(45 + Math.random() * 45);
@@ -544,9 +601,11 @@ export function KaraokeRoomSection({
    * 재생 시작 / 정지
    * ──────────────────────────────────────────────────────── */
   const handlePlay = useCallback(async () => {
-    if (!media) return;
+    if (!media || !isPowerOn) return;
 
     scoredRef.current = false;
+    // 이번 곡을 가상보컬로 시작했는지 (도중에 켜도 toggleVirtualMic 이 표시한다)
+    usedVirtualRef.current = isVirtualMic;
     setShowScoreModal(false);
     setElapsed(0);
     scorerRef.current?.resetScore();
@@ -582,7 +641,7 @@ export function KaraokeRoomSection({
       audio.onloadedmetadata = () => setDuration(Math.floor(audio.duration || 0));
       audio.onended = () => finishAndScore();
       audio.onerror = () => {
-        setPlayerError("반주 파일을 재생할 수 없습니다. 파일 형식을 확인해 주세요.");
+        console.warn(`[노래방] 반주 파일을 재생할 수 없습니다: ${media.localUrl}`);
         setResolved({
           songId: selectedSong.id,
           media: { source: "synth", reason: "반주 파일 재생 실패 — 내장 자동 반주로 전환" },
@@ -606,7 +665,7 @@ export function KaraokeRoomSection({
 
     setIsPlaying(true);
     startTicker();
-  }, [media, mrVolume, selectedSong, startTicker, finishAndScore]);
+  }, [media, isPowerOn, isVirtualMic, mrVolume, selectedSong, startTicker, finishAndScore]);
 
   const handlePause = useCallback(() => {
     stopAllPlayback();
@@ -622,7 +681,7 @@ export function KaraokeRoomSection({
    * 막아 버렸다. 입장 시점으로 옮기면 재생 버튼은 곧바로 재생만 하면 된다.
    */
   const handleEnter = useCallback(async () => {
-    if (isEntering) return;
+    if (isEntering || !isPowerOn) return;
     setIsEntering(true);
     setEnterNotice("마이크 권한을 확인하는 중...");
 
@@ -645,7 +704,7 @@ export function KaraokeRoomSection({
 
     setIsEntering(false);
     setHasEntered(true);
-  }, [isEntering, startMicrophone]);
+  }, [isEntering, isPowerOn, startMicrophone]);
 
   /** 목록에서 곡을 고르면 재생 중이던 것을 정리하고 새 곡을 준비한다 */
   const handleSelectSong = useCallback(
@@ -655,50 +714,12 @@ export function KaraokeRoomSection({
       setSelectedSong(song);
       setPlayerError(null);
       setAttemptIndex(0);
-      setFailedAttempts([]);
       setPlayerReady(false);
       setElapsed(0);
       setDuration(song.approxDurationSec);
-      setRegisterInput("");
-      setRegisterNotice(null);
       setShowScoreModal(false);
     },
     [stopAllPlayback]
-  );
-
-  /** 유튜브 노래방 영상 등록 */
-  const handleRegisterVideo = useCallback(
-    async (e: React.FormEvent) => {
-      e.preventDefault();
-      const id = parseYouTubeId(registerInput);
-      if (!id) {
-        setRegisterNotice("유튜브 링크 형식이 아닙니다. 주소창의 링크를 그대로 붙여넣어 주세요.");
-        return;
-      }
-
-      // 서버에 저장해 부스 화면·관람객 폰·관리자 노트북이 같은 영상을 보게 한다
-      const result = await registerVideoId(selectedSong.id, id);
-      if (!result.ok) {
-        setRegisterNotice(result.message);
-        return;
-      }
-
-      setPlayerError(null);
-      setRegisterInput("");
-      setRegisterNotice(`'${selectedSong.title}' 영상이 등록되었습니다. 모든 기기에 적용됩니다.`);
-      setAttemptIndex(0);
-      setFailedAttempts([]);
-      setResolved({
-        songId: selectedSong.id,
-        media: {
-          source: "youtube",
-          youtubeId: id,
-          attemptIndex: 0,
-          reason: "유튜브 공식 임베드 플레이어로 스트리밍 중 · 관리자 등록 영상",
-        },
-      });
-    },
-    [registerInput, selectedSong]
   );
 
   /* ─────────────────────────────────────────────────────────
@@ -748,33 +769,17 @@ export function KaraokeRoomSection({
 
   return (
     <div className="space-y-6">
-      {/* 전원 차단 경고 */}
-      {!isPowerOn && (
-        <div className="p-4 rounded-2xl bg-live-soft border border-live/40 text-ink text-sm flex flex-wrap items-center justify-between gap-3">
-          <div className="flex items-center gap-3">
-            <PowerOff className="w-5 h-5 text-live shrink-0" />
-            <div>
-              <p className="font-bold">현재 부스 반주기 전원(릴레이)이 차단되어 있습니다.</p>
-              <p className="text-xs text-ink-2 mt-0.5">
-                부스 앞 키패드에 예약 비밀번호를 입력하면 전원이 켜집니다.
-              </p>
-            </div>
-          </div>
-          <span className="text-xs font-mono tnum px-2.5 py-1 rounded bg-surface text-live border border-live/40 shrink-0">
-            Relay Power: OFF
-          </span>
-        </div>
-      )}
-
       {/*
-        어트랙트(유휴) 화면 — 부록G §2-⑥
-        아무도 부스를 쓰지 않을 때 대형 화면에 떠 있는 화면이다. 입장 전에는
-        노래방 조작부를 아예 그리지 않는다. 설명과 순위만 남겨 두는 편이
-        "여기서 뭘 하면 되는지"가 분명하고, 전시장에서 사람을 모은다.
+        대기 화면 — 부록G §2-⑥
+        노래방을 시작하기 전에는 조작부를 아예 그리지 않는다.
+          전원 꺼짐(standby) → 키패드·QR·순위만. 노래방을 여는 버튼이 없다.
+          전원 켜짐(ready)   → 인증한 사람에게 환영 인사와 [노래방 시작하기].
       */}
       {!hasEntered && (
         <AttractScreen
-          isPowerOn={isPowerOn}
+          mode={isPowerOn ? "ready" : "standby"}
+          keypad={<BoothKeypad notice={authNotice} onVerified={onKeypadVerified} />}
+          session={session}
           topToday={topToday}
           topAll={topAll}
           popularSongs={KARAOKE_SONGS.slice(0, 5).map((song) => ({
@@ -785,12 +790,17 @@ export function KaraokeRoomSection({
           nickname={nickname}
           onNicknameChange={setNickname}
           onEnter={() => void handleEnter()}
-          onBrowse={() => setHasEntered(true)}
+          onEnterWithoutMic={() => {
+            if (isPowerOn) setHasEntered(true);
+          }}
           isEntering={isEntering}
           enterNotice={enterNotice}
           queue={queue}
         />
       )}
+
+      {/* 누가 언제까지 쓰는지 · 종료 10분 전 알림 · 이용 종료 안내 */}
+      {hasEntered && <SessionStrip session={session} isPowerOn={isPowerOn} ledBlink={ledBlink} />}
 
       {hasEntered && enterNotice && (
         <p className="text-[11px] text-ink-3 flex items-center gap-1.5">
@@ -866,114 +876,29 @@ export function KaraokeRoomSection({
                 volume={audioData.volume}
                 headline="학교 보유 반주 파일로 재생 중"
                 onStart={handlePlay}
+                canStart={isPowerOn}
               />
             ) : (
-              /* 유튜브 영상이 아직 등록되지 않았거나 재생에 실패한 경우 */
-              <div className="w-full h-full overflow-y-auto p-5 flex flex-col justify-center">
-                {playerError && (
-                  <div className="mb-3 flex items-start gap-2 p-2.5 rounded-xl bg-live-soft/50 border border-live/40 text-live text-xs">
-                    <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
-                    <span>{playerError}</span>
-                  </div>
-                )}
-
-                {/*
-                  어떤 후보가 왜 실패했는지 그대로 보여 준다.
-                  링크를 눌러 유튜브에서 직접 열어 보면 "영상이 없는 것"인지
-                  "영상은 있는데 퍼가기가 막힌 것"인지 바로 구분할 수 있다.
-                */}
-                {failedAttempts.length > 0 && (
-                  <div className="mb-3 p-2.5 rounded-xl bg-surface/70 border border-line-strong text-[11px] text-ink-2">
-                    <p className="font-bold text-ink-2 mb-1.5">
-                      재생하지 못한 영상 {failedAttempts.length}개 (직접 열어서 확인해 보세요)
-                    </p>
-                    <ul className="space-y-1">
-                      {failedAttempts.map((f) => (
-                        <li key={f.videoId} className="flex items-center gap-1.5">
-                          <a
-                            href={youtubeWatchUrl(f.videoId)}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="font-mono text-brass hover:text-ink underline underline-offset-2"
-                          >
-                            {f.videoId}
-                          </a>
-                          <span className="text-ink-3">
-                            코드 {f.code} ·{" "}
-                            {f.code === 101 || f.code === 150
-                              ? "영상은 있지만 퍼가기(임베드) 금지"
-                              : f.code === 100
-                              ? "삭제되었거나 비공개"
-                              : f.code === 2
-                              ? "영상 ID가 잘못됨"
-                              : "재생 불가"}
-                          </span>
-                        </li>
-                      ))}
-                    </ul>
-                    <p className="mt-1.5 text-ink-3 leading-relaxed">
-                      코드 101·150이면 영상 자체는 정상입니다. 유튜브에서 그 영상의{" "}
-                      <span className="text-ink-2">공유 → 퍼가기</span> 버튼이 보이는
-                      노래방 영상을 찾아 아래에 링크를 붙여넣어 주세요.
-                    </p>
-                  </div>
-                )}
-
-                <div className="text-center space-y-1 mb-4">
-                  <Link2 className="w-8 h-8 text-brass mx-auto" />
-                  <h4 className="text-base font-black text-ink">노래방 영상 등록하기</h4>
-                  <p className="text-[11px] text-ink-3 leading-relaxed">
-                    <span className="text-brass font-bold">{selectedSong.title}</span>의 노래방
-                    영상을 유튜브에서 찾아 링크를 붙여넣으면, 가사가 나오는 영상이 이 화면에
-                    재생됩니다.
-                    <br />
-                    등록 전에는 내장 자동 반주로도 노래하고 점수를 받을 수 있습니다.
-                  </p>
-                </div>
-
-                <div className="flex justify-center mb-3">
-                  <a
-                    href={youtubeSearchUrl(selectedSong)}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="px-3 py-1.5 rounded-lg bg-raised hover:bg-line-strong border border-line-strong text-ink font-bold text-xs flex items-center gap-1.5 transition-colors"
-                  >
-                    <ExternalLink className="w-3.5 h-3.5" />
-                    유튜브에서 &quot;{selectedSong.youtubeSearchQuery}&quot; 검색
-                  </a>
-                </div>
-
-                <form onSubmit={handleRegisterVideo} className="flex gap-2 max-w-md mx-auto w-full">
-                  <input
-                    type="text"
-                    value={registerInput}
-                    onChange={(e) => setRegisterInput(e.target.value)}
-                    placeholder="유튜브 링크를 붙여넣으세요"
-                    className="flex-1 px-3 py-2 rounded-xl bg-surface border border-line-strong text-xs text-ink placeholder-ink-3 focus:outline-none focus:border-brass"
-                  />
-                  <button
-                    type="submit"
-                    className="px-4 py-2 rounded-xl bg-ink hover:bg-ink/90 text-surface font-bold text-xs transition-colors shrink-0 cursor-pointer"
-                  >
-                    등록
-                  </button>
-                </form>
-
-                {registerNotice && (
-                  <p className="text-center text-[11px] text-free mt-2 flex items-center justify-center gap-1">
-                    <CheckCircle2 className="w-3.5 h-3.5" />
-                    {registerNotice}
-                  </p>
-                )}
-
-                {isPlaying && currentCue && (
-                  <div className="mt-4 text-center">
-                    <span className="text-xs px-3 py-1 rounded-full bg-brass/20 text-brass border border-brass/30 font-bold">
-                      {currentCue.label}
-                    </span>
-                  </div>
-                )}
-              </div>
+              /*
+                내장 자동 반주 — 유튜브 후보를 모두 못 쓰거나 연결이 안 될 때.
+                예전에는 여기에 "노래방 영상 등록하기" 폼과 실패한 영상 ID 목록,
+                유튜브로 나가는 링크가 떠 있었다. 관람객이 쓰는 화면에 관리 도구가
+                있을 이유가 없고(등록은 관리자 인증이 필요해 어차피 실패한다),
+                링크를 누르면 키오스크 화면이 유튜브로 빠져나간다.
+                영상 점검·등록은 /admin 의 [노래방 영상 점검]에서 한다.
+              */
+              <GuideScreen
+                song={selectedSong}
+                isPlaying={isPlaying}
+                elapsed={elapsed}
+                cueLabel={currentCue?.label}
+                cueHint={currentCue?.hint}
+                nextCueLabel={nextCue?.label}
+                volume={audioData.volume}
+                headline="내장 자동 반주로 재생 중"
+                onStart={handlePlay}
+                canStart={isPowerOn}
+              />
             )}
           </div>
 
@@ -998,16 +923,22 @@ export function KaraokeRoomSection({
               {media.reason}
             </p>
           )}
+          {playerError && (
+            <p className="flex items-center gap-1.5 text-xs text-brass">
+              <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
+              {playerError}
+            </p>
+          )}
 
           {/* 컨트롤 바 */}
           <div className="flex flex-wrap items-center justify-between gap-3 pt-1">
             <div className="flex flex-wrap items-center gap-2">
               <button
                 onClick={() => (isPlaying ? handlePause() : void handlePlay())}
-                disabled={!media || !hasEntered || waitingForPlayer}
+                disabled={!media || !hasEntered || !isPowerOn || waitingForPlayer}
                 title={
-                  !hasEntered
-                    ? "먼저 노래방에 입장해 주세요"
+                  !isPowerOn
+                    ? "이용 시간이 끝났습니다"
                     : waitingForPlayer
                     ? "영상을 불러오는 중입니다"
                     : undefined
@@ -1026,24 +957,12 @@ export function KaraokeRoomSection({
 
               <button
                 onClick={finishAndScore}
-                className="px-4 py-2 rounded-xl bg-brass text-on-accent font-black text-xs flex items-center gap-1.5 shadow-lg transition-all cursor-pointer"
+                disabled={!isPowerOn}
+                className="px-4 py-2 rounded-xl bg-brass text-on-accent font-black text-xs flex items-center gap-1.5 shadow-lg transition-all cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
               >
                 <Trophy className="w-4 h-4" />
                 노래 완료 &amp; 점수 채점! 💯
               </button>
-
-              {media?.source === "youtube" && media.youtubeId && (
-                <a
-                  href={youtubeWatchUrl(media.youtubeId)}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="px-3 py-2 rounded-xl bg-raised/80 hover:bg-raised/90 text-ink-2 border border-line-strong text-xs font-semibold flex items-center gap-1.5 transition-colors"
-                  title="화면이 작으면 유튜브에서 직접 크게 열 수 있습니다"
-                >
-                  <ExternalLink className="w-3.5 h-3.5" />
-                  유튜브에서 열기
-                </a>
-              )}
             </div>
 
             <div className="flex flex-wrap items-center gap-3">
@@ -1090,9 +1009,9 @@ export function KaraokeRoomSection({
                       ? "bg-free-soft text-free border-free/50"
                       : "bg-raised text-ink-3 border-line-strong"
                   }`}
-                  title="마이크가 없을 때 채점을 체험하는 시뮬레이션 모드"
+                  title="마이크가 없을 때 채점을 체험해 보는 모드 — 이 점수는 순위·애창곡 기록에 남지 않습니다"
                 >
-                  {isVirtualMic ? "가상보컬 ON" : "가상보컬"}
+                  {isVirtualMic ? "가상보컬 ON · 순위 제외" : "가상보컬"}
                 </button>
 
                 <div className="flex items-center gap-1.5">
@@ -1157,7 +1076,6 @@ export function KaraokeRoomSection({
           <div className="space-y-2 overflow-y-auto pr-1 flex-1 max-h-[520px]">
             {filteredSongs.map((song) => {
               const isCurrent = selectedSong.id === song.id;
-              const badge = videoBadge(song);
               return (
                 <button
                   key={song.id}
@@ -1187,16 +1105,6 @@ export function KaraokeRoomSection({
                         {song.singer} · {song.genre}
                       </p>
                     </div>
-                    <span
-                      className={`text-[9px] px-1.5 py-0.5 rounded shrink-0 border ${
-                        badge.registered
-                          ? "bg-free-soft/60 text-free border-free/60"
-                          : "bg-raised/60 text-ink-3 border-line-strong"
-                      }`}
-                      title={badge.title}
-                    >
-                      {badge.label}
-                    </span>
                   </div>
                   {isCurrent && (
                     <p className="text-[10px] text-brass/80 mt-1.5 pl-7 leading-relaxed">
@@ -1213,8 +1121,7 @@ export function KaraokeRoomSection({
               <ShieldCheck className="w-3.5 h-3.5 text-free/70 shrink-0 mt-0.5" />
               <span>
                 노래방 영상은 <strong className="text-ink-3">내려받지 않고</strong> 유튜브 공식
-                플레이어로 재생합니다. 자세한 근거는{" "}
-                <code className="text-brass">docs/부록F</code> 문서를 확인하세요.
+                플레이어로 재생합니다.
               </span>
             </p>
           </div>
@@ -1288,9 +1195,20 @@ export function KaraokeRoomSection({
                 <Sparkles className="w-4 h-4 text-brass shrink-0" />
                 {isCalculatingScore ? "점수를 채점하고 있습니다..." : finalScore?.comment}
               </p>
-              {finalScore?.sangSomething && !isCalculatingScore && (
-                <p className="text-[11px] text-ink-3 mt-1">
-                  애창곡 DB에 가창 기록이 등록되었습니다!
+              {finalScore?.sangSomething && !isCalculatingScore && recordStatus && (
+                <p
+                  className={`text-[11px] mt-1 ${
+                    recordStatus === "failed" ? "text-live" : "text-ink-3"
+                  }`}
+                  data-testid="record-status"
+                >
+                  {recordStatus === "excluded"
+                    ? "가상보컬로 부른 점수는 순위와 애창곡 기록에 올리지 않습니다."
+                    : recordStatus === "saving"
+                    ? "순위에 올리는 중…"
+                    : recordStatus === "saved"
+                    ? `${nickname.trim() || "익명"} 이름으로 순위와 애창곡 기록에 올렸습니다!`
+                    : "기록을 저장하지 못했습니다. (이용 시간이 끝났거나 서버 연결이 끊겼습니다)"}
                 </p>
               )}
             </div>
@@ -1308,7 +1226,8 @@ export function KaraokeRoomSection({
                   setShowScoreModal(false);
                   void handlePlay();
                 }}
-                className="px-5 py-2.5 rounded-xl bg-brass text-on-accent font-black text-xs shadow-lg transition-all cursor-pointer flex items-center gap-1.5"
+                disabled={!isPowerOn}
+                className="px-5 py-2.5 rounded-xl bg-brass text-on-accent font-black text-xs shadow-lg transition-all cursor-pointer flex items-center gap-1.5 disabled:opacity-40 disabled:cursor-not-allowed"
               >
                 <Award className="w-4 h-4" />
                 한 번 더 부르기!
@@ -1334,6 +1253,7 @@ function GuideScreen({
   volume,
   headline,
   onStart,
+  canStart = true,
 }: {
   song: KaraokeSong;
   isPlaying: boolean;
@@ -1344,6 +1264,8 @@ function GuideScreen({
   volume: number;
   headline: string;
   onStart: () => void;
+  /** 부스 전원이 꺼지면 false — 시작 버튼을 막는다 */
+  canStart?: boolean;
 }) {
   return (
     <div className="h-full flex flex-col justify-between p-6">
@@ -1378,7 +1300,8 @@ function GuideScreen({
             <p className="text-xs text-ink-3">{song.singer}</p>
             <button
               onClick={onStart}
-              className="px-6 py-2.5 rounded-xl bg-brass text-on-accent font-bold text-xs shadow-lg transition-all cursor-pointer"
+              disabled={!canStart}
+              className="px-6 py-2.5 rounded-xl bg-brass text-on-accent font-bold text-xs shadow-lg transition-all cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
             >
               반주 시작 &amp; 가창하기
             </button>

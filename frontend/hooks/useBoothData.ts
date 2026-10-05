@@ -18,6 +18,28 @@ import {
   WebSocketMessage,
 } from "@/types";
 
+/** 부스 화면이 소리 내어 읽을 안내 한 건. seq 가 바뀔 때마다 새 안내다. */
+export interface BoothAnnouncement {
+  seq: number;
+  /** auth · entry_detected · 10min_warning · session_ended · queue_called */
+  event: string;
+  text: string;
+}
+
+/**
+ * 키패드 인증 결과 방송.
+ * 부스 앞 실물 키패드(라즈베리파이)로 누른 결과는 부스 화면이 HTTP 응답을 받지
+ * 못한다. 이 방송으로 받아서 "비밀번호가 틀렸습니다" 같은 안내를 화면에 띄운다.
+ */
+export interface BoothAuthNotice {
+  seq: number;
+  success: boolean;
+  mode?: string;
+  /** invalid(틀림) · not_now(예약 시간 아님) */
+  reason?: string;
+  message: string;
+}
+
 /**
  * 부스 공용 데이터 훅 (부록G §3 화면 분리 / 부록J 작업 1)
  *
@@ -43,9 +65,16 @@ export function useBoothData() {
   const [topAll, setTopAll] = useState<ScoreRecord[]>([]);
   // 전시 체험 대기열 (부록G §2-③)
   const [queue, setQueue] = useState<QueueSnapshot | null>(null);
-  // 이용이 끝날 때마다 1씩 오른다 (예약 종료·체험 3분 종료·[이용 종료] 버튼).
-  // 퇴실곡처럼 "끝났을 때 한 번" 해야 하는 일이 이 숫자를 지켜본다.
-  const [sessionEndCount, setSessionEndCount] = useState(0);
+  // 부스 화면(/booth)이 읽어 줄 안내와 키패드 인증 결과.
+  // 소리는 부스에서 나야 한다 — 예전에는 선생님 노트북(/admin)에서 났다.
+  const [announcement, setAnnouncement] = useState<BoothAnnouncement | null>(null);
+  const [authNotice, setAuthNotice] = useState<BoothAuthNotice | null>(null);
+
+  const announce = useCallback((event: string, text?: string) => {
+    // 이용 종료는 읽을 문장이 없어도 퇴실곡을 틀어야 하므로 그대로 넘긴다
+    if (!text && event !== "session_ended") return;
+    setAnnouncement((prev) => ({ seq: (prev?.seq ?? 0) + 1, event, text: text ?? "" }));
+  }, []);
 
   const fetchDevices = useCallback(async () => {
     try {
@@ -135,6 +164,17 @@ export function useBoothData() {
   const handleWsMessage = useCallback(
     (msg: WebSocketMessage) => {
       if (msg.type === "device_state" && msg.device_id) {
+        // 관리자 화면의 [스피커 테스트] — 부스 스피커는 부스 화면이 울린다.
+        // (actor "user" = 관리자 제어. 파이가 보고한 상태(actor "device")는 읽지 않는다)
+        const spoken = (msg.value as { message?: unknown } | null)?.message;
+        if (
+          msg.device_id === "speaker_1" &&
+          msg.actor === "user" &&
+          msg.state === "playing" &&
+          typeof spoken === "string"
+        ) {
+          announce("speaker_test", spoken);
+        }
         setDevices((prev) =>
           prev.map((d) =>
             d.id === msg.device_id
@@ -147,11 +187,20 @@ export function useBoothData() {
           )
         );
       } else if (msg.type === "booth_auth") {
-        setLastEventMsg(msg.message || (msg.success ? "인증 성공!" : "인증 실패!"));
+        const text = msg.message || (msg.success ? "인증 성공!" : "인증 실패!");
+        setLastEventMsg(text);
+        setAuthNotice((prev) => ({
+          seq: (prev?.seq ?? 0) + 1,
+          success: Boolean(msg.success),
+          mode: msg.mode,
+          reason: msg.reason,
+          message: text,
+        }));
+        announce("auth", msg.speech);
         fetchDevices();
       } else if (msg.type === "booth_event") {
         setLastEventMsg(msg.message || "부스 이벤트 감지됨");
-        if (msg.event === "session_ended") setSessionEndCount((n) => n + 1);
+        announce(msg.event ?? "booth_event", msg.speech);
         fetchDevices();
       } else if (msg.type === "reservation_created") {
         fetchReservations();
@@ -164,13 +213,15 @@ export function useBoothData() {
         );
         fetchScores();
       } else if (msg.type === "queue_called") {
-        setLastEventMsg(msg.message || `${msg.ticket_no ?? ""}번 입장해 주세요!`);
+        const text = msg.message || `${msg.ticket_no ?? ""}번 입장해 주세요!`;
+        setLastEventMsg(text);
+        announce("queue_called", msg.speech ?? text);
         fetchQueue();
       } else if (msg.type === "queue_updated") {
         fetchQueue();
       }
     },
-    [fetchDevices, fetchReservations, fetchSongs, fetchScores, fetchQueue]
+    [fetchDevices, fetchReservations, fetchSongs, fetchScores, fetchQueue, announce]
   );
 
   const { isConnected } = useKaraokeSocket(handleWsMessage);
@@ -184,7 +235,8 @@ export function useBoothData() {
     topToday,
     topAll,
     queue,
-    sessionEndCount,
+    announcement,
+    authNotice,
     isConnected,
     fetchDevices,
     fetchReservations,

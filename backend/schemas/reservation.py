@@ -23,6 +23,11 @@ class TicketIssueRequest(BaseModel):
     nickname: str = Field("관람객", max_length=20, description="폰에서 입력한 이름")
 
 
+class TicketLeaveRequest(BaseModel):
+    """관람객이 스스로 줄에서 빠질 때 — 자기 체험권 비밀번호로 주인임을 확인한다"""
+    pin: str = Field(..., pattern=r"^[0-9]{4}$", description="체험권 4자리 비밀번호")
+
+
 class ScoreRecordRequest(BaseModel):
     """채점 결과 저장 요청 (부록G §2-④)"""
     nickname: str = Field("익명", max_length=20, description="부스에서 입력한 별명")

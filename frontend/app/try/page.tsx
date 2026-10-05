@@ -96,6 +96,34 @@ export default function TryPage() {
     }
   };
 
+  /**
+   * [체험권 버리기] — 줄에서 실제로 빠진다.
+   * 예전에는 이 폰에서만 지워져서, 떠난 사람이 줄에 남아 있다가 호출되고 다음
+   * 사람이 호출 유예 시간만큼 괜히 기다렸다. 체험 중에는 버릴 수 없다(서버가 막는다).
+   */
+  const leave = async () => {
+    if (!ticketId) return;
+    if (!window.confirm("체험권을 버리면 줄에서 빠집니다. 다시 받으면 맨 뒤로 갑니다.")) return;
+    if (storedPin) {
+      try {
+        const res = await fetch(apiUrl(`/api/experience/tickets/${ticketId}/leave`), {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ pin: storedPin }),
+        });
+        if (res.status === 409) {
+          const json = await res.json().catch(() => null);
+          setError(json?.error?.message ?? "지금은 체험권을 버릴 수 없습니다.");
+          return;
+        }
+      } catch {
+        /* 서버에 닿지 않으면 이 폰에서만 지운다 — 줄은 호출 유예 시간 뒤 저절로 넘어간다 */
+      }
+    }
+    setError(null);
+    clearTicket();
+  };
+
   const finished = ticket && (ticket.status === "done" || ticket.status === "expired");
   const myTurn = ticket?.status === "called";
   const playing = ticket?.status === "active";
@@ -263,6 +291,8 @@ export default function TryPage() {
               </div>
             )}
 
+            {error && <p className="px-6 pb-3 text-sm text-live">{error}</p>}
+
             <div className="px-6 pb-5 flex items-center justify-between gap-2 border-t border-line pt-4">
               <button
                 onClick={() => void load()}
@@ -271,13 +301,15 @@ export default function TryPage() {
                 <RotateCcw className="w-3.5 h-3.5" aria-hidden />
                 새로고침
               </button>
-              <button
-                onClick={clearTicket}
-                className="text-xs font-semibold text-ink-3 hover:text-live transition-colors cursor-pointer inline-flex items-center gap-1.5"
-              >
-                <Trash2 className="w-3.5 h-3.5" aria-hidden />
-                체험권 버리기
-              </button>
+              {!playing && (
+                <button
+                  onClick={() => void leave()}
+                  className="text-xs font-semibold text-ink-3 hover:text-live transition-colors cursor-pointer inline-flex items-center gap-1.5"
+                >
+                  <Trash2 className="w-3.5 h-3.5" aria-hidden />
+                  체험권 버리기
+                </button>
+              )}
             </div>
           </section>
         )}

@@ -9,7 +9,8 @@ from fastapi import APIRouter, Depends, Header, HTTPException, Query, Request, s
 from auth import get_admin_pin, verify_admin_token, is_valid_admin_token
 from booth_time import today_str as booth_today
 from db import database as db
-from login_guard import client_key, keypad_guard
+from iot.provider_factory import get_device_provider
+from login_guard import client_key, keypad_guard, ticket_pin_guard
 from schemas.reservation import (
     KeypadVerifyRequest,
     ReservationCreateRequest,
@@ -17,6 +18,7 @@ from schemas.reservation import (
     SongRecordRequest,
     SongVideoRequest,
     TicketIssueRequest,
+    TicketLeaveRequest,
 )
 from services.booth_service import BoothService
 from services import scheduler, experience
@@ -31,6 +33,24 @@ videos_router = APIRouter(prefix="/api/song-videos", tags=["song-videos"])
 scores_router = APIRouter(prefix="/api/scores", tags=["scores"])
 scheduler_router = APIRouter(prefix="/api/scheduler", tags=["scheduler"])
 experience_router = APIRouter(prefix="/api/experience", tags=["experience"])
+
+
+async def _require_booth_in_use() -> None:
+    """부스 전원(relay_1)이 켜져 있을 때만 통과시킨다.
+
+    전원은 예약 PIN·호출된 체험권 PIN으로 인증했거나 관리자가 직접 켰을 때만
+    들어온다. 노래 기록과 점수는 '부스에서 실제로 부른 것'이어야 하므로 이때만
+    받는다. 예전에는 아무 폰에서나 기록을 올려 순위와 애창곡 횟수를 꾸밀 수 있었다.
+    """
+    relay = await get_device_provider().get_device_status("relay_1")
+    if not relay or relay.get("current_state") != "on":
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail={
+                "code": "BOOTH_NOT_IN_USE",
+                "message": "부스를 이용하는 중(전원이 켜져 있을 때)에만 기록할 수 있습니다.",
+            },
+        )
 
 
 # ==============================================================================
@@ -159,6 +179,12 @@ async def create_new_reservation(req: ReservationCreateRequest) -> Dict[str, Any
 # 부스 자동화 및 시뮬레이터 제어 엔드포인트 (F-02 ~ F-04)
 # ==============================================================================
 
+@booth_router.get("/session")
+async def booth_session() -> Dict[str, Any]:
+    """지금 부스를 쓰는 사람과 남은 시간 — 부스 화면(/booth)이 띄운다."""
+    return {"data": scheduler.current_session()}
+
+
 @booth_router.post("/verify-keypad")
 async def verify_keypad(req: KeypadVerifyRequest, request: Request) -> Dict[str, Any]:
     """
@@ -202,8 +228,14 @@ async def simulate_10min_warning(_admin: str = Depends(verify_admin_token)) -> D
 
 @booth_router.post("/simulate-end")
 async def simulate_end(_admin: str = Depends(verify_admin_token)) -> Dict[str, Any]:
-    """이용 종료 및 퇴실곡 재생 + 전원/도어락 차단 트리거 시뮬레이션"""
+    """이용 종료 및 퇴실곡 재생 + 전원/도어락 차단 (관리자 [이용 종료])
+
+    전원만 끄지 않고 지금 쓰던 예약·체험권도 끝낸다. 그래야 다음 체험 관람객을
+    곧바로 부르고, 원래 끝날 시각에 빈 부스에서 알림·퇴실곡이 또 나오지 않는다.
+    """
     result = await BoothService.trigger_session_end()
+    scheduler.finish_active_reservations()
+    await experience.finish_active()
     return {"data": result}
 
 
@@ -236,7 +268,11 @@ async def list_songs(min_count: int = Query(3, ge=1)) -> Dict[str, Any]:
 
 @songs_router.post("")
 async def add_song(req: SongRecordRequest) -> Dict[str, Any]:
-    """부른 노래 기록 등록 (기존 곡이면 카운트 1 증가)"""
+    """부른 노래 기록 등록 (기존 곡이면 카운트 1 증가).
+
+    부스 화면이 채점을 마치면 올린다. 부스를 쓰는 중에만 받는다.
+    """
+    await _require_booth_in_use()
     try:
         recorded = db.record_song(title=req.title, singer=req.singer)
     except Exception as exc:
@@ -301,12 +337,14 @@ async def unregister_song_video(
 # 기록은 부스 화면이 채점을 마치면 바로 올린다 — 관리자 인증을 걸지 않는다.
 # 전시장에서는 관람객이 직접 부르고 바로 순위에 오르는 것이 이 기능의 전부라,
 # 여기에 인증을 걸면 기능 자체가 성립하지 않는다.
-# 조회도 열어 둔다 — 부스 대형 화면과 관람객 폰이 같은 순위를 봐야 한다.
+# 대신 부스 전원이 켜져 있을 때(= PIN으로 인증된 이용 중)만 받는다.
+# 조회는 열어 둔다 — 부스 대형 화면과 관람객 폰이 같은 순위를 봐야 한다.
 # ==============================================================================
 
 @scores_router.post("")
 async def record_score(req: ScoreRecordRequest) -> Dict[str, Any]:
     """채점 결과를 남기고 대시보드에 실시간으로 알립니다."""
+    await _require_booth_in_use()
     try:
         saved = db.record_score(
             nickname=(req.nickname or "익명").strip() or "익명",
@@ -421,6 +459,7 @@ async def experience_queue() -> Dict[str, Any]:
 @experience_router.get("/tickets/{ticket_id}")
 async def experience_ticket(
     ticket_id: int,
+    request: Request,
     pin: Optional[str] = None,
     x_admin_token: Optional[str] = Header(None, alias="X-Admin-Token"),
 ) -> Dict[str, Any]:
@@ -451,7 +490,18 @@ async def experience_ticket(
         same_day = []
 
     safe = {k: v for k, v in ticket.items() if k != "pin_code"}
-    owner = bool(pin) and secrets.compare_digest(str(pin), str(ticket.get("pin_code") or ""))
+    owner = False
+    key = client_key(request)
+    # 맞으면 비밀번호를 돌려주므로 여러 번 넣어 보는 것을 막는다.
+    # 막혀 있을 때도 429 로 돌려보내지는 않는다 — 누가 일부러 틀려서 전체 잠금을
+    # 걸면 모든 관람객 폰의 대기 화면이 멈추기 때문이다. 그동안은 비밀번호 확인만
+    # 하지 않는다 (폰은 발급 때 받아 둔 비밀번호를 그대로 보여 준다).
+    if pin and not ticket_pin_guard.locked(key):
+        owner = secrets.compare_digest(str(pin), str(ticket.get("pin_code") or ""))
+        if owner:
+            ticket_pin_guard.succeed(key)
+        else:
+            ticket_pin_guard.fail(key)
     if owner or is_valid_admin_token(x_admin_token):
         safe["pin_code"] = ticket.get("pin_code")
 
@@ -469,6 +519,46 @@ async def experience_ticket(
 async def experience_advance(_admin: str = Depends(verify_admin_token)) -> Dict[str, Any]:
     """대기열을 지금 한 칸 굴립니다 (관리자 전용)."""
     return {"data": {"actions": await experience.advance()}}
+
+
+@experience_router.post("/tickets/{ticket_id}/leave")
+async def experience_leave(
+    ticket_id: int,
+    req: TicketLeaveRequest,
+    request: Request,
+) -> Dict[str, Any]:
+    """관람객이 스스로 줄에서 빠집니다 (/try 의 [체험권 버리기]).
+
+    자기 체험권 비밀번호를 같이 보내야 한다 — 번호만 알아서는 남의 줄을 지우지
+    못한다. 번호가 틀려도 "없는 체험권"과 같은 답을 준다.
+    """
+    key = client_key(request)
+    ticket_pin_guard.check(key)
+    try:
+        ticket = db.get_queue_ticket(ticket_id)
+    except Exception as exc:
+        logger.error(f"Failed to read ticket {ticket_id}: {exc}")
+        ticket = None
+
+    if not ticket or not secrets.compare_digest(req.pin, str(ticket.get("pin_code") or "")):
+        if ticket:
+            ticket_pin_guard.fail(key)
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={"code": "TICKET_NOT_FOUND", "message": "체험권을 찾을 수 없습니다."}
+        )
+    ticket_pin_guard.succeed(key)
+
+    if str(ticket.get("status")) == "active":
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail={
+                "code": "TICKET_IN_USE",
+                "message": "지금 체험 중이라 버릴 수 없습니다. 시간이 끝나면 자동으로 정리됩니다.",
+            },
+        )
+    left = await experience.leave_ticket(ticket)
+    return {"data": {"ticket_id": ticket_id, "left": left}}
 
 
 @experience_router.post("/tickets/{ticket_id}/cancel")

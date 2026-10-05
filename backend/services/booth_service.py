@@ -57,6 +57,21 @@ def _describe_window(reservation: Dict[str, Any]) -> str:
     )
 
 
+# 부스 스피커가 읽어 줄 안내 문구 — 한곳에만 둔다.
+# 파이(SPEAKER_MODE=pi)는 speaker_1 의 message 를, 부스 화면(/booth)은 방송의
+# speech 를 읽는다. 둘이 다른 문장을 말하지 않도록 여기서 같이 가져다 쓴다.
+SPEECH_ADMIN = "관리자 모드로 인증되었습니다. 점검을 진행하세요."
+SPEECH_INVALID = "비밀번호가 맞지 않습니다. 다시 확인해 주세요."
+SPEECH_NOT_NOW = "아직 예약 시간이 아닙니다. 화면에 나온 시간에 다시 입력해 주세요."
+SPEECH_ENTRY = "부스에 입장하셨습니다. 즐거운 시간 되세요!"
+SPEECH_WARNING = "이용 종료 10분 전입니다. 다음 이용자를 위해 정리를 준비해 주세요."
+SPEECH_END = "이용 시간이 종료되었습니다. 퇴실해 주시기 바랍니다."
+
+
+def _welcome_speech(user_name: str) -> str:
+    return f"{user_name}님 환영합니다! 노래방 전원이 켜졌습니다."
+
+
 class BoothService:
     """
     학교 노래방 부스 자동화 제어 비즈니스 로직 서비스 (PRD F-01 ~ F-04).
@@ -80,7 +95,7 @@ class BoothService:
             await provider.set_actuator_state("relay_1", "off", operator="admin")
             await provider.set_actuator_state(
                 "speaker_1", "playing",
-                {"track": "admin_welcome", "message": "관리자 모드로 인증되었습니다. 점검을 진행하세요."},
+                {"track": "admin_welcome", "message": SPEECH_ADMIN},
                 operator="admin"
             )
 
@@ -89,6 +104,7 @@ class BoothService:
                 "mode": "admin",
                 "success": True,
                 "message": "관리자 인증 성공 — 도어락 해제 및 LED 점등 (기기 전원 제외)",
+                "speech": SPEECH_ADMIN,
                 "timestamp": now_str
             }
             await ws_manager.broadcast(event_msg)
@@ -143,6 +159,8 @@ class BoothService:
                 "type": "booth_auth",
                 "success": False,
                 "message": f"아직 예약 시간이 아닙니다 — {when}에 다시 입력해 주세요.",
+                "reason": "not_now",
+                "speech": SPEECH_NOT_NOW,
                 "timestamp": now_str
             })
             return {
@@ -160,6 +178,8 @@ class BoothService:
                 "type": "booth_auth",
                 "success": False,
                 "message": "비밀번호 불일치 — 인증에 실패하였습니다.",
+                "reason": "invalid",
+                "speech": SPEECH_INVALID,
                 "timestamp": now_str
             }
             await ws_manager.broadcast(event_msg)
@@ -197,7 +217,7 @@ class BoothService:
         await provider.set_actuator_state("led_1", "on", {"mode": "normal", "brightness_pct": 100}, operator="user")
         await provider.set_actuator_state(
             "speaker_1", "playing",
-            {"track": "welcome", "message": f"{user_name}님 환영합니다! 노래방 전원이 켜졌습니다."},
+            {"track": "welcome", "message": _welcome_speech(user_name)},
             operator="user"
         )
 
@@ -207,6 +227,7 @@ class BoothService:
             "success": True,
             "user_name": user_name,
             "message": f"{user_name}님 인증 성공! 부스 전원 공급 및 도어락이 해제되었습니다.",
+            "speech": _welcome_speech(user_name),
             "timestamp": now_str
         }
         await ws_manager.broadcast(event_msg)
@@ -238,7 +259,7 @@ class BoothService:
         # 스피커 환영 메시지 송출
         await provider.set_actuator_state(
             "speaker_1", "playing",
-            {"track": "entry_greeting", "message": "부스에 입장하셨습니다. 즐거운 시간 되세요!"},
+            {"track": "entry_greeting", "message": SPEECH_ENTRY},
             operator="device"
         )
 
@@ -246,6 +267,7 @@ class BoothService:
             "type": "booth_event",
             "event": "entry_detected",
             "message": "부스 사람 입장 감지 — 환영 안내 음성을 송출합니다.",
+            "speech": SPEECH_ENTRY,
             "timestamp": now_str
         }
         await ws_manager.broadcast(event_msg)
@@ -263,7 +285,7 @@ class BoothService:
         await provider.set_actuator_state("led_1", "blink", {"mode": "warning_blink"}, operator="system")
         await provider.set_actuator_state(
             "speaker_1", "playing",
-            {"track": "warning_10m", "message": "이용 종료 10분 전입니다. 다음 이용자를 위해 정리를 준비해 주세요."},
+            {"track": "warning_10m", "message": SPEECH_WARNING},
             operator="system"
         )
 
@@ -271,6 +293,7 @@ class BoothService:
             "type": "booth_event",
             "event": "10min_warning",
             "message": "이용 종료 10분 전 — LED 조명이 깜빡이며 종료 알림을 표시합니다.",
+            "speech": SPEECH_WARNING,
             "timestamp": now_str
         }
         await ws_manager.broadcast(event_msg)
@@ -291,7 +314,7 @@ class BoothService:
             "speaker_1", "playing",
             {
                 "track": "더윈드 - 다시 만나 (0:58~)",
-                "message": "이용 시간이 종료되었습니다. 퇴실해 주시기 바랍니다."
+                "message": SPEECH_END
             },
             operator="system"
         )
@@ -305,6 +328,8 @@ class BoothService:
             "type": "booth_event",
             "event": "session_ended",
             "message": "이용 종료 — 종료 음악('더윈드 - 다시 만나') 재생 후 전원 및 마이크를 차단했습니다.",
+            # 부스 화면은 이 문장을 읽은 뒤 퇴실곡을 튼다
+            "speech": SPEECH_END,
             "timestamp": now_str
         }
         await ws_manager.broadcast(event_msg)
