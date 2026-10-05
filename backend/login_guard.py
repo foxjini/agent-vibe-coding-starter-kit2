@@ -7,7 +7,9 @@
 
   1) 같은 곳(접속 주소)에서 5번 연속 틀리면 30초 동안 막는다.
      막힌 뒤에도 또 틀리면 1분, 2분 … 으로 늘어난다 (최대 15분).
-     한 번 맞히면 그 곳의 기록은 지운다.
+     한 번 맞히거나, 마지막으로 틀린 뒤 10분이 지나면 그 곳의 기록은 지운다.
+     (키패드는 모든 관람객이 함께 쓴다. 아침에 누가 네 번 틀린 기록이 오후
+      관람객의 오타 한 번과 합쳐져 잠기면 안 된다)
 
   2) 주소를 바꿔 가며 시도하는 경우를 대비해, 전체적으로 10분 안에 20번 틀리면
      1분 동안 모두 막는다. 계속되면 이것도 두 배씩 늘어난다 (최대 30분).
@@ -31,6 +33,7 @@ logger = logging.getLogger("backend.login_guard")
 MAX_FAILS = 5
 BASE_LOCK_SEC = 30
 MAX_LOCK_SEC = 15 * 60
+FAIL_FORGET_SEC = 10 * 60
 
 GLOBAL_WINDOW_SEC = 10 * 60
 GLOBAL_MAX_FAILS = 20
@@ -58,6 +61,7 @@ class LoginGuard:
     def __init__(self, scope: str) -> None:
         self.scope = scope
         self._fails: Dict[str, int] = {}
+        self._last_fail: Dict[str, float] = {}
         self._locked_until: Dict[str, float] = {}
         self._recent: List[float] = []
         self._global_locks = 0
@@ -87,6 +91,11 @@ class LoginGuard:
         """틀렸을 때 부른다."""
         now = time.monotonic()
 
+        # 마지막으로 틀린 지 오래됐으면 "연속"이 아니다 — 처음부터 다시 센다
+        if now - self._last_fail.get(key, now) > FAIL_FORGET_SEC:
+            self._fails.pop(key, None)
+        self._last_fail[key] = now
+
         count = self._fails.get(key, 0) + 1
         self._fails[key] = count
         if count >= MAX_FAILS:
@@ -109,6 +118,7 @@ class LoginGuard:
     def succeed(self, key: str) -> None:
         """맞혔을 때 부른다. 그 곳의 연속 실패 기록을 지운다."""
         self._fails.pop(key, None)
+        self._last_fail.pop(key, None)
         self._locked_until.pop(key, None)
 
 

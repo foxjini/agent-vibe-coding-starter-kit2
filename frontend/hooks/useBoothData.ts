@@ -43,6 +43,9 @@ export function useBoothData() {
   const [topAll, setTopAll] = useState<ScoreRecord[]>([]);
   // 전시 체험 대기열 (부록G §2-③)
   const [queue, setQueue] = useState<QueueSnapshot | null>(null);
+  // 이용이 끝날 때마다 1씩 오른다 (예약 종료·체험 3분 종료·[이용 종료] 버튼).
+  // 퇴실곡처럼 "끝났을 때 한 번" 해야 하는 일이 이 숫자를 지켜본다.
+  const [sessionEndCount, setSessionEndCount] = useState(0);
 
   const fetchDevices = useCallback(async () => {
     try {
@@ -148,6 +151,7 @@ export function useBoothData() {
         fetchDevices();
       } else if (msg.type === "booth_event") {
         setLastEventMsg(msg.message || "부스 이벤트 감지됨");
+        if (msg.event === "session_ended") setSessionEndCount((n) => n + 1);
         fetchDevices();
       } else if (msg.type === "reservation_created") {
         fetchReservations();
@@ -180,6 +184,7 @@ export function useBoothData() {
     topToday,
     topAll,
     queue,
+    sessionEndCount,
     isConnected,
     fetchDevices,
     fetchReservations,
