@@ -108,6 +108,7 @@ cd pi && python check_hardware.py   # 라즈베리파이 실기기에서 켜기 
 | [05 라즈베리파이 실기기 마이그레이션](./docs/05_라즈베리파이-실기기-마이그레이션-매뉴얼.md) | 파이 담당자용 — 옮기기 · 배선 · 점검 · 문제 해결 |
 | [06 라즈베리파이 ATM 배선과 구성](./docs/06_라즈베리파이-ATM-배선과-구성.html) | 파이 담당자용 (브라우저) — 그림 설명 + **센서·액추에이터 바꿔 달기** |
 | [07 안드로이드 사전 테스트 앱 PRD](./docs/07_안드로이드-사전테스트앱-PRD.md) | 모바일앱 담당자용 — Flutter 전에 검증할 앱의 요구사항 |
+| [android-harness/](./android-harness/README.md) | 07 PRD와 같이 쓰는 **AI 에이전트 하네스** (Antigravity·Gemini 바이브 코딩용) |
 
 `AGENTS.md`는 AI에게 이 프로젝트의 규칙을 알려 주는 파일입니다.
 `.agents/`의 rules·skills는 이미 완성되어 있으니 다시 만들지 않습니다.
