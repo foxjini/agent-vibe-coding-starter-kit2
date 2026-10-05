@@ -119,6 +119,7 @@
 │   ├── components/     RiskBadge · QrPanel · VoiceToggle 등
 │   └── hooks/          useSpeech(음성 안내) · useAtmSocket(실시간)
 ├── vision/             (PC 웹캠으로 QR 인식을 먼저 검증할 때만 사용, 필수 아님)
+├── android-harness/    (안드로이드 사전 테스트 앱용 AI 하네스 — 앱 프로젝트에 복사해 쓴다)
 ├── pi/                 (라즈베리파이 — QR 인식 + 현금 배출 제어 + 로컬 화면 API)
 └── scripts/            (demo_e2e.py — 통합 시연 자동 검증)
 ```
