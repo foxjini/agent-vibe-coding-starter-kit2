@@ -43,8 +43,7 @@ mysql -u root -p < backend/db/init.sql
 ```bash
 cd backend
 python -m venv venv
-# Windows: .\venv\Scripts\Activate.ps1
-source venv/bin/activate
+.\venv\Scripts\Activate.ps1
 pip install -r requirements.txt
 
 python -m db.seed      # 시연용 계정·채팅·문자·장치 생성
@@ -53,7 +52,7 @@ python -m db.seed      # 시연용 계정·채팅·문자·장치 생성
 
 ### 2-3. 실행
 ```bash
-uvicorn main:app --reload --port 8000
+uvicorn main:app --host 0.0.0.0 --port 8000 --reload
 ```
 확인:
 - <http://localhost:8000/health> → `{"data":{"status":"ok", ...}}`
@@ -100,7 +99,7 @@ npm run dev        # http://localhost:3000
 ```bash
 cd pi
 python -m venv venv
-source venv/bin/activate
+.\venv\Scripts\Activate.ps1
 pip install -r requirements.txt
 ```
 `pi/.env`에 `DEVICE_MODE=mock`, `ENABLE_CAMERA=false`를 넣고 실행한다.
