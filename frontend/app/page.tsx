@@ -28,15 +28,8 @@ import { useBoothData } from "@/hooks/useBoothData";
  * 이름이 그대로 노출된다. 목록은 `/admin` 에만 둔다 (부록G §3-3).
  */
 export default function HomePage() {
-  const {
-    devices,
-    reservations,
-    allSongs,
-    favoriteSongs,
-    isConnected,
-    fetchReservations,
-    fetchSongs,
-  } = useBoothData();
+  const { devices, reservations, allSongs, favoriteSongs, isConnected, fetchReservations } =
+    useBoothData();
 
   return (
     <div className="theme-day min-h-screen bg-canvas text-ink">
@@ -69,12 +62,8 @@ export default function HomePage() {
             기다리는 동안
           </h2>
 
-          <SongHistorySection
-            allSongs={allSongs}
-            favoriteSongs={favoriteSongs}
-            onSongRecorded={fetchSongs}
-            /* onOpenKaraoke 를 넘기지 않는다 — 노래방 화면은 부스 모니터에만 띄운다 */
-          />
+          {/* 보기만 한다 — 기록은 부스에서 부르고 채점하면 저절로 쌓인다 */}
+          <SongHistorySection allSongs={allSongs} favoriteSongs={favoriteSongs} />
 
           <MiniGameSection />
         </section>

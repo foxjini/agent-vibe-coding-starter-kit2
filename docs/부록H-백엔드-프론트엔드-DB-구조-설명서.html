@@ -455,19 +455,20 @@ footer p { max-width: var(--measure); }
   <section id="s3">
     <div class="sec-head"><span class="sec-num">03</span><h2>버튼 한 번을 끝까지 따라가기</h2></div>
     <p class="sec-lede">
-      학생이 키패드에 예약 PIN <code>6440</code>을 누르고 확인을 눌렀습니다.
+      학생이 부스 화면 키패드에 예약 PIN <code>6440</code>을 눌렀습니다.
       도어락이 열리기까지 코드가 지나가는 길 전체입니다. <strong>이 순서가 곧 폴더 구조입니다.</strong>
     </p>
 
     <ol class="trace">
       <li>
-        <span class="what">화면에서 버튼을 누른다</span>
-        <span class="where">frontend/components/booth/VirtualBoothSimulator.tsx</span>
-        <p>키패드 컴포넌트가 입력한 4자리를 모아 부모에게 넘깁니다.</p>
+        <span class="what">키패드를 누른다</span>
+        <span class="where">frontend/components/booth/BoothKeypad.tsx</span>
+        <p>부스 화면(<code>/booth</code>) 대기 화면의 키패드가 숫자를 모읍니다. 확인 키가 없고, 네 번째 숫자를
+        누르는 순간 보냅니다. 부스 앞 실물 키패드는 라즈베리파이(<code>pi/main.py</code>)가 똑같은 일을 합니다.</p>
       </li>
       <li>
-        <span class="what">부모 페이지가 서버에 요청을 보낸다</span>
-        <span class="where">frontend/app/page.tsx → handleVerifyPin()</span>
+        <span class="what">서버에 요청을 보낸다</span>
+        <span class="where">BoothKeypad.tsx → submit()</span>
         <p><code>POST /api/booth/verify-keypad</code> 에 <code>{ pin: "6440" }</code>을 보냅니다.
         주소는 <code>utils/apiConfig.ts</code>가 <code>.env</code>를 보고 만들어 줍니다.</p>
       </li>
@@ -488,9 +489,10 @@ footer p { max-width: var(--measure); }
       </li>
       <li>
         <span class="what">DB에서 예약을 찾는다</span>
-        <span class="where">backend/db/database.py → get_reservation_by_pin()</span>
+        <span class="where">backend/db/database.py → get_reservations_by_pin()</span>
         <p><code>status='reserved'</code>인 예약만 찾습니다. 이미 쓴 PIN은 <code>'active'</code>라
-        여기서 안 나옵니다 — 이것이 <strong>PIN 일회성</strong>이 동작하는 방식입니다.</p>
+        여기서 안 나옵니다 — 이것이 <strong>PIN 일회성</strong>이 동작하는 방식입니다. 찾았어도
+        지금이 그 예약의 이용 시간(시작 10분 전 ~ 종료)이 아니면 열지 않습니다.</p>
       </li>
       <li>
         <span class="what">예약을 사용 완료로 표시한다</span>
@@ -506,13 +508,14 @@ footer p { max-width: var(--measure); }
       <li>
         <span class="what">열려 있는 모든 브라우저에 방송한다</span>
         <span class="where">backend/websocket_manager.py → broadcast()</span>
-        <p><code>{"type": "device_state", ...}</code>를 WebSocket으로 뿌립니다.
-        <strong>화면이 새로고침 없이 바뀌는 이유가 이것</strong>입니다.</p>
+        <p><code>{"type": "booth_auth", "speech": "…님 환영합니다! …", ...}</code>를 WebSocket으로 뿌립니다.
+        <strong>화면이 새로고침 없이 바뀌는 이유가 이것</strong>입니다. 부스 화면은 <code>speech</code>를 소리 내어 읽습니다.</p>
       </li>
       <li>
         <span class="what">화면이 방송을 받아 다시 그린다</span>
-        <span class="where">frontend/hooks/useKaraokeSocket.ts → page.tsx</span>
-        <p>도어락 카드가 초록색 <code>UNLOCKED</code>로 바뀝니다.</p>
+        <span class="where">frontend/hooks/useBoothData.ts → booth/page.tsx · admin/page.tsx</span>
+        <p>부스 화면은 전원(<code>relay_1</code>)이 켜진 것을 보고 키패드 대신 환영 화면을 띄우고,
+        관리자 화면의 도어락 카드는 초록색 <code>UNLOCKED</code>로 바뀝니다.</p>
       </li>
       <li>
         <span class="what">라즈베리파이가 폴링해서 따라잡는다</span>
@@ -571,7 +574,7 @@ footer p { max-width: var(--measure); }
 ├── <b>routers/</b>           <i>① 받는다 — URL과 함수를 연결</i>
 │   ├── admin.py         <i>/api/admin/login · logout · session</i>
 │   ├── devices.py       <i>/api/devices/* (화면용), /api/v1/* (파이용)</i>
-│   └── reservations.py  <i>/api/reservations · /api/booth · /api/songs · /api/song-videos</i>
+│   └── reservations.py  <i>/api/reservations · /api/booth · /api/songs · /api/scores · /api/experience · /api/scheduler · /api/song-videos</i>
 │
 ├── <b>schemas/</b>           <i>② 검사한다 — 요청 형식 정의 (Pydantic)</i>
 │
@@ -593,7 +596,7 @@ footer p { max-width: var(--measure); }
       <table>
         <thead><tr><th>주소 앞부분</th><th>누가 부르나</th><th>인증</th><th>예시</th></tr></thead>
         <tbody>
-          <tr><td><code>/api/devices</code>, <code>/api/booth</code>, <code>/api/reservations</code>, <code>/api/songs</code></td><td><span class="tag t-view">브라우저</span></td><td>대부분 없음</td><td>예약 신청, 키패드 인증</td></tr>
+          <tr><td><code>/api/devices</code>, <code>/api/booth</code>, <code>/api/reservations</code>, <code>/api/songs</code>, <code>/api/scores</code>, <code>/api/experience</code></td><td><span class="tag t-view">브라우저</span></td><td>대부분 없음 · 노래·점수 저장은 부스 전원이 켜져 있을 때만</td><td>예약 신청, 키패드 인증, 지금 이용 정보(<code>/api/booth/session</code>), 체험권</td></tr>
           <tr><td><code>/api/v1/devices</code>, <code>/api/v1/vision</code></td><td>파이 · 비전</td><td><code>X-Device-Api-Key</code></td><td>폴링, 상태 보고</td></tr>
           <tr><td><code>/api/admin</code></td><td>선생님</td><td>PIN → 토큰</td><td>관리자 로그인</td></tr>
           <tr><td><code>/api/song-videos</code></td><td>모두 / 선생님</td><td>조회는 없음 · 등록은 관리자</td><td>노래방 영상 등록 (모든 기기 공유)</td></tr>
@@ -704,21 +707,36 @@ footer p { max-width: var(--measure); }
   <section id="s6">
     <div class="sec-head"><span class="sec-num">06</span><h2>프론트엔드 구조</h2></div>
     <p class="sec-lede">
-      페이지는 <strong>딱 하나</strong>입니다. 탭 다섯 개가 있을 뿐, 주소는 바뀌지 않습니다.
+      화면은 <strong>주소 네 개</strong>로 나뉩니다. 보는 사람과 기기가 다르기 때문입니다 (부록G §3).
+      네 화면이 같은 데이터를 쓰므로, 가져오고 실시간으로 받는 일은 <code>hooks/useBoothData.ts</code> 한 곳에서 합니다.
     </p>
 
     <div class="tree"><b>frontend/</b>
-├── <b>app/page.tsx</b>       <i>화면 전체의 주인. 데이터를 모두 여기서 들고 있다</i>
+├── <b>app/</b>
+│   ├── page.tsx           <i>/       학생 폰 — 예약 신청 · 부스 현황 · 애창곡 보기</i>
+│   ├── try/page.tsx       <i>/try    관람객 폰 — 체험권 · 대기 번호 · 줄에서 빠지기</i>
+│   ├── booth/page.tsx     <i>/booth  부스 TV — 키패드 · 노래방 · 안내 음성·퇴실곡</i>
+│   └── admin/page.tsx     <i>/admin  선생님 노트북 — 기기 제어 · 운영 (소리·키패드 없음)</i>
 │
-├── <b>components/booth/</b>  <i>탭 하나 = 파일 하나</i>
-│   ├── VirtualBoothSimulator.tsx  <i>기기 상태 + 키패드</i>
-│   ├── ReservationSection.tsx     <i>예약 신청</i>
-│   ├── KaraokeRoomSection.tsx     <i>노래방 (선곡·반주·채점)</i>
-│   ├── SongHistorySection.tsx     <i>나의 18번</i>
+├── <b>components/booth/</b>
+│   ├── BoothKeypad.tsx            <i>부스 화면 4x4 키패드 (실물과 같은 배치·동작)</i>
+│   ├── AttractScreen.tsx          <i>부스 대기 화면(키패드·QR·순위) · 인증 뒤 환영 화면</i>
+│   ├── KaraokeRoomSection.tsx     <i>노래방 (선곡·반주·채점) — 전원이 켜져야 열린다</i>
+│   ├── SessionStrip.tsx           <i>"이용 중 · 누가 · 언제까지 · 남은 시간" 띠</i>
+│   ├── BoothAudio.tsx             <i>안내 음성 · 퇴실곡 · [소리 켜기]</i>
+│   ├── VirtualBoothSimulator.tsx  <i>관리자: 기기 상태 · 직접 제어 · 시나리오</i>
+│   ├── ReservationSection.tsx     <i>예약 신청(/) · 예약 목록과 [대신 입력](/admin)</i>
+│   ├── SongHistorySection.tsx     <i>애창곡 기록 (보기 전용)</i>
+│   ├── BoothStatusCard.tsx        <i>부스 현황 · 내일 예약 현황</i>
+│   ├── VideoCheckPanel.tsx        <i>관리자: 노래방 영상 점검·등록</i>
 │   ├── MiniGameSection.tsx        <i>노래 퀴즈</i>
 │   └── AdminGate.tsx              <i>관리자 인증 상자</i>
+├── <b>components/admin/</b>  <i>운영 요약 · 자동 운영 엔진 · 대기열 패널</i>
 │
-├── <b>hooks/useKaraokeSocket.ts</b> <i>WebSocket 연결 담당</i>
+├── <b>hooks/</b>
+│   ├── useBoothData.ts     <i>네 화면 공용 데이터 + 실시간 방송 받기</i>
+│   ├── useBoothSession.ts  <i>지금 부스를 쓰는 사람과 남은 시간</i>
+│   └── useKaraokeSocket.ts <i>WebSocket 연결 담당</i>
 │
 ├── <b>utils/</b>
 │   ├── apiConfig.ts       <i>백엔드 주소를 한 곳에서 관리</i>
@@ -733,30 +751,31 @@ footer p { max-width: var(--measure); }
 
     <h3>데이터가 흐르는 방향</h3>
     <p>
-      <code>page.tsx</code>가 서버에서 받아온 <strong>기기·예약·노래 목록을 전부 들고</strong> 있습니다.
-      각 탭 컴포넌트는 그것을 <em>받아서 보여주기만</em> 합니다. 값을 바꿔야 할 때는
-      <code>page.tsx</code>가 준 함수를 부릅니다.
+      각 화면(<code>app/…/page.tsx</code>)이 <code>useBoothData()</code>로 기기·예약·노래·순위·대기열을 받아
+      컴포넌트에 내려 줍니다. 컴포넌트는 <em>받아서 보여주기만</em> 하고, 값을 바꿀 때는 화면이 준 함수를 부릅니다.
     </p>
     <div class="note">
       <span class="lbl">왜 한 곳에 몰아 뒀나</span>
       <p>
-        예약 탭에서 예약을 만들면 <strong>시뮬레이터 탭의 키패드도 그 PIN을 알아야</strong> 합니다.
-        데이터를 각 탭이 따로 들고 있으면 서로 어긋납니다. 지금 규모에서는 한 곳에 모으는 편이 훨씬 안전합니다.
+        네 화면이 같은 기기 상태와 순위를 봐야 합니다. 화면마다 가져오는 코드를 따로 두면 한 곳만 고치는
+        실수가 반드시 생깁니다. 그래서 라우트를 나누기 <strong>전에</strong> 이 훅부터 뽑아냈습니다.
       </p>
     </div>
 
     <h3>화면이 저절로 갱신되는 이유</h3>
     <p>
       <code>useKaraokeSocket</code>이 백엔드와 WebSocket을 계속 열어 둡니다.
-      백엔드가 방송하면 <code>page.tsx</code>의 <code>handleWsMessage</code>가 받아 처리합니다.
+      백엔드가 방송하면 <code>useBoothData</code>의 <code>handleWsMessage</code>가 받아 처리합니다.
     </p>
     <div class="scroller">
       <table>
         <thead><tr><th>방송 종류</th><th>화면에서 일어나는 일</th></tr></thead>
         <tbody>
           <tr><td><code>device_state</code></td><td>기기 카드 색과 글씨가 바뀜</td></tr>
-          <tr><td><code>booth_auth</code></td><td>키패드에 인증 성공/실패가 뜸</td></tr>
-          <tr><td><code>booth_event</code></td><td>상단 안내 문구가 바뀜 (입장·종료 등)</td></tr>
+          <tr><td><code>booth_auth</code></td><td>부스 화면 키패드에 인증 결과가 뜨고(실물 키패드로 누른 것도), <code>speech</code>를 읽음</td></tr>
+          <tr><td><code>booth_event</code></td><td>안내 문구가 바뀌고 부스 화면이 <code>speech</code>를 읽음. <code>session_ended</code>면 이어서 퇴실곡</td></tr>
+          <tr><td><code>queue_called</code></td><td>부스 화면이 “N번 OO님, 입장해 주세요!”를 읽음</td></tr>
+          <tr><td><code>score_recorded</code></td><td>순위를 다시 불러옴</td></tr>
           <tr><td><code>reservation_created</code></td><td>예약 목록을 다시 불러옴</td></tr>
           <tr><td><code>song_recorded</code></td><td>애창곡 목록을 다시 불러옴</td></tr>
         </tbody>
@@ -815,7 +834,7 @@ footer p { max-width: var(--measure); }
         </div>
       </details>
       <details>
-        <summary>예약한 PIN을 넣었는데 «이미 사용한 비밀번호»라고 나옵니다</summary>
+        <summary>예약한 PIN을 넣었는데 «등록되지 않았거나 아직 차례가 아닌 비밀번호»라고 나옵니다</summary>
         <div class="ans">
           <p>이것도 정상입니다. <strong>PIN은 한 번만 쓸 수 있습니다.</strong></p>
           <p>테스트하려면 예약을 새로 만들어 새 PIN을 받으세요. 또는 DB에서 그 예약의

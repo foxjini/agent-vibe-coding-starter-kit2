@@ -74,8 +74,8 @@ export function AdminGate({ isAuthed }: AdminGateProps) {
           <p className="text-[11px] text-ink-3 mt-0.5 leading-relaxed">
             도어락·전원 직접 제어와 시나리오 강제 실행은 관리자만 사용할 수 있습니다.
             <br />
-            관람객·학생은 <strong className="text-ink-2">키패드 인증</strong>과{" "}
-            <strong className="text-ink-2">예약 신청</strong>만 이용하세요.
+            학생·관람객은 <strong className="text-ink-2">예약 화면(/)</strong>에서 예약하고,{" "}
+            <strong className="text-ink-2">부스 화면의 키패드</strong>로 입장합니다.
           </p>
         </div>
       </div>

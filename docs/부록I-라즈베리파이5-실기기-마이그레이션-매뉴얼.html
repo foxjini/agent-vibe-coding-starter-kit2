@@ -317,7 +317,7 @@
           <tr><td class="pin">DEVICE_API_KEY</td><td><code>backend/.env</code>의 값과 <strong>글자 하나까지 같아야</strong> 합니다. 다르면 401</td></tr>
           <tr><td class="pin">POLL_INTERVAL_SEC</td><td>백엔드에 물어보는 주기(초). 기본 <code>3.0</code>, 2~5 사이가 적당합니다</td></tr>
           <tr><td class="pin">RELAY_ACTIVE_HIGH</td><td>릴레이 극성. 4단계에서 동작이 반대였으면 <code>false</code></td></tr>
-          <tr><td class="pin">SPEAKER_MODE</td><td><code>browser</code>(기본) — 부스 웹 화면이 소리를 냅니다. <code>pi</code>로 바꾸면 파이 스피커가 직접 읽어 줍니다(<code>sudo apt install -y espeak-ng</code> 필요)</td></tr>
+          <tr><td class="pin">SPEAKER_MODE</td><td><code>browser</code>(기본) — 부스 웹 화면(<code>/booth</code>)이 소리를 냅니다. <code>pi</code>로 바꾸면 파이 스피커가 직접 읽어 줍니다(<code>sudo apt install -y espeak-ng</code> 필요). 이때는 부스 화면 왼쪽 아래 버튼으로 “안내 음성 꺼짐”을 만들어 소리가 두 번 나지 않게 합니다</td></tr>
           <tr><td class="pin">GPIOZERO_PIN_FACTORY</td><td><code>lgpio</code> 고정 (라즈베리파이 5 RP1)</td></tr>
         </tbody>
       </table>
@@ -445,7 +445,7 @@
       <label><input type="checkbox" id="v1"><span><strong>웹 → 파이</strong> 대시보드에서 [도어락 해제]를 누르면, 몇 초 안에 실제 도어락이 "철컥" 열린다</span></label>
       <label><input type="checkbox" id="v2"><span><strong>웹 → 파이</strong> 열린 뒤 대시보드의 확정 상태가 <code>unlocked</code>로 바뀐다</span></label>
       <label><input type="checkbox" id="v3"><span><strong>파이 → 웹</strong> 실물 키패드로 PIN 4자리를 누르면 도어락이 열리고 릴레이가 켜진다 — 가장 빠른 시험은 <strong>폰으로 <code>/try</code>에서 체험권을 받아 그 PIN</strong>을 누르는 것입니다. 예약 PIN은 그 예약 시간(시작 10분 전~종료)에만 열립니다</span></label>
-      <label><input type="checkbox" id="v4"><span><strong>파이 → 웹</strong> 같은 PIN을 한 번 더 누르면 "이미 사용한 비밀번호"로 거부된다</span></label>
+      <label><input type="checkbox" id="v4"><span><strong>파이 → 웹</strong> 같은 PIN을 한 번 더 누르면 "등록되지 않았거나 아직 차례가 아닌 비밀번호…(1회용)"로 거부된다</span></label>
       <label><input type="checkbox" id="v5"><span><strong>파이 → 웹</strong> PIR 센서 앞을 지나가면 대시보드에 입장 감지가 뜨고 환영 안내가 나온다</span></label>
       <label><input type="checkbox" id="v6"><span><strong>안전</strong> Ctrl+C로 데몬을 끄면 도어락이 잠기고 220V가 차단된다</span></label>
       <label><input type="checkbox" id="v7"><span><strong>복구</strong> 백엔드를 껐다 켜도, 파이가 스스로 재연결한다</span></label>

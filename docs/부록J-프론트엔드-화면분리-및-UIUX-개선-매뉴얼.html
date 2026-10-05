@@ -217,10 +217,11 @@
     <table>
       <thead><tr><th>현재 탭</th><th>옮길 곳</th><th>비고</th></tr></thead>
       <tbody>
-        <tr><td>가상 부스 관제 &amp; 키패드 시뮬레이터</td><td><span class="chip c-admin">/admin</span></td><td><strong>전부.</strong> 관람객에게 절대 노출 금지</td></tr>
+        <tr><td>가상 부스 관제 (기기 상태·직접 제어·시나리오)</td><td><span class="chip c-admin">/admin</span></td><td><strong>전부.</strong> 관람객에게 절대 노출 금지</td></tr>
+        <tr><td>키패드 시뮬레이터 · 안내 음성 · 퇴실곡</td><td><span class="chip c-booth">/booth</span></td><td>처음에는 <code>/admin</code>에 두었다가 옮겼다. 비밀번호는 <strong>부스 앞에서</strong> 누르고, 소리는 <strong>부스에서</strong> 나야 한다. 키패드는 대기 화면에만 있고, 인증해서 전원이 들어와야 노래방이 열린다</td></tr>
         <tr><td>노래방 예약 신청 &amp; PIN 발급</td><td><span class="chip c-home">/</span> <span class="chip c-admin">/admin</span></td><td>신청은 <code>/</code>, 조회·취소는 <code>/admin</code></td></tr>
         <tr><td>실시간 노래방 반주 &amp; 채점</td><td><span class="chip c-booth">/booth</span></td><td>그대로 옮긴다</td></tr>
-        <tr><td>나의 18번 &amp; 노래 기록</td><td><span class="chip c-home">/</span> <span class="chip c-admin">/admin</span></td><td>내 기록은 <code>/</code>, 전체 통계는 <code>/admin</code></td></tr>
+        <tr><td>나의 18번 &amp; 노래 기록</td><td><span class="chip c-home">/</span> <span class="chip c-admin">/admin</span></td><td>보기만 한다 — 애창곡은 <code>/</code>, 전체 통계는 <code>/admin</code>. 기록은 부스에서 채점할 때 저절로 쌓인다</td></tr>
         <tr><td>노래 퀴즈 미니게임</td><td><span class="chip c-home">/</span></td><td>대기열에서 기다릴 때 하기 좋다</td></tr>
       </tbody>
     </table>
@@ -229,7 +230,7 @@
   <div class="note n-risk">
     <b>없어지는 기능 하나 — 미리 알아 두세요</b>
     지금은 예약 목록에서 PIN을 누르면 <strong>시뮬레이터 탭으로 자동 이동</strong>해 인증까지 됩니다(<code>handleSelectPinForSimulator</code>). 화면이 나뉘면 <code>/</code>에서 <code>/admin</code>의 키패드로 넘어갈 수 없습니다.<br>
-    → 대신 <code>/</code>에서는 <strong>발급된 PIN을 크게 보여 주고</strong>, "부스 앞 키패드에 입력하세요"라고 안내하면 됩니다. 실제 사용 흐름과도 이쪽이 맞습니다.
+    → 대신 <code>/</code>에서는 <strong>발급된 PIN을 크게 보여 주고</strong>, "부스 앞 키패드에 입력하세요"라고 안내하면 됩니다. 실제 사용 흐름과도 이쪽이 맞습니다. (선생님이 대신 인증해야 할 때는 <code>/admin</code> 예약 목록의 [대신 입력]을 씁니다.)
   </div>
 </section>
 

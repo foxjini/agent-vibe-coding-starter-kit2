@@ -30,13 +30,11 @@ interface ReservationSectionProps {
   reservations: Reservation[];
   onReservationCreated: () => void;
   /**
-   * 발급된 PIN을 키패드 시뮬레이터에 바로 넣어 보는 동작.
-   *
-   * 관리자 화면(`/admin`)에만 시뮬레이터가 있으므로 그쪽에서만 내려온다.
-   * 관람객 화면(`/`)에서는 넘기지 않으며, 그때는 관련 버튼을 숨기고 대신
-   * "부스 앞 키패드에 입력하세요" 안내를 보여 준다. (부록G §3-3)
+   * 선생님이 학생 대신 키패드에 PIN을 넣는 동작 (`/admin` 예약 목록의 [대신 입력]).
+   * 학생이 비밀번호를 잃어버렸거나 시연할 때 쓴다. 키패드와 같은 API를 부르므로
+   * 예약 시간이 아니면 열리지 않는다. 관리자 화면에서만 내려온다.
    */
-  onSelectPinForSimulator?: (pin: string) => void;
+  onRemoteEntry?: (pin: string) => Promise<{ success: boolean; message?: string }>;
   /**
    * 화면마다 필요한 부분이 다르다 (부록G §3-3).
    *   form  `/`      관람객은 신청만 한다
@@ -49,7 +47,7 @@ interface ReservationSectionProps {
 export function ReservationSection({
   reservations,
   onReservationCreated,
-  onSelectPinForSimulator,
+  onRemoteEntry,
   sections = "both",
 }: ReservationSectionProps) {
   const showForm = sections !== "list";
@@ -82,6 +80,25 @@ export function ReservationSection({
     }
   }, [voucherRaw]);
   const [copied, setCopied] = useState<boolean>(false);
+  // [대신 입력] 결과 — 문이 열렸는지 선생님이 바로 알아야 한다
+  const [remoteNotice, setRemoteNotice] = useState<{ ok: boolean; text: string } | null>(null);
+  const [remoteBusyId, setRemoteBusyId] = useState<number | null>(null);
+
+  const handleRemoteEntry = async (r: Reservation) => {
+    if (!onRemoteEntry || !r.pin_code) return;
+    const ok = window.confirm(
+      `${r.student_name} 학생 대신 비밀번호를 입력합니다.\n` +
+        "지금이 그 예약 시간이면 부스 문이 열리고 노래방 전원이 켜집니다."
+    );
+    if (!ok) return;
+    setRemoteBusyId(r.id);
+    const result = await onRemoteEntry(r.pin_code);
+    setRemoteBusyId(null);
+    setRemoteNotice({
+      ok: result.success,
+      text: result.message ?? (result.success ? "인증되었습니다." : "인증하지 못했습니다."),
+    });
+  };
 
   // 당일 예약은 안 되므로 고를 수 있는 첫날은 내일이다.
   // toISOString() 은 UTC 날짜라 한국 오전 9시 전에는 하루가 밀린다 — 이 기기의 날짜를 쓴다.
@@ -196,14 +213,6 @@ export function ReservationSection({
                 {copied ? <CheckCircle2 className="w-3.5 h-3.5 text-free" /> : <Copy className="w-3.5 h-3.5" />}
                 {copied ? "복사했습니다" : "비밀번호 복사"}
               </button>
-              {onSelectPinForSimulator && (
-                <button
-                  onClick={() => onSelectPinForSimulator(issuedVoucher.pin_code ?? "")}
-                  className="px-3 py-2 rounded-lg bg-ink hover:bg-ink/90 text-surface text-xs font-bold transition-colors cursor-pointer inline-flex items-center gap-1.5"
-                >
-                  키패드로 인증 <ArrowRight className="w-3.5 h-3.5" />
-                </button>
-              )}
               <button
                 onClick={clearVoucher}
                 className="px-3 py-2 rounded-lg text-ink-3 hover:text-live text-xs font-semibold transition-colors cursor-pointer inline-flex items-center gap-1.5 ml-auto"
@@ -389,10 +398,35 @@ export function ReservationSection({
             </span>
           </div>
 
+          {remoteNotice && (
+            <div
+              className={`p-3 rounded-lg border text-xs flex items-start gap-2 ${
+                remoteNotice.ok
+                  ? "bg-free-soft/50 border-free/50 text-free"
+                  : "bg-live-soft/50 border-live/50 text-live"
+              }`}
+              role="status"
+            >
+              {remoteNotice.ok ? (
+                <CheckCircle2 className="w-4 h-4 shrink-0" />
+              ) : (
+                <AlertCircle className="w-4 h-4 shrink-0" />
+              )}
+              <span className="flex-1">{remoteNotice.text}</span>
+              <button
+                onClick={() => setRemoteNotice(null)}
+                className="text-ink-3 hover:text-ink cursor-pointer"
+                aria-label="닫기"
+              >
+                ✕
+              </button>
+            </div>
+          )}
+
           <div className="overflow-x-auto">
             {reservations.length === 0 ? (
               <div className="py-12 text-center text-ink-3 text-xs">
-                아직 예약이 없습니다. 위 양식으로 첫 예약을 신청해 보세요.
+                아직 예약이 없습니다. 학생은 예약 화면(/)에서 신청합니다.
               </div>
             ) : (
               <table className="w-full text-left text-xs border-collapse">
@@ -403,7 +437,7 @@ export function ReservationSection({
                     <th className="pb-2 font-medium">인원</th>
                     <th className="pb-2 font-medium">상태</th>
                     <th className="pb-2 font-medium">비밀번호 (OTP)</th>
-                    <th className="pb-2 font-medium text-right">테스트</th>
+                    <th className="pb-2 font-medium text-right">원격 인증</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-line/60">
@@ -451,12 +485,15 @@ export function ReservationSection({
                         </span>
                       </td>
                       <td className="py-3 text-right">
-                        {onSelectPinForSimulator && r.pin_code && (
+                        {/* 아직 쓰지 않은 예약만 — 쓴 PIN 은 다시 열리지 않는다(1회용) */}
+                        {onRemoteEntry && r.pin_code && r.status === "reserved" && (
                           <button
-                            onClick={() => onSelectPinForSimulator(r.pin_code ?? "")}
-                            className="px-2.5 py-1 rounded bg-raised hover:bg-line-strong/90 text-ink-2 text-[11px] border border-line-strong transition-colors cursor-pointer"
+                            onClick={() => void handleRemoteEntry(r)}
+                            disabled={remoteBusyId !== null}
+                            title="학생 대신 부스 키패드에 이 비밀번호를 입력합니다 (예약 시간에만 열립니다)"
+                            className="px-2.5 py-1 rounded bg-raised hover:bg-line-strong/90 text-ink-2 text-[11px] border border-line-strong transition-colors cursor-pointer disabled:opacity-50"
                           >
-                            입력
+                            {remoteBusyId === r.id ? "확인 중…" : "대신 입력"}
                           </button>
                         )}
                       </td>

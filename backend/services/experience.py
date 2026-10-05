@@ -88,6 +88,15 @@ def _parse(dt: Any) -> Optional[datetime]:
     return parsed.astimezone(tz) if parsed.tzinfo else parsed.replace(tzinfo=tz)
 
 
+def ticket_ends_at(ticket: Dict[str, Any]) -> Optional[datetime]:
+    """이 체험권의 이용이 끝나는 시각 (아직 시작 전이면 None).
+
+    종료 처리(advance)와 부스 화면의 남은 시간 표시가 같은 계산을 쓴다.
+    """
+    started_at = _parse(ticket.get("started_at"))
+    return started_at + timedelta(minutes=EXPERIENCE_MINUTES) if started_at else None
+
+
 def _generate_pin(used: List[str]) -> str:
     """쓰이지 않는 4자리를 고른다. 관리자 PIN 과 개발용 만능 PIN 은 피한다."""
     from auth import get_admin_pin
@@ -181,6 +190,55 @@ def snapshot() -> Dict[str, Any]:
     }
 
 
+async def leave_ticket(ticket: Dict[str, Any]) -> bool:
+    """관람객이 [체험권 버리기]를 눌렀을 때 — 줄에서 실제로 뺀다.
+
+    예전에는 폰에서만 지워져서, 떠난 사람이 그대로 줄에 남아 있다가 호출되고
+    다음 사람은 호출 유예 시간(기본 2분)만큼 괜히 기다렸다.
+    이미 부스를 쓰는 중(active)이면 빼지 않는다 — 정해진 시간이 끝나면 자동으로
+    정리된다. 빠졌으면 True.
+    """
+    status = str(ticket.get("status") or "")
+    if status not in ("waiting", "called"):
+        return False
+    async with _advance_lock:  # 엔진이 같은 체험권을 동시에 만지지 않게
+        db.update_ticket_status(int(ticket["id"]), "expired")
+    logger.info(f"[queue] {ticket.get('ticket_no')}번 관람객이 줄에서 빠졌습니다")
+    await ws_manager.broadcast({
+        "type": "queue_updated",
+        "event": "left",
+        "ticket_no": ticket.get("ticket_no"),
+    })
+    if status == "called":
+        # 호출된 사람이 빠졌으면 다음 사람을 곧바로 부른다
+        await advance()
+    return True
+
+
+async def finish_active() -> int:
+    """지금 체험 중인 체험권을 끝낸다 — 관리자가 [이용 종료]를 눌렀을 때.
+
+    그대로 두면 체험권이 '이용 중'으로 남아서 다음 사람을 부르지 못하고, 정해진
+    시간이 다 됐을 때 빈 부스에 퇴실곡이 한 번 더 나온다.
+    """
+    if not ENABLED:
+        return 0
+    # 엔진(advance)이 같은 체험권의 시간 종료를 동시에 처리하면 퇴실곡이 두 번
+    # 나온다 — 같은 자물쇠를 잡고 끝낸다
+    async with _advance_lock:
+        try:
+            tickets = db.get_queue_tickets(today_str(), ["active"])
+        except Exception as exc:
+            logger.warning(f"체험 중인 체험권 조회 실패: {exc}")
+            return 0
+        for t in tickets:
+            db.update_ticket_status(int(t["id"]), "done")
+            logger.info(f"[queue] {t.get('ticket_no')}번 체험 종료 (관리자 종료)")
+    if tickets:
+        await advance()  # 다음 사람을 곧바로 부른다
+    return len(tickets)
+
+
 async def start_ticket(ticket: Dict[str, Any]) -> None:
     """키패드에서 체험권 PIN 이 통과했을 때 — 이용 시작으로 넘긴다."""
     db.update_ticket_status(int(ticket["id"]), "active")
@@ -234,8 +292,8 @@ async def _advance_locked() -> List[Dict[str, Any]]:
     for t in tickets:
         if str(t.get("status")) != "active":
             continue
-        started_at = _parse(t.get("started_at"))
-        if started_at and now >= started_at + timedelta(minutes=EXPERIENCE_MINUTES):
+        ends_at = ticket_ends_at(t)
+        if ends_at and now >= ends_at:
             from services.booth_service import BoothService
 
             # 예약한 학생이 이미 들어와 부스를 쓰고 있으면 전원을 끄지 않는다.
@@ -267,11 +325,13 @@ async def _advance_locked() -> List[Dict[str, Any]]:
             db.update_ticket_status(int(nxt["id"]), "called")
             actions.append({"event": "called", "ticket_no": nxt.get("ticket_no")})
             logger.info(f"[queue] {nxt.get('ticket_no')}번 호출")
+            call = f"{nxt.get('ticket_no')}번 {nxt.get('nickname')}님, 입장해 주세요!"
             await ws_manager.broadcast({
                 "type": "queue_called",
                 "ticket_no": nxt.get("ticket_no"),
                 "nickname": nxt.get("nickname"),
-                "message": f"{nxt.get('ticket_no')}번 {nxt.get('nickname')}님, 입장해 주세요!",
+                "message": call,
+                "speech": call,
             })
 
     if actions:

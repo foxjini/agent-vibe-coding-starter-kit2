@@ -87,6 +87,11 @@ class LoginGuard:
         if now < until:
             self._reject(until - now)
 
+    def locked(self, key: str) -> bool:
+        """막혀 있는지만 본다 (429 를 던지지 않는다)."""
+        now = time.monotonic()
+        return now < self._global_locked_until or now < self._locked_until.get(key, 0.0)
+
     def fail(self, key: str) -> None:
         """틀렸을 때 부른다."""
         now = time.monotonic()
@@ -124,3 +129,7 @@ class LoginGuard:
 
 admin_login_guard = LoginGuard("admin-login")
 keypad_guard = LoginGuard("keypad")
+# 체험권 비밀번호 확인 (/try 의 내 체험권 조회·줄에서 빠지기).
+# 맞으면 비밀번호를 돌려주는 조회라서, 막지 않으면 호출된 사람의 번호를
+# 1만 번 넣어 보고 알아낸 뒤 새치기할 수 있다.
+ticket_pin_guard = LoginGuard("ticket-pin")

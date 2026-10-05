@@ -2,7 +2,6 @@
 
 import React, { useCallback, useSyncExternalStore } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { Monitor, Home } from "lucide-react";
 
 import { AppHeader } from "@/components/layout/AppHeader";
@@ -33,20 +32,22 @@ import {
  *
  * 인증 전에는 제어 화면을 **비활성화하는 게 아니라 아예 그리지 않는다.**
  * disabled 로 막으면 무엇이 있는지는 다 보이고, 버튼만 못 누르는 상태가 된다.
+ *
+ * 이 화면은 선생님 노트북에서 본다. 그래서 여기에는
+ *   - 비밀번호 키패드가 없다 — 비밀번호는 부스 앞에서 누른다 (/booth 화면 키패드)
+ *   - 소리가 나지 않는다 — 안내 음성과 퇴실곡은 부스 화면이 낸다
+ * 학생 대신 인증해야 할 때는 예약 목록의 [대신 입력]을 쓴다.
  */
 export default function AdminPage() {
-  const router = useRouter();
   const {
     devices,
     reservations,
     allSongs,
     favoriteSongs,
     lastEventMsg,
-    sessionEndCount,
     isConnected,
     fetchDevices,
     fetchReservations,
-    fetchSongs,
   } = useBoothData();
 
   const adminAuthed = useSyncExternalStore(
@@ -98,8 +99,11 @@ export default function AdminPage() {
     [fetchDevices, handleExpired]
   );
 
-  /** 키패드 인증은 관람객도 쓰는 경로라 관리자 토큰을 붙이지 않는다 */
-  const handleVerifyPin = useCallback(
+  /**
+   * [대신 입력] — 학생 대신 부스 키패드에 PIN 을 넣는다.
+   * 키패드와 같은 경로라 관리자 토큰을 붙이지 않고, 예약 시간 검사도 그대로 받는다.
+   */
+  const handleRemoteEntry = useCallback(
     async (pin: string) => {
       try {
         const res = await fetch(apiUrl("/api/booth/verify-keypad"), {
@@ -182,13 +186,10 @@ export default function AdminPage() {
             <VirtualBoothSimulator
               devices={devices}
               onDeviceControl={handleDeviceControl}
-              onVerifyPin={handleVerifyPin}
               onSimulateEntry={() => runScenario("/api/booth/simulate-entry")}
               onSimulateWarning={() => runScenario("/api/booth/simulate-10min-warning")}
               onSimulateEnd={() => runScenario("/api/booth/simulate-end")}
               lastEventMessage={lastEventMsg}
-              sessionEndSignal={sessionEndCount}
-              onOpenKaraoke={() => router.push("/booth")}
               isAdmin={adminAuthed}
             />
 
@@ -199,8 +200,8 @@ export default function AdminPage() {
             <ReservationSection
               reservations={reservations}
               onReservationCreated={fetchReservations}
-              /* 예약 PIN을 눌러 키패드 인증을 바로 시험할 수 있다 */
-              onSelectPinForSimulator={handleVerifyPin}
+              /* 학생이 비밀번호를 잃어버렸을 때·시연할 때 선생님이 대신 인증한다 */
+              onRemoteEntry={handleRemoteEntry}
               sections="list"
             />
 
@@ -211,13 +212,8 @@ export default function AdminPage() {
             */}
             <VideoCheckPanel />
 
-            {/* 6. 기록 — 전체 노래 통계 */}
-            <SongHistorySection
-              allSongs={allSongs}
-              favoriteSongs={favoriteSongs}
-              onSongRecorded={fetchSongs}
-              onOpenKaraoke={() => router.push("/booth")}
-            />
+            {/* 6. 기록 — 전체 노래 통계 (부스에서 부르고 채점한 곡이 쌓인다) */}
+            <SongHistorySection allSongs={allSongs} favoriteSongs={favoriteSongs} />
           </>
         )}
       </main>

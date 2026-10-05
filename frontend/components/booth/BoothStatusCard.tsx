@@ -3,6 +3,7 @@
 import React from "react";
 import { Mic, DoorOpen, DoorClosed, WifiOff } from "lucide-react";
 import { Device, Reservation } from "@/types";
+import { localDateString } from "@/utils/localDate";
 
 interface BoothStatusCardProps {
   devices: Device[];
@@ -15,13 +16,6 @@ const SLOTS = [
   { key: "lunch", label: "점심 타임", time: "12:30 ~ 13:20" },
   { key: "dinner", label: "저녁 타임", time: "17:30 ~ 18:30" },
 ] as const;
-
-function todayString(): string {
-  const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(
-    d.getDate()
-  ).padStart(2, "0")}`;
-}
 
 /**
  * 부스 현재 상태 (관람객 화면 맨 위)
@@ -40,12 +34,15 @@ export function BoothStatusCard({ devices, reservations, isConnected }: BoothSta
   const unlocked =
     doorLock?.current_state === "unlocked" || doorLock?.current_state === "open";
 
-  const today = todayString();
+  // 당일 예약은 안 되므로 "예약 가능"은 내일 기준으로 보여 준다.
+  // (예전에는 오늘 타임을 "예약 가능"이라고 띄워 놓고, 신청하면 거절했다)
+  const tomorrow = localDateString(1);
+  const [, tm, td] = tomorrow.split("-").map(Number);
   const takenSlots = new Set(
     reservations
       .filter(
         (r) =>
-          String(r.reservation_date ?? "").slice(0, 10) === today &&
+          String(r.reservation_date ?? "").slice(0, 10) === tomorrow &&
           (r.status === "reserved" || r.status === "active")
       )
       .map((r) => r.time_slot)
@@ -99,8 +96,12 @@ export function BoothStatusCard({ devices, reservations, isConnected }: BoothSta
         </div>
       </div>
 
-      {/* 오늘 타임 현황 — 예약할지 말지 바로 판단할 수 있게 */}
+      {/* 내일 타임 현황 — 예약할지 말지 바로 판단할 수 있게 */}
       <div className="shrink-0 flex flex-col gap-2 sm:min-w-[15rem]">
+        <p className="text-[11px] font-semibold text-ink-3">
+          내일 {tm}월 {td}일 예약 현황{" "}
+          <span className="font-normal">· 당일 예약은 안 됩니다</span>
+        </p>
         {SLOTS.map((slot) => {
           const taken = takenSlots.has(slot.key);
           return (
@@ -113,7 +114,7 @@ export function BoothStatusCard({ devices, reservations, isConnected }: BoothSta
               <span className="font-bold">{slot.label}</span>
               <span className="font-mono tnum text-[11px] opacity-80 whitespace-nowrap">{slot.time}</span>
               <span className="ml-auto font-bold whitespace-nowrap">
-                {taken ? "예약됨" : "예약 가능"}
+                {taken ? "마감" : "예약 가능"}
               </span>
             </div>
           );
