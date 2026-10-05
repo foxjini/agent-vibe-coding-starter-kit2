@@ -42,6 +42,7 @@ export default function AdminPage() {
     allSongs,
     favoriteSongs,
     lastEventMsg,
+    sessionEndCount,
     isConnected,
     fetchDevices,
     fetchReservations,
@@ -186,6 +187,7 @@ export default function AdminPage() {
               onSimulateWarning={() => runScenario("/api/booth/simulate-10min-warning")}
               onSimulateEnd={() => runScenario("/api/booth/simulate-end")}
               lastEventMessage={lastEventMsg}
+              sessionEndSignal={sessionEndCount}
               onOpenKaraoke={() => router.push("/booth")}
               isAdmin={adminAuthed}
             />

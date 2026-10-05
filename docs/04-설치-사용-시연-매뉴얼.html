@@ -406,6 +406,7 @@ copy .env.example .env</pre></div>
               <tr><td class="k">DEVICE_MODE</td><td><code>mock</code></td><td><code>hardware</code></td><td>hardware면 실제 상태를 라즈베리파이의 보고로만 받습니다</td></tr>
               <tr><td class="k">DEVICE_API_KEY</td><td>긴 임의 문자열</td><td>그대로</td><td><code>pi\.env</code>와 글자 하나까지 같아야 합니다</td></tr>
               <tr><td class="k">ADMIN_PIN</td><td><code>9179</code></td><td><strong>새 숫자 4자리</strong></td><td>기본값은 저장소에 공개돼 있습니다. 키패드에서도 쓰므로 숫자 4자리로 정합니다</td></tr>
+              <tr><td class="k">ADMIN_TOKEN_TTL_SEC</td><td><code>3600</code></td><td><code>28800</code></td><td>관리자 로그인이 유지되는 시간(초). 전시 하루 동안 다시 로그인하지 않도록 8시간으로 늘리고, 자리를 비울 때는 화면을 잠급니다</td></tr>
               <tr><td class="k">ALLOW_TEST_PIN</td><td><code>true</code></td><td><strong><code>false</code></strong></td><td><code>true</code>면 예약하지 않은 사람도 <code>1234</code>로 들어옵니다</td></tr>
               <tr><td class="k">RESERVATION_TIME_CHECK</td><td>시험할 때만 <code>false</code></td><td><strong><code>true</code></strong></td><td>예약 PIN이 그 예약 시간(시작 10분 전~종료)에만 문을 엽니다</td></tr>
               <tr><td class="k">CORS_ALLOW_ORIGINS</td><td>localhost 주소</td><td>노트북 IP 주소 추가</td><td>예: <code>http://<span class="ip">192.168.0.25</span>:3000</code>을 쉼표로 덧붙입니다</td></tr>
@@ -600,7 +601,7 @@ python main.py</pre></div>
         </tbody>
       </table>
     </div>
-    <div class="note"><span class="tag">소리</span><p>환영·종료 10분 전·종료 안내 음성은 관리자 화면이 읽어 줍니다. 노트북의 소리 출력을 부스 스피커(또는 HDMI TV)로 맞춰 두세요. 퇴실곡 “다시 만나”는 [이용 종료 (퇴실곡+전원차단)]을 눌렀을 때 재생됩니다.</p></div>
+    <div class="note"><span class="tag">소리</span><p>환영·종료 10분 전·종료 안내 음성과 퇴실곡 “다시 만나”는 관리자 화면이 냅니다. 퇴실곡은 이용이 끝날 때마다(예약 종료 시각, 체험 3분 종료, [이용 종료] 버튼) 한 번씩 나옵니다. 노트북의 소리 출력을 부스 스피커(또는 HDMI TV)로 맞춰 두고, 관리자 화면은 로그인한 채로 열어 둡니다. 스피커 아이콘으로 음성 안내를 끄면 퇴실곡도 나오지 않습니다.</p></div>
   </div>
 
   <div class="section" id="use-keypad">
@@ -617,7 +618,7 @@ python main.py</pre></div>
           <li><strong>숫자 4자리</strong>를 누르면 바로 확인합니다. 따로 누를 확인 키는 없습니다.</li>
           <li><strong><code>*</code></strong>는 지우기입니다. A·B·C·D·#은 쓰지 않습니다.</li>
           <li>8초 동안 아무것도 안 누르면 입력이 처음으로 돌아갑니다.</li>
-          <li><strong>5번 연속 틀리면 30초 동안</strong> 키패드 전체가 쉽니다. 시판 도어락과 같습니다.</li>
+          <li><strong>5번 연속 틀리면 30초 동안</strong> 키패드 전체가 쉽니다. 시판 도어락과 같습니다. 마지막으로 틀린 뒤 10분이 지나면 처음부터 다시 셉니다.</li>
         </ul>
         <div class="tw">
           <table style="min-width:420px">
@@ -643,10 +644,10 @@ python main.py</pre></div>
         <tbody>
           <tr><td>PIN 인증 성공</td><td>도어락 해제, 반주기 전원, 조명, 환영 안내</td></tr>
           <tr><td>예약 종료 10분 전</td><td>조명 LED 깜빡임, 정리 안내</td></tr>
-          <tr><td>예약 종료 시각</td><td>반주기 전원 차단, 도어락 잠금, 조명 소등, 종료 안내</td></tr>
+          <tr><td>예약 종료 시각</td><td>퇴실곡, 반주기 전원 차단, 도어락 잠금, 조명 소등, 종료 안내</td></tr>
           <tr><td>예약 시작 후 15분 동안 입장 없음</td><td>예약 자동 취소 (노쇼)</td></tr>
           <tr><td>체험권 호출 후 2분 동안 입장 없음</td><td>다음 사람 호출</td></tr>
-          <tr><td>체험권 입장 후 3분</td><td>전원·도어락 정리, 다음 사람 호출</td></tr>
+          <tr><td>체험권 입장 후 3분</td><td>퇴실곡, 전원·도어락 정리, 다음 사람 호출</td></tr>
           <tr><td>예약한 학생의 이용 시간</td><td>체험 대기열 일시 정지 (미리 입장한 학생의 전원도 끄지 않음)</td></tr>
         </tbody>
       </table>
@@ -728,6 +729,7 @@ python main.py</pre></div>
           <tr><td>대기열이 멈춘 것 같다</td><td>관리자 화면 [다음 사람 호출], 장난 체험권은 ⊗ 취소</td><td>호출된 사람이 안 오면 2분 뒤 저절로 넘어갑니다</td></tr>
           <tr><td>관람객이 비밀번호를 놓쳤다</td><td>관리자 화면 대기열 패널의 “지금 호출” 칸에 있는 번호를 읽어 줍니다</td><td>이 번호는 관리자 화면에만 보입니다</td></tr>
           <tr><td>모든 화면의 목록이 비었다</td><td>XAMPP에서 MySQL을 다시 [Start]</td><td>DB가 꺼져도 화면은 뜨지만 저장이 안 됩니다</td></tr>
+          <tr><td>관리자 화면 버튼을 눌렀더니 로그인 화면으로 돌아갔다</td><td>관리자 PIN으로 다시 [인증]</td><td>로그인이 <code>ADMIN_TOKEN_TTL_SEC</code>(기본 1시간)만큼만 유지됩니다. 로그아웃된 동안은 음성 안내와 퇴실곡도 나오지 않으니, 전시 날에는 8시간으로 늘려 둡니다</td></tr>
           <tr><td>관리자 PIN이 잠겼다</td><td>30초 기다립니다</td><td>계속 잠기면 누군가 대입을 시도하는 중입니다. 백엔드 재시작, 관리자 PIN 변경</td></tr>
         </tbody>
       </table>
@@ -739,7 +741,7 @@ python main.py</pre></div>
     <div class="checks">
       <div class="check" id="list-d1">
         <h4>전날</h4>
-        <label><input type="checkbox" id="d1"><span><code>backend\.env</code>를 전시값으로: <code>DEVICE_MODE=hardware</code>, 새 <code>ADMIN_PIN</code>, <code>ALLOW_TEST_PIN=false</code>, <code>RESERVATION_TIME_CHECK=true</code></span></label>
+        <label><input type="checkbox" id="d1"><span><code>backend\.env</code>를 전시값으로: <code>DEVICE_MODE=hardware</code>, 새 <code>ADMIN_PIN</code>, <code>ADMIN_TOKEN_TTL_SEC=28800</code>, <code>ALLOW_TEST_PIN=false</code>, <code>RESERVATION_TIME_CHECK=true</code></span></label>
         <label><input type="checkbox" id="d2"><span><code>frontend\.env</code>의 주소 세 개가 노트북 IP이고 <code>npm run build</code>를 다시 했다</span></label>
         <label><input type="checkbox" id="d3"><span>전시장과 같은 네트워크에서 [10곡 후보 전체 점검]</span></label>
         <label><input type="checkbox" id="d4"><span>5분 대본으로 리허설 1회</span></label>
@@ -774,6 +776,7 @@ python main.py</pre></div>
 <pre>DEVICE_MODE=hardware
 DEVICE_API_KEY=<span class="c">세 파일 모두 같은 긴 문자열</span>
 ADMIN_PIN=<span class="c">새 숫자 4자리</span>
+ADMIN_TOKEN_TTL_SEC=28800
 ALLOW_TEST_PIN=false
 RESERVATION_TIME_CHECK=true
 CORS_ALLOW_ORIGINS=http://localhost:3000,http://127.0.0.1:3000,http://<span class="ip">192.168.0.25</span>:3000

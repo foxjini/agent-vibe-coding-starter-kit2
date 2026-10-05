@@ -32,6 +32,8 @@ interface VirtualBoothSimulatorProps {
   onSimulateWarning: () => Promise<void>;
   onSimulateEnd: () => Promise<void>;
   lastEventMessage?: string;
+  /** 이용이 끝날 때마다 바뀌는 숫자 — 바뀌면 퇴실곡을 튼다 */
+  sessionEndSignal?: number;
   onOpenKaraoke?: () => void;
   /** 관리자 인증 여부 — false면 기기 제어·시나리오 강제 실행을 막는다 (부록G §3-4) */
   isAdmin?: boolean;
@@ -46,6 +48,7 @@ export function VirtualBoothSimulator({
   onSimulateWarning,
   onSimulateEnd,
   lastEventMessage,
+  sessionEndSignal = 0,
   onOpenKaraoke,
   isAdmin = false,
 }: VirtualBoothSimulatorProps) {
@@ -264,14 +267,24 @@ export function VirtualBoothSimulator({
   };
 
   const handleTriggerEndWithVoice = async () => {
-    // 1. 실제 퇴실곡 음원 재생 (더윈드 - 다시 만나 0:58~)
-    playClosingSong();
+    // 1. 퇴실곡은 여기서 틀지 않는다. 백엔드가 "이용 종료"를 알리면 아래 effect가
+    //    튼다 — 자동 종료든 버튼이든 한 곳에서만 틀어야 두 번 겹쳐 나오지 않는다.
     // 2. 한국어 음성 안내 (TTS)
     speakVoice("이용 시간이 종료되었습니다. 퇴실 음악 '더윈드 - 다시 만나'를 재생하며 부스 전원을 차단합니다. 안녕히 가세요!");
     // 3. 백엔드 시뮬레이션 상태 갱신
     await onSimulateEnd();
   };
 
+
+  // 이용이 끝날 때마다(예약 종료 시각, 체험 3분 종료, [이용 종료] 버튼) 퇴실곡을 튼다.
+  // 팀 트리거 규칙: "이용 종료 시 지정된 종료 음악을 재생한 후 전원과 마이크를 차단한다".
+  // 예전에는 버튼을 눌렀을 때만 나와서, 정작 자동으로 끝날 때는 음악이 없었다.
+  // 음성 안내를 꺼 두면(스피커 아이콘) 퇴실곡도 나오지 않는다.
+  useEffect(() => {
+    if (!sessionEndSignal || !isVoiceEnabled) return;
+    playClosingSong();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sessionEndSignal]);
 
   // 새 안내 문구가 올 때만 읽는다.
   // isVoiceEnabled 를 의존성에 넣으면 음성을 켜는 순간 지난 안내를 다시 읽어 버린다.
