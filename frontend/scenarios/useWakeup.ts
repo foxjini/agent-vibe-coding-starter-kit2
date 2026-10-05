@@ -19,11 +19,18 @@ import { isOnState } from "@/lib/slots";
 import {
   IDLE_MISSION,
   configFromEnv,
+  judgePattern,
   judgeVision,
+  roundDurationSeconds,
   startMission,
   timeoutRound,
 } from "@/scenarios/wakeupEngine";
-import type { MissionConfig, MissionState } from "@/scenarios/wakeupEngine";
+import type {
+  MissionConfig,
+  MissionOutcome,
+  MissionState,
+  PatternFeedback,
+} from "@/scenarios/wakeupEngine";
 
 /** wakeup 팀 하드웨어 배치 — pi/slot_map.py와 같은 슬롯을 가리킵니다. */
 export const WAKEUP_SLOTS = {
@@ -46,6 +53,11 @@ export interface WakeupApi {
   startAlarm: () => Promise<void>;
   stopAlarm: () => Promise<void>;
   confirmWakeup: () => void;
+  /**
+   * 패턴 미션 — 화면에 그린 패턴을 판정에 넘깁니다 (그리기 판이 손을 뗄 때 부릅니다).
+   * 맞음·틀림을 돌려주므로 판이 잠깐 색으로 보여 줄 수 있습니다.
+   */
+  submitPattern: (drawn: number[]) => PatternFeedback;
   config: MissionConfig;
 }
 
@@ -71,6 +83,9 @@ export function useWakeup(): WakeupApi {
         process.env.NEXT_PUBLIC_WAKEUP_POPUP_DELAY_SECONDS,
       NEXT_PUBLIC_WAKEUP_CONFIRM_TIMEOUT_SECONDS:
         process.env.NEXT_PUBLIC_WAKEUP_CONFIRM_TIMEOUT_SECONDS,
+      NEXT_PUBLIC_PATTERN_LENGTH: process.env.NEXT_PUBLIC_PATTERN_LENGTH,
+      NEXT_PUBLIC_PATTERN_STEP_SECONDS: process.env.NEXT_PUBLIC_PATTERN_STEP_SECONDS,
+      NEXT_PUBLIC_PATTERN_KEEP_VISIBLE: process.env.NEXT_PUBLIC_PATTERN_KEEP_VISIBLE,
     })
   );
   const [mission, setMission] = useState<MissionState>(IDLE_MISSION);
@@ -115,7 +130,8 @@ export function useWakeup(): WakeupApi {
         setRemainingSeconds(0);
         return;
       }
-      setRemainingSeconds(config.roundTimeoutSeconds);
+      const seconds = roundDurationSeconds(state, config);
+      setRemainingSeconds(seconds);
       roundTimer.current = setTimeout(() => {
         const outcome = timeoutRound(missionRef.current, config, Date.now());
         if (outcome.kind === "result") {
@@ -123,7 +139,7 @@ export function useWakeup(): WakeupApi {
           notify(outcome.message, "warn");
           armRoundTimerRef.current(outcome.state);
         }
-      }, config.roundTimeoutSeconds * 1000);
+      }, seconds * 1000);
     };
   }, [applyMission, config, notify]);
 
@@ -221,6 +237,42 @@ export function useWakeup(): WakeupApi {
   }, [cancelMission, clearGuards, setActuator]);
 
   // --------------------------------------------------------------------
+  // 판정 결과 처리 — 카메라(비전)와 그리기 판(패턴)이 같은 길을 씁니다
+  // --------------------------------------------------------------------
+
+  const handleOutcome = useCallback(
+    (outcome: Exclude<MissionOutcome, { kind: "ignored" }>) => {
+      applyMission(outcome.state);
+
+      if (outcome.kind === "success") {
+        if (roundTimer.current) clearTimeout(roundTimer.current);
+        setRemainingSeconds(0);
+        notify(outcome.message, "success");
+        void setActuator(WAKEUP_SLOTS.buzzer, "off");
+        startSecondSleepGuard();
+        return;
+      }
+
+      notify(outcome.message, outcome.result === "win" ? "success" : "info");
+      armRoundTimer(outcome.state);
+    },
+    [applyMission, armRoundTimer, notify, setActuator, startSecondSleepGuard]
+  );
+
+  const submitPattern = useCallback(
+    (drawn: number[]): PatternFeedback => {
+      const outcome = judgePattern(missionRef.current, config, drawn, Date.now());
+      if (outcome.kind === "ignored") {
+        return outcome.reason === "TOO_SHORT" ? "too-short" : "not-ready";
+      }
+      handleOutcome(outcome);
+      if (outcome.kind === "success") return "success";
+      return outcome.result === "win" ? "correct" : "wrong";
+    },
+    [config, handleOutcome]
+  );
+
+  // --------------------------------------------------------------------
   // 구독 — 부저가 울리면 미션 시작, 비전 이벤트로 판정, 버튼으로 기상 확인
   // --------------------------------------------------------------------
 
@@ -249,22 +301,9 @@ export function useWakeup(): WakeupApi {
           if (outcome.state !== missionRef.current) applyMission(outcome.state);
           return;
         }
-
-        applyMission(outcome.state);
-
-        if (outcome.kind === "success") {
-          if (roundTimer.current) clearTimeout(roundTimer.current);
-          setRemainingSeconds(0);
-          notify(outcome.message, "success");
-          void setActuator(WAKEUP_SLOTS.buzzer, "off");
-          startSecondSleepGuard();
-          return;
-        }
-
-        notify(outcome.message, outcome.result === "win" ? "success" : "info");
-        armRoundTimer(outcome.state);
+        handleOutcome(outcome);
       }),
-    [onVision, applyMission, armRoundTimer, config, notify, setActuator, startSecondSleepGuard]
+    [onVision, applyMission, config, handleOutcome]
   );
 
   useEffect(
@@ -294,6 +333,7 @@ export function useWakeup(): WakeupApi {
     startAlarm,
     stopAlarm,
     confirmWakeup,
+    submitPattern,
     config,
   };
 }

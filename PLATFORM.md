@@ -255,7 +255,7 @@ git merge origin/platform     # 충돌은 frontend/ pi/slot_map.py 에서만 발
    cd pi       && python test_slot_daemon.py        # 드라이버·배치표 (39항목)
    cd vision   && python test_vision_config.py      # 감지 설정·검출기 (45항목)
    cd vision   && python test_study_focus.py        # study 집중도 (63항목)
-   cd frontend && node --experimental-strip-types scenarios/wakeupEngine.test.ts   # 30항목
+   cd frontend && node --experimental-strip-types scenarios/wakeupEngine.test.ts   # 81항목
    cd frontend && node --experimental-strip-types scenarios/studyEngine.test.ts    # 56항목
    cd frontend && npx eslint . && npm run build
    python tools/check_docs.py --run              # 문서 정합성

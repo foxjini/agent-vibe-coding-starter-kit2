@@ -80,10 +80,15 @@ def check_counts(actual: Dict[str, int]) -> List[str]:
             for name, count in actual.items():
                 if name not in line:
                     continue
-                for found in re.finditer(r"(\d+)\s*항목", line):
-                    if int(found.group(1)) != count:
+                written = [int(found.group(1)) for found in re.finditer(r"(\d+)\s*항목", line)]
+                # 표에서는 마지막 칸에 숫자만 적습니다 (| … | 32 |)
+                cells = [cell.strip() for cell in line.strip().strip("|").split("|")]
+                if line.lstrip().startswith("|") and cells[-1].isdigit():
+                    written.append(int(cells[-1]))
+                for number in written:
+                    if number != count:
                         problems.append(
-                            f"{relative}:{line_no}  {name} — 문서 {found.group(1)}항목 / "
+                            f"{relative}:{line_no}  {name} — 문서 {number}항목 / "
                             f"실제 {count}항목")
     return problems
 

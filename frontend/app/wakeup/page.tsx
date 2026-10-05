@@ -48,6 +48,8 @@ export default function WakeupDashboardPage() {
     startAlarm,
     stopAlarm,
     confirmWakeup,
+    submitPattern,
+    config,
   } = useWakeup();
   const { slots, connected, notices, dismissNotice, setActuator } = scenario;
 
@@ -59,7 +61,9 @@ export default function WakeupDashboardPage() {
           <div>
             <h1 className="text-2xl font-semibold text-slate-900">스마트 기상 시스템</h1>
             <p className="mt-1 text-sm text-slate-500">
-              알람이 울리면 카메라 앞에서 가위바위보를 이겨야 꺼집니다
+              {config.mode === "pattern"
+                ? "알람이 울리면 화면에 나온 패턴을 똑같이 이어 그려야 꺼집니다"
+                : "알람이 울리면 카메라 앞에서 가위바위보를 이겨야 꺼집니다"}
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
@@ -146,7 +150,12 @@ export default function WakeupDashboardPage() {
           </div>
 
           <div className="lg:col-span-2">
-            <WakeupMissionCard mission={mission} remainingSeconds={remainingSeconds} />
+            <WakeupMissionCard
+              mission={mission}
+              remainingSeconds={remainingSeconds}
+              config={config}
+              onSubmitPattern={submitPattern}
+            />
           </div>
         </section>
 
