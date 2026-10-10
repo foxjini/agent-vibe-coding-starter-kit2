@@ -34,16 +34,19 @@ AI가 만든 결과를 **직접 확인하면서** 반복해서 고치는 것이 
 ### 0-3. 우리는 채팅형 AI로 작업합니다
 
 우리 학생은 Claude Code · CODEX 같은 **에이전트 도구를 쓰지 않습니다.**
-Claude.ai · ChatGPT · Gemini 같은 **채팅창**에 직접 물어봅니다.
+학교에서 허용한 채팅형 AI의 **채팅창**에 직접 물어봅니다.
 
-채팅창은 우리 프로젝트 폴더를 볼 수 없습니다. 그래서 **컨텍스트 팩**을 만들어 올립니다.
+채팅창은 우리 프로젝트 폴더를 볼 수 없습니다. 그래서 고칠 화면의 파일을 **MD 파일 하나로 묶어** 올립니다.
 
 ```bash
-python tools/context_pack.py frontend
+python tools/merge_ui.py              # 우리 팀 화면(/) — 다른 화면이면 --page study
 ```
 
-`context_packs/context_pack_frontend.md` 파일 하나가 생깁니다. 이것을 채팅창에 올립니다.
-자세한 방법은 **17장**과 [00 매뉴얼 8장](00-2차개발-통합-매뉴얼.md)에 있습니다.
+`context_packs/ui_home.md` 파일 하나가 생깁니다. 고칠 파일(화면·`components/team/`·`globals.css`·
+`layout.tsx`)은 전문, 키트는 쓰는 법만, 그리고 규칙과 답 형식까지 들어 있습니다.
+**이 교재에서 '컨텍스트 팩'이라고 하면 이 화면 묶음 파일을 말합니다.**
+AI가 준 답은 `python tools/apply_ui.py`로 미리 보고 적용합니다.
+묶기 → 요청 → 적용 → 확인의 전체 순서는 **[08 화면 수정 가이드](08-화면-수정-컨텍스트-엔지니어링-가이드.md)** 에 있습니다.
 
 ### 0-4. 시작하기 전 확인
 
@@ -1340,21 +1343,25 @@ grep -rn "<button" app/ components/team/ | grep -v "aria-label"
 
 ## 17. 채팅형 AI에게 부탁하는 법
 
-### 17-1. 컨텍스트 팩 만들기
+### 17-1. 컨텍스트 팩(화면 묶음) 만들기
 
 ```bash
 cd /path/to/agent-vibe-coding-starter-kit2
-python tools/context_pack.py frontend
+python tools/merge_ui.py                 # 우리 팀 화면 (/)
+python tools/merge_ui.py --page study    # 다른 화면
 ```
 
-`context_packs/context_pack_frontend.md` 파일 하나가 생깁니다.
-**채팅창에 이 파일을 올리고** 질문하세요.
+`context_packs/ui_home.md` 파일 하나가 생깁니다.
+**채팅창에 이 파일을 올리고** 질문하세요. 묶음 안에 든 것과 요청 틀·예시는
+[08 화면 수정 가이드](08-화면-수정-컨텍스트-엔지니어링-가이드.md) 3·4장에 있습니다.
 
 | 확인 | |
 |---|---|
 | ☐ | 파일을 **새 대화마다** 다시 올리기 (AI는 지난 대화를 기억하지 못합니다) |
-| ☐ | 코드를 고친 뒤에는 **다시 만들어서** 올리기 |
-| ☐ | `.env.local` 같은 비밀 파일은 **절대 올리지 않기** (생성기가 걸러 주지만 한 번 더 확인) |
+| ☐ | 코드를 고친 뒤에는 **다시 묶어서** 올리기 (묶음은 만든 순간의 사진입니다) |
+| ☐ | `.env.local` 같은 비밀 파일은 **절대 올리지 않기** (묶기 도구가 빼 주지만 한 번 더 확인) |
+
+> 화면이 아니라 **동작(시나리오)** 을 만들 때는 `python tools/context_pack.py frontend`를 씁니다 (00 매뉴얼 8장).
 
 ### 17-2. 프롬프트 기본 틀
 
@@ -1395,6 +1402,10 @@ python tools/context_pack.py frontend
 | "먼저 프로젝트 구조를 보여 주세요" | 컨텍스트 팩을 안 읽은 것 | 팩을 다시 올리고 "올린 파일에 있다" |
 
 ### 17-5. 받은 코드를 붙여넣기 전에
+
+AI의 답을 `context_packs/answer.md`에 저장하고 `python tools/apply_ui.py`를 돌리면
+아래 항목 대부분(전체를 받았나 · diff 기호 · 공통 파일)을 도구가 먼저 걸러 줍니다
+(08 가이드 5장). 손으로 붙여넣을 때는 직접 확인하세요.
 
 | 확인 | |
 |---|---|

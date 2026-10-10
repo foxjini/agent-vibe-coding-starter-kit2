@@ -14,15 +14,21 @@
 Tailwind v4 토큰, 한글 글꼴, 상태와 연결된 애니메이션 아이콘, 접근성, 디자인 QA까지.
 프론트엔드 담당만이 아니라 **팀 전체가 6장(스타일 고르기)은 함께** 봅니다.
 
+### → **[08 · 화면 수정 가이드 (컨텍스트 엔지니어링)](08-화면-수정-컨텍스트-엔지니어링-가이드.md)**
+
+화면을 채팅형 AI와 고치는 **순서와 도구**입니다. 화면 파일을 MD 하나로 묶고(`merge_ui.py`),
+AI의 답을 미리 보고 적용하고 되돌립니다(`apply_ui.py`). 요청 틀과 예시, 막혔을 때 표가 있습니다.
+
 > 아래 목록은 **필요할 때만** 펼치는 참고 자료입니다. 처음부터 다 읽지 마세요.
 
 ### 🤖 AI와 일하는 방법 — 컨텍스트 팩
 
-우리는 **채팅형 AI**(Claude.ai · ChatGPT · Gemini)로 개발합니다. 채팅창에는 폴더 구조를
+우리는 학교에서 허용한 **채팅형 AI**로 개발합니다. 채팅창에는 폴더 구조를
 유지한 채 수십 개 파일을 올릴 수 없으므로, **내 담당 일에 필요한 것만 파일 하나로 묶어** 올립니다.
 
 ```bash
 python tools/context_pack.py pi        # 또는 frontend · vision · all
+python tools/merge_ui.py               # 화면(UI)을 고칠 때 — 08 가이드
 ```
 
 `context_packs/` 폴더에 파일이 생깁니다 (20~60KB — 우리 팀이 남겨 둔 파일 수에 따라 다릅니다).
@@ -84,6 +90,7 @@ python tools/context_pack.py pi        # 또는 frontend · vision · all
 - `run_system.ps1` : 백엔드·대시보드·비전·하드웨어 데몬 일괄 실행 스크립트
 - `pi/examples/` : 팀별 배치표 예시 4종 (복사해서 `pi/slot_map.py`로 쓰세요)
 - `tools/context_pack.py` : 채팅형 AI에 올릴 컨텍스트 팩 생성기 (8장)
+- `tools/merge_ui.py` · `tools/apply_ui.py` : 화면 파일 묶기 · AI 답 적용/되돌리기 (08 가이드)
 
 ---
 
@@ -104,3 +111,4 @@ AI에게 묻기 전에 이것부터 돌리세요. 전부 **서버·DB·GPIO·웹
 | `frontend/scenarios/studyEngine.test.ts` | `cd frontend` | study 집중도 판정 규칙 (`node --experimental-strip-types`) | 56 |
 | `npx eslint . && npm run build` | `cd frontend` | 화면 코드 | — |
 | `tools/context_pack.py` | 최상위 | (점검 아님) 채팅형 AI에 올릴 컨텍스트 팩 생성 | — |
+| `tools/test_ui_tools.py` | `cd tools` | 화면 묶기·답 적용 도구 (공통 파일 거부 · 생략 감지 · 되돌리기) | 57 |

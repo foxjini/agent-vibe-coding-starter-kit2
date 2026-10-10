@@ -36,6 +36,7 @@ SUITES: List[Tuple[str, str, List[str]]] = [
      ["node", "--experimental-strip-types", "scenarios/wakeupEngine.test.ts"]),
     ("studyEngine.test.ts",  "frontend",
      ["node", "--experimental-strip-types", "scenarios/studyEngine.test.ts"]),
+    ("test_ui_tools.py",     "tools",    [sys.executable, "test_ui_tools.py"]),
 ]
 
 #: 지워진 파일의 '옛 기록'이라 고치지 않는 곳 (파일, 그 줄에 들어 있는 이름)
