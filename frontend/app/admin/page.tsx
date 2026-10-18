@@ -13,6 +13,7 @@ import { VideoCheckPanel } from "@/components/booth/VideoCheckPanel";
 import { OpsSummary } from "@/components/admin/OpsSummary";
 import { SchedulerPanel } from "@/components/admin/SchedulerPanel";
 import { QueuePanel } from "@/components/admin/QueuePanel";
+import { AnthemRankingPanel } from "@/components/admin/AnthemRankingPanel";
 import { useBoothData } from "@/hooks/useBoothData";
 import { apiUrl } from "@/utils/apiConfig";
 import {
@@ -181,6 +182,9 @@ export default function AdminPage() {
             <SchedulerPanel />
 
             <QueuePanel />
+
+            {/* 축제 교가 부르기 대회 — 순위와 상품 배부 */}
+            <AnthemRankingPanel />
 
             {/* 3. 개입 — 기기 제어와 시나리오 강제 실행 */}
             <VirtualBoothSimulator

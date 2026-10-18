@@ -1,13 +1,16 @@
+import csv
 from datetime import datetime, timezone
+import io
 import logging
 import random
 import secrets
 from typing import Any, Dict, Optional
+from urllib.parse import quote
 
-from fastapi import APIRouter, Depends, Header, HTTPException, Query, Request, status
+from fastapi import APIRouter, Depends, Header, HTTPException, Query, Request, Response, status
 
 from auth import get_admin_pin, verify_admin_token, is_valid_admin_token
-from booth_time import today_str as booth_today
+from booth_time import now_local as booth_now, today_str as booth_today
 from db import database as db
 from iot.provider_factory import get_device_provider
 from login_guard import client_key, keypad_guard, ticket_pin_guard
@@ -378,14 +381,57 @@ async def record_score(req: ScoreRecordRequest) -> Dict[str, Any]:
 @scores_router.get("/top")
 async def list_top_scores(
     period: str = Query("today", pattern="^(today|all)$"),
-    limit: int = Query(5, ge=1, le=20),
+    limit: int = Query(5, ge=1, le=50),
+    title: Optional[str] = Query(None, max_length=100),
+    best: bool = Query(False, description="같은 이름은 최고 기록 하나만"),
 ) -> Dict[str, Any]:
-    """오늘의 순위(today) 또는 명예의 전당(all). DB가 없어도 빈 목록으로 degrade한다."""
+    """오늘의 순위(today) 또는 명예의 전당(all). title 을 주면 그 곡만 (예: 교가).
+
+    DB가 없어도 빈 목록으로 degrade한다.
+    """
     try:
-        return {"data": db.get_top_scores(period=period, limit=limit)}
+        return {"data": db.get_top_scores(period=period, limit=limit, title=title, best_per_name=best)}
     except Exception as exc:
         logger.error(f"Failed to fetch top scores: {exc}")
         return {"data": []}
+
+
+@scores_router.get("/export")
+async def export_scores(
+    period: str = Query("today", pattern="^(today|all)$"),
+    title: Optional[str] = Query(None, max_length=100),
+    best: bool = Query(True),
+    _admin: str = Depends(verify_admin_token),
+) -> Response:
+    """순위를 CSV 로 내려받는다 (관리자 전용) — 축제 상품 배부용.
+
+    엑셀에서 한글이 깨지지 않게 UTF-8 BOM 을 붙이고, 시각은 부스 시간대로 적는다.
+    """
+    try:
+        rows = db.get_top_scores(period=period, limit=None, title=title, best_per_name=best)
+    except Exception as exc:
+        logger.error(f"Failed to export scores: {exc}")
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail={"code": "EXPORT_FAILED", "message": "기록을 읽지 못했습니다."},
+        )
+    buf = io.StringIO()
+    w = csv.writer(buf)
+    w.writerow(["순위", "이름", "점수", "등급", "곡", "기록 시각"])
+    tz = booth_now().tzinfo
+    for i, r in enumerate(rows, 1):
+        when = str(r.get("created_at") or "")
+        try:
+            when = datetime.fromisoformat(when.replace("Z", "+00:00")).astimezone(tz).strftime("%Y-%m-%d %H:%M:%S")
+        except ValueError:
+            pass
+        w.writerow([i, r.get("nickname"), r.get("score"), r.get("rank_label") or "", r.get("title"), when])
+    name = f"scores-{title or 'all'}-{period}-{booth_today()}.csv"
+    return Response(
+        content="\ufeff" + buf.getvalue(),
+        media_type="text/csv; charset=utf-8",
+        headers={"Content-Disposition": f"attachment; filename*=UTF-8''{quote(name)}"},
+    )
 
 
 @scores_router.get("/recent")

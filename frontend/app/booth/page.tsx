@@ -30,6 +30,7 @@ export default function BoothPage() {
     isConnected,
     topToday,
     topAll,
+    anthemTop,
     queue,
     announcement,
     authNotice,
@@ -48,6 +49,7 @@ export default function BoothPage() {
           onSongCompleted={fetchSongs}
           topToday={topToday}
           topAll={topAll}
+          anthemTop={anthemTop}
           queue={queue}
           onScoreRecorded={fetchScores}
           session={session}

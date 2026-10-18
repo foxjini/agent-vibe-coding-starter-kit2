@@ -235,6 +235,8 @@ async def finish_active() -> int:
             db.update_ticket_status(int(t["id"]), "done")
             logger.info(f"[queue] {t.get('ticket_no')}번 체험 종료 (관리자 종료)")
     if tickets:
+        # 부르던 사람이 없어도 화면(부스·폰·관리자)의 "지금 호출"은 바로 비워야 한다
+        await ws_manager.broadcast({"type": "queue_updated", "event": "finished"})
         await advance()  # 다음 사람을 곧바로 부른다
     return len(tickets)
 

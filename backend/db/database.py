@@ -835,35 +835,60 @@ def record_score(
         return _format_row(cursor.fetchone()) or {}
 
 
-def get_top_scores(period: str = "today", limit: int = 5) -> List[Dict[str, Any]]:
+def get_top_scores(
+    period: str = "today",
+    limit: Optional[int] = 5,
+    title: Optional[str] = None,
+    best_per_name: bool = False,
+) -> List[Dict[str, Any]]:
     """
     점수 순위.
 
     period="today" 는 오늘 기록만 본다 — 전시장에서는 "오늘의 1등"이라야
     관람객이 순위를 깨러 다시 온다. "all" 은 명예의 전당이다.
+
+    title 을 주면 그 곡만 본다 (축제 교가 부르기 대회의 "교가 순위").
+    best_per_name 이면 같은 이름은 가장 높은 기록 하나만 남긴다 — 한 학생이
+    여러 번 불러 순위표를 채우지 않게. "익명"은 사람을 구분할 수 없으므로 합치지 않는다.
+    같은 점수면 먼저 낸 기록이 앞선다.
     """
     # "오늘"은 부스 시간 기준이다. DB의 CURDATE()/CURRENT_DATE 는 UTC 날짜라
     # 한국에서는 오전 9시에야 하루가 바뀐다. 그래서 부스 기준 하루를 UTC 구간으로
     # 바꿔서 자른다 — 두 DB 모두 같은 문법으로 쓸 수 있다는 장점도 있다.
-    where, params = "", []
+    conds: List[str] = []
+    params: List[Any] = []
     if period == "today":
         start, end = today_utc_range()
         if not IS_POSTGRES:
             # MySQL DATETIME 에는 시간대가 없다 (세션을 UTC로 맞춰 두었다)
             start, end = start.replace(tzinfo=None), end.replace(tzinfo=None)
-        where, params = "WHERE created_at >= %s AND created_at < %s", [start, end]
+        conds.append("created_at >= %s AND created_at < %s")
+        params += [start, end]
+    if title:
+        conds.append("title = %s")
+        params.append(title)
+    where = ("WHERE " + " AND ".join(conds)) if conds else ""
+    query = f"SELECT * FROM score_records {where} ORDER BY score DESC, created_at ASC, id ASC"
+    if limit is not None and not best_per_name:
+        query += " LIMIT %s"
+        params.append(limit)
 
     with get_db_cursor() as cursor:
-        cursor.execute(
-            f"""
-            SELECT * FROM score_records
-            {where}
-            ORDER BY score DESC, created_at ASC
-            LIMIT %s
-            """,
-            tuple(params + [limit]),
-        )
-        return [_format_row(r) for r in (cursor.fetchall() or [])]
+        cursor.execute(query, tuple(params))
+        rows = [_format_row(r) for r in (cursor.fetchall() or [])]
+
+    if best_per_name:
+        seen = set()
+        kept = []
+        for r in rows:
+            name = str(r.get("nickname") or "익명").strip()
+            if name != "익명":
+                if name in seen:
+                    continue
+                seen.add(name)
+            kept.append(r)
+        rows = kept if limit is None else kept[:limit]
+    return rows
 
 
 def get_recent_scores(limit: int = 10) -> List[Dict[str, Any]]:

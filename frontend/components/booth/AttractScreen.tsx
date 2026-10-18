@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import { Mic2, Loader2, Trophy, Crown, Flame, Clock, CalendarCheck } from "lucide-react";
+import { Mic2, Loader2, Trophy, Crown, Flame, Clock, CalendarCheck, School } from "lucide-react";
 import { QueueSnapshot, ScoreRecord } from "@/types";
 import { QrCode } from "@/components/booth/QrCode";
 import { RemainingClock } from "@/components/booth/SessionStrip";
@@ -26,6 +26,8 @@ interface AttractScreenProps {
   session?: BoothSessionState | null;
   topToday: ScoreRecord[];
   topAll: ScoreRecord[];
+  /** 오늘의 교가 순위 — 이름당 최고 기록 하나 */
+  anthemTop?: ScoreRecord[];
   popularSongs: PopularSong[];
   nickname: string;
   onNicknameChange: (value: string) => void;
@@ -39,6 +41,7 @@ interface AttractScreenProps {
 
 /** 순환 패널 정의 — 순서가 곧 화면에 도는 순서다 */
 const PANELS = [
+  { key: "anthem", label: "오늘의 교가 순위", icon: School },
   { key: "today", label: "오늘의 순위", icon: Flame },
   { key: "all", label: "명예의 전당", icon: Crown },
   { key: "songs", label: "인기 애창곡", icon: Trophy },
@@ -65,6 +68,7 @@ export function AttractScreen({
   session = null,
   topToday,
   topAll,
+  anthemTop = [],
   popularSongs,
   nickname,
   onNicknameChange,
@@ -106,7 +110,10 @@ export function AttractScreen({
   }, [panelIndex]);
 
   const panel = PANELS[panelIndex];
-  const rows: ScoreRecord[] = panel.key === "today" ? topToday : panel.key === "all" ? topAll : [];
+  const rows: ScoreRecord[] =
+    panel.key === "anthem" ? anthemTop : panel.key === "today" ? topToday : panel.key === "all" ? topAll : [];
+  // 교가 순위는 10위까지 보여 주므로 줄 간격을 줄인다
+  const compact = rows.length > 5;
 
   return (
     <section
@@ -301,16 +308,18 @@ export function AttractScreen({
               </ol>
             ) : rows.length === 0 ? (
               <p className="text-sm text-ink-3 leading-relaxed pt-2">
-                {panel.key === "today"
+                {panel.key === "anthem"
+                  ? "아직 교가 기록이 없습니다. 교가를 불러 1등에 도전하세요! 상품이 있습니다."
+                  : panel.key === "today"
                   ? "오늘은 아직 기록이 없습니다. 첫 번째 주인공이 되어 보세요."
                   : "아직 등록된 기록이 없습니다."}
               </p>
             ) : (
-              <ol className="space-y-2.5">
+              <ol className={compact ? "space-y-1.5" : "space-y-2.5"}>
                 {rows.map((row, i) => (
                   <li
                     key={row.id}
-                    className={`flex items-center gap-3 px-3 py-2.5 rounded-xl border ${
+                    className={`flex items-center gap-3 px-3 ${compact ? "py-1.5" : "py-2.5"} rounded-xl border ${
                       i === 0 ? "bg-brass-soft border-brass/35" : "bg-surface border-line"
                     }`}
                   >
@@ -325,7 +334,9 @@ export function AttractScreen({
                       <span className="block text-base font-bold text-ink truncate">
                         {row.nickname}
                       </span>
-                      <span className="block text-xs text-ink-3 truncate">{row.title}</span>
+                      <span className="block text-xs text-ink-3 truncate">
+                        {panel.key === "anthem" ? (row.rank_label ? `등급 ${row.rank_label}` : "교가") : row.title}
+                      </span>
                     </span>
                     <span className="font-mono tnum text-2xl font-extrabold text-ink shrink-0">
                       {row.score}
