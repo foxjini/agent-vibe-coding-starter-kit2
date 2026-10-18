@@ -98,3 +98,12 @@ AGENTS.md와 .agents/workflows/build-order.md를 따른다.
 | `onEndOfSpeech`에서 재시작 → 받아쓴 문장이 버려진다 | `continuous-speech-to-text` |
 | 서버 주소를 코드에 박음 → 전시장에서 IP가 바뀔 때마다 다시 빌드 | AGENTS.md 절대 규칙 2 |
 | QR 화면이 어두움 → ATM이 못 읽는다 | `qr-display-for-atm` |
+
+실제 앱(`foxjini/smart-atm-android-app`)을 서버·라즈베리파이 코드에 맞물려 보며 나온 것들입니다.
+
+| 실수 | 어디서 막나 |
+|---|---|
+| 서버에 못 닿으면 `local-…` 번호로 QR을 만듦 → **ATM이 막지 않고 "처음으로" 한 번에 출금** | AGENTS.md 절대 규칙 7, `api-contract-rules` 6절 |
+| 토큰 만료(401)를 앱 판정으로 조용히 넘김 → 전시 이틀째에 위 문제로 이어짐 | `api-contract-rules` 6절 |
+| 앱 규칙 엔진이 서버와 다름 → 98문장 중 33문장의 등급이 달랐다 | `api-contract-rules` 6절 |
+| 통화 중 문장마다 서버에 분석 요청 → **콜센터 목록에 같은 통화가 5줄** | `api-contract-rules` 6절 |
