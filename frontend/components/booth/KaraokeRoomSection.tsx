@@ -31,7 +31,7 @@ import {
   hasNextAttempt,
   ResolvedMedia,
 } from "@/utils/karaokeMedia";
-import { KARAOKE_SONGS, KaraokeSong } from "@/data/karaokeSongs";
+import { KARAOKE_SONGS, KaraokeSong, isSchoolAnthem } from "@/data/karaokeSongs";
 import { AttractScreen } from "@/components/booth/AttractScreen";
 import { BoothKeypad } from "@/components/booth/BoothKeypad";
 import { SessionStrip } from "@/components/booth/SessionStrip";
@@ -46,6 +46,8 @@ interface KaraokeRoomSectionProps {
   /** 어트랙트 화면에 돌려 보여 줄 순위 (부록G §2-④) */
   topToday?: ScoreRecord[];
   topAll?: ScoreRecord[];
+  /** 오늘의 교가 순위 (축제 상품 배부 기준) */
+  anthemTop?: ScoreRecord[];
   /** 전시 체험 대기열 — 어트랙트 화면의 QR·대기 현황에 쓴다 */
   queue?: QueueSnapshot | null;
   /** 점수를 남긴 뒤 순위를 다시 받아 오게 한다 */
@@ -66,6 +68,7 @@ export function KaraokeRoomSection({
   onSongCompleted,
   topToday = [],
   topAll = [],
+  anthemTop = [],
   queue = null,
   onScoreRecorded,
   session = null,
@@ -139,7 +142,8 @@ export function KaraokeRoomSection({
   const accompanimentRef = useRef<KaraokeAccompanimentEngine | null>(null);
   const ytHostRef = useRef<HTMLDivElement | null>(null);
   const ytHandleRef = useRef<YouTubePlayerHandle | null>(null);
-  const localAudioRef = useRef<HTMLAudioElement | null>(null);
+  /** 로컬 반주 — 오디오 파일이면 new Audio(), 영상 파일(mp4·webm)이면 화면의 <video> */
+  const localAudioRef = useRef<HTMLMediaElement | null>(null);
   const virtualTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const tickTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   /** 곡이 끝났을 때 채점을 한 번만 실행하기 위한 플래그 */
@@ -629,11 +633,18 @@ export function KaraokeRoomSection({
       accompanimentRef.current?.stop();
     } else if (media.source === "local" && media.localUrl) {
       accompanimentRef.current?.stop();
-      if (!localAudioRef.current) {
+      if (isVideoFile(media.localUrl)) {
+        // 영상 파일(교가 등)은 화면의 <video> 가 그려져 있어야 한다
+        if (!localAudioRef.current) {
+          setPlayerError("영상을 준비하는 중입니다. 잠시 후 다시 눌러 주세요.");
+          return;
+        }
+      } else if (!localAudioRef.current || localAudioRef.current instanceof HTMLVideoElement) {
         localAudioRef.current = new Audio();
       }
       const audio = localAudioRef.current;
-      if (audio.src !== new URL(media.localUrl, window.location.href).href) {
+      // 영상은 <source> 두 개(mp4·webm) 중 브라우저가 틀 수 있는 것을 고르므로 src 를 건드리지 않는다
+      if (!(audio instanceof HTMLVideoElement) && audio.src !== new URL(media.localUrl, window.location.href).href) {
         audio.src = media.localUrl;
       }
       audio.volume = mrVolume;
@@ -782,7 +793,8 @@ export function KaraokeRoomSection({
           session={session}
           topToday={topToday}
           topAll={topAll}
-          popularSongs={KARAOKE_SONGS.slice(0, 5).map((song) => ({
+          anthemTop={anthemTop}
+          popularSongs={KARAOKE_SONGS.filter((s) => !isSchoolAnthem(s)).slice(0, 5).map((song) => ({
             id: song.id,
             title: song.title,
             singer: song.singer,
@@ -861,6 +873,56 @@ export function KaraokeRoomSection({
                         <span className="text-ink-2 truncate">{currentCue.hint}</span>
                       )}
                     </div>
+                  </div>
+                )}
+              </div>
+            ) : media?.source === "local" && media.localUrl && isVideoFile(media.localUrl) ? (
+              /*
+                학교가 만든 노래방 영상 (교가) — 가사 자막이 영상에 들어 있다.
+                같은 가사를 .vtt 자막 트랙으로도 붙여 둔다 (기본은 꺼 둠 — 두 번 보이지 않게).
+              */
+              <div className="relative w-full h-full bg-black">
+                <video
+                  ref={(el) => {
+                    localAudioRef.current = el;
+                  }}
+                  playsInline
+                  preload="auto"
+                  className="w-full h-full object-contain"
+                  data-testid="karaoke-video"
+                  onLoadedMetadata={(e) => setDuration(Math.floor(e.currentTarget.duration || 0))}
+                >
+                  {/* H.264(mp4)를 못 트는 브라우저(리눅스·라즈베리파이 Chromium 등)는 webm 을 쓴다 */}
+                  <source src={media.localUrl} type="video/mp4" />
+                  <source
+                    src={media.localUrl.replace(/\.[a-z0-9]+$/i, ".webm")}
+                    type="video/webm"
+                    onError={() => {
+                      console.warn(`[노래방] 영상 파일을 재생할 수 없습니다: ${media.localUrl}`);
+                      setResolved({
+                        songId: selectedSong.id,
+                        media: { source: "synth", reason: "영상 파일을 재생할 수 없어 내장 자동 반주로 전환" },
+                      });
+                    }}
+                  />
+                  <track
+                    kind="subtitles"
+                    srcLang="ko"
+                    label="가사"
+                    src={media.localUrl.replace(/\.[a-z0-9]+$/i, ".vtt")}
+                  />
+                </video>
+                {!isPlaying && (
+                  <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-canvas/55">
+                    <h4 className="text-2xl font-black text-ink">{selectedSong.title}</h4>
+                    <p className="text-xs text-ink-2">{selectedSong.singer}</p>
+                    <button
+                      onClick={() => void handlePlay()}
+                      disabled={!isPowerOn}
+                      className="px-6 py-2.5 rounded-xl bg-brass text-on-accent font-bold text-sm shadow-lg cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+                    >
+                      반주 시작 &amp; 가창하기
+                    </button>
                   </div>
                 )}
               </div>
@@ -1057,7 +1119,7 @@ export function KaraokeRoomSection({
           <div className="flex items-center justify-between border-b border-line pb-3">
             <h3 className="text-sm font-bold text-ink flex items-center gap-2">
               <Music className="w-4 h-4 text-brass" />
-              학생 애창곡 TOP 10
+              교가 · 학생 애창곡 TOP 10
             </h3>
             <span className="text-[11px] text-ink-3">2026.09 기준</span>
           </div>
@@ -1092,7 +1154,9 @@ export function KaraokeRoomSection({
                         isCurrent ? "text-brass" : "text-ink-3"
                       }`}
                     >
-                      {KARAOKE_SONGS.indexOf(song) + 1}
+                      {isSchoolAnthem(song)
+                        ? "🏫"
+                        : KARAOKE_SONGS.filter((s) => !isSchoolAnthem(s)).indexOf(song) + 1}
                     </span>
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-1.5">
@@ -1329,4 +1393,9 @@ function formatTime(sec: number) {
   const m = Math.floor(Math.max(0, sec) / 60);
   const s = Math.floor(Math.max(0, sec) % 60);
   return `${m}:${s < 10 ? "0" : ""}${s}`;
+}
+
+/** 영상 파일이면 화면에 그린다 (오디오 파일은 소리만) */
+function isVideoFile(url: string): boolean {
+  return /\.(mp4|webm)$/i.test(url);
 }

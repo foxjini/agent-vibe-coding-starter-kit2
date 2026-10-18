@@ -606,6 +606,7 @@ python main.py</pre></div>
           <tr><td><strong>예약 시간 자동 운영</strong></td><td>엔진 동작 여부, 오늘 남은 일정(시작·알림·종료 시각), 최근 처리 내역</td><td>[지금 한 바퀴] 1분을 기다리지 않고 바로 돌림</td></tr>
           <tr><td><strong>전시 체험 대기열</strong></td><td>지금 호출 중인 사람과 그 입장 비밀번호, 대기 줄</td><td>[다음 사람 호출], 대기자 옆 ⊗ 취소</td></tr>
           <tr><td><strong>부스 기기 관제</strong></td><td>도어락·반주기 전원·조명·스피커·입장 감지 상태</td><td>[입장 감지 테스트] [종료 10분 전 (LED 깜빡임)] [이용 종료 (퇴실곡+전원차단)] — 쓰던 예약·체험권도 끝내고 다음 사람을 부릅니다. 기기 직접 제어, [스피커 테스트] 부스 화면이 시험 문장을 읽음, 퇴실곡 [미리 듣기]</td></tr>
+          <tr><td><strong>교가 순위 · 상품 배부</strong></td><td>교가 점수만 모은 순위 (오늘/전체, 이름당 최고 기록 하나)</td><td>[CSV 내려받기] 엑셀용 상품 명단, [배부 표시] 상품 준 사람 체크 (이 노트북에만 기록)</td></tr>
           <tr><td><strong>노래방 예약 현황 목록</strong></td><td>모든 예약과 PIN (관리자에게만 보임)</td><td>[대신 입력] 학생이 비밀번호를 잃어버렸을 때 대신 인증 (예약 시간에만 열림)</td></tr>
           <tr><td><strong>노래방 영상 점검</strong></td><td>곡별 유튜브 영상이 이 네트워크에서 재생되는지</td><td>[10곡 후보 전체 점검], [이 영상 등록]</td></tr>
           <tr><td><strong>노래 기록</strong></td><td>곡별로 부른 횟수 (부스에서 부르고 채점하면 저절로 쌓임)</td><td>—</td></tr>
@@ -645,6 +646,29 @@ python main.py</pre></div>
         </div>
       </div>
     </div>
+  </div>
+
+  <div class="section" id="use-anthem">
+    <h3>교가 노래방 · 교가 부르기 대회 <span class="route-who">축제 이벤트</span></h3>
+    <p>곡 목록 맨 위의 <strong>🏫 교가</strong>는 학교 악보로 직접 만든 노래방 영상(1080p, 전주 4마디 + 1절 + 후주, 약 1분 29초)입니다. 가사가 영상에 금색으로 채워지며 나오고, 작은 가이드 멜로디가 함께 나와 처음 부르는 학생도 따라올 수 있습니다. 인터넷이 없어도 재생됩니다.</p>
+    <ol>
+      <li>부스에서 PIN 인증 → [노래방 시작하기] → 교가가 기본 곡으로 선택되어 있습니다.</li>
+      <li>[반주 시작 &amp; 가창하기]를 누르고 부릅니다. 영상이 끝나면 <strong>저절로 채점</strong>되어 교가 순위에 올라갑니다.</li>
+      <li>부스 대기 화면의 첫 순위판이 <strong>“오늘의 교가 순위” TOP 10</strong>입니다. 다른 곡 점수는 섞이지 않습니다.</li>
+      <li>상품은 관리자 화면 <strong>교가 순위 · 상품 배부</strong> 패널에서 [CSV 내려받기]로 명단을 뽑고, 준 사람은 [배부 표시]로 체크합니다.</li>
+    </ol>
+    <div class="tw">
+      <table>
+        <thead><tr><th>순위 규칙</th><th>내용</th></tr></thead>
+        <tbody>
+          <tr><td>여러 번 부른 사람</td><td>이름당 가장 높은 점수 하나만 (단, “익명”은 기록마다 따로)</td></tr>
+          <tr><td>같은 점수</td><td>먼저 부른 사람이 앞</td></tr>
+          <tr><td>동명이인</td><td>기록 시각으로 구분. 중복 수상 여부는 운영 선생님이 정합니다</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="note"><span class="tag">마이크</span><p>반주에 가이드 멜로디가 들어 있어 마이크가 스피커 소리를 주워 담으면 점수가 높게 나올 수 있습니다. 부스 마이크는 <strong>단일지향</strong>을 쓰고 스피커를 등지게 놓습니다.</p></div>
+    <div class="note"><span class="tag">재생</span><p>영상은 mp4(H.264)와 webm(VP9) 두 가지가 들어 있어, H.264를 못 트는 리눅스·라즈베리파이 Chromium에서도 자동으로 webm이 재생됩니다. 악보를 고쳐 영상을 다시 만드는 방법은 <code>media-src/school-anthem/README.md</code>에 있습니다.</p></div>
   </div>
 
   <div class="section" id="use-auto">

@@ -2,7 +2,7 @@
 
 import React, { useCallback, useMemo, useState } from "react";
 import { CheckCircle2, Loader2, ScanSearch, XCircle, ExternalLink, AlertTriangle } from "lucide-react";
-import { KARAOKE_SONGS, KaraokeSong } from "@/data/karaokeSongs";
+import { KARAOKE_SONGS, KaraokeSong, isSchoolAnthem } from "@/data/karaokeSongs";
 import { videoAttempts, registerVideoId } from "@/utils/karaokeMedia";
 import {
   probeVideoIds,
@@ -11,6 +11,9 @@ import {
   ProbeResult,
   ProbeStatus,
 } from "@/utils/youtubePlayer";
+
+/** 유튜브로 재생하는 곡만 점검한다 — 교가는 학교가 만든 영상 파일로 재생한다 */
+const YT_SONGS = KARAOKE_SONGS.filter((s) => !isSchoolAnthem(s));
 
 /**
  * 노래방 영상 점검 패널
@@ -47,11 +50,11 @@ export function VideoCheckPanel({ onRegistered }: VideoCheckPanelProps) {
   const [notice, setNotice] = useState<string | null>(null);
 
   const [pasteText, setPasteText] = useState("");
-  const [pasteTarget, setPasteTarget] = useState(KARAOKE_SONGS[0].id);
+  const [pasteTarget, setPasteTarget] = useState(YT_SONGS[0].id);
 
   /** 곡별 후보 목록 (관리자 등록본이 있으면 맨 앞에 온다) */
   const plan = useMemo(
-    () => KARAOKE_SONGS.map((song) => ({ song, ids: videoAttempts(song) })),
+    () => YT_SONGS.map((song) => ({ song, ids: videoAttempts(song) })),
     []
   );
 
@@ -143,7 +146,7 @@ export function VideoCheckPanel({ onRegistered }: VideoCheckPanelProps) {
               )}
               {running
                 ? `점검 중 ${progress.done}/${progress.total}`
-                : `${KARAOKE_SONGS.length}곡 후보 전체 점검`}
+                : `${YT_SONGS.length}곡 후보 전체 점검`}
             </button>
             <span className="text-[11px] text-ink-3">
               화면 밖에서 조용히 확인하므로 소리는 나지 않습니다. 30초쯤 걸립니다.
@@ -246,7 +249,7 @@ export function VideoCheckPanel({ onRegistered }: VideoCheckPanelProps) {
                 onChange={(e) => setPasteTarget(e.target.value)}
                 className="px-2 py-1.5 rounded-lg bg-canvas border border-line-strong text-xs text-ink focus:outline-none focus:border-brass"
               >
-                {KARAOKE_SONGS.map((s: KaraokeSong) => (
+                {YT_SONGS.map((s: KaraokeSong) => (
                   <option key={s.id} value={s.id}>
                     {s.title}
                   </option>

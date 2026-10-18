@@ -11,7 +11,16 @@
  *    → 가사는 "노래방 영상"이 화면에 직접 표시하고,
  *      이 파일은 저작권과 무관한 `guideCues`(구간 안내)만 갖는다.
  *    자세한 근거: docs/부록F-노래방-미디어-저작권-검토-및-구현계획.md
+ *
+ *    예외 — 교가(`school-anthem`)는 학교 저작물이다. 반주·가사 영상을 학교가 직접
+ *    만들었으므로(media-src/school-anthem) 가사가 들어간 영상 파일을 저장소에 둔다.
  */
+
+import {
+  SCHOOL_ANTHEM_BPM,
+  SCHOOL_ANTHEM_CUES,
+  SCHOOL_ANTHEM_DURATION_SEC,
+} from "@/data/schoolAnthem.generated";
 
 /** 이 곡을 어떤 권리로 재생하는가 */
 export type MediaLicense =
@@ -105,11 +114,36 @@ function standardCues(durationSec: number, highHint: string): GuideCue[] {
   ];
 }
 
+/** 교가 — 축제 교가 부르기 대회의 순위·상품은 이 곡으로만 매긴다 */
+export const SCHOOL_ANTHEM_ID = "school-anthem";
+export const SCHOOL_ANTHEM_TITLE = "교가";
+
+export function isSchoolAnthem(song: Pick<KaraokeSong, "id">): boolean {
+  return song.id === SCHOOL_ANTHEM_ID;
+}
+
 /**
- * 2026년 9월 기준 중·고등학생 노래방 애창곡 10곡
+ * 맨 앞은 교가, 그 뒤로 2026년 9월 기준 중·고등학생 노래방 애창곡 10곡.
  * 순서를 바꾸거나 곡을 교체하려면 이 배열만 수정하면 된다.
  */
 export const KARAOKE_SONGS: KaraokeSong[] = [
+  {
+    id: SCHOOL_ANTHEM_ID,
+    title: SCHOOL_ANTHEM_TITLE,
+    singer: "인천전자마이스터고 (작사 이인수)",
+    genre: "교가",
+    tag: "교가 🏫",
+    year: 2026,
+    pickReason:
+      "축제 교가 부르기 대회 곡. 전주의 ●●●● 가 꺼지면 시작하고, 가사가 노랗게 채워지는 대로 부르면 됩니다. 점수는 '교가 순위'에 따로 올라갑니다.",
+    youtubeCandidates: [],
+    youtubeSearchQuery: "",
+    localMediaExt: "mp4",
+    license: "self-produced",
+    mr: { bpm: SCHOOL_ANTHEM_BPM, style: "ballad", progression: "I-vi-IV-V", tonic: 349.23 },
+    approxDurationSec: SCHOOL_ANTHEM_DURATION_SEC,
+    guideCues: SCHOOL_ANTHEM_CUES,
+  },
   {
     id: "gomin-jungdok",
     title: "고민중독",

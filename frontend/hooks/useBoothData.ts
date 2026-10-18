@@ -9,6 +9,7 @@ import {
   getAdminServerSnapshot,
 } from "@/utils/adminSession";
 import { useKaraokeSocket } from "@/hooks/useKaraokeSocket";
+import { SCHOOL_ANTHEM_TITLE } from "@/data/karaokeSongs";
 import {
   Device,
   QueueSnapshot,
@@ -63,6 +64,8 @@ export function useBoothData() {
   // 순위 (부록G §2-④) — 오늘 기록과 명예의 전당을 따로 본다
   const [topToday, setTopToday] = useState<ScoreRecord[]>([]);
   const [topAll, setTopAll] = useState<ScoreRecord[]>([]);
+  // 축제 교가 부르기 대회 — 오늘 교가 점수, 이름당 최고 기록 하나 (상품 배부 기준)
+  const [anthemTop, setAnthemTop] = useState<ScoreRecord[]>([]);
   // 전시 체험 대기열 (부록G §2-③)
   const [queue, setQueue] = useState<QueueSnapshot | null>(null);
   // 부스 화면(/booth)이 읽어 줄 안내와 키패드 인증 결과.
@@ -117,12 +120,15 @@ export function useBoothData() {
 
   const fetchScores = useCallback(async () => {
     try {
-      const [todayRes, allRes] = await Promise.all([
+      const anthemQuery = `period=today&limit=10&best=true&title=${encodeURIComponent(SCHOOL_ANTHEM_TITLE)}`;
+      const [todayRes, allRes, anthemRes] = await Promise.all([
         fetch(apiUrl("/api/scores/top?period=today&limit=5")),
         fetch(apiUrl("/api/scores/top?period=all&limit=5")),
+        fetch(apiUrl(`/api/scores/top?${anthemQuery}`)),
       ]);
       if (todayRes.ok) setTopToday((await todayRes.json()).data || []);
       if (allRes.ok) setTopAll((await allRes.json()).data || []);
+      if (anthemRes.ok) setAnthemTop((await anthemRes.json()).data || []);
     } catch {
       // 순위를 못 받아도 노래방은 돌아가야 한다
     }
@@ -234,6 +240,7 @@ export function useBoothData() {
     lastEventMsg,
     topToday,
     topAll,
+    anthemTop,
     queue,
     announcement,
     authNotice,

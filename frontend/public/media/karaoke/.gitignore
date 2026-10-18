@@ -25,3 +25,9 @@
 !.gitignore
 !README.md
 !LICENSE-LEDGER.md
+
+# 예외 — 교가는 학교 저작물이고, 반주·영상은 학교가 직접 만들었다
+# (media-src/school-anthem/build.py). 클라우드(Vercel) 배포에도 필요하다.
+!school-anthem.mp4
+!school-anthem.webm
+!school-anthem.vtt
