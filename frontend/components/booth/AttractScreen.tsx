@@ -315,11 +315,11 @@ export function AttractScreen({
                   : "아직 등록된 기록이 없습니다."}
               </p>
             ) : (
-              <ol className={compact ? "space-y-1.5" : "space-y-2.5"}>
+              <ol className={compact ? "space-y-1" : "space-y-2.5"}>
                 {rows.map((row, i) => (
                   <li
                     key={row.id}
-                    className={`flex items-center gap-3 px-3 ${compact ? "py-1.5" : "py-2.5"} rounded-xl border ${
+                    className={`flex items-center gap-3 px-3 ${compact ? "py-1" : "py-2.5"} rounded-xl border ${
                       i === 0 ? "bg-brass-soft border-brass/35" : "bg-surface border-line"
                     }`}
                   >
@@ -330,15 +330,16 @@ export function AttractScreen({
                     >
                       {i + 1}
                     </span>
-                    <span className="min-w-0 flex-1">
-                      <span className="block text-base font-bold text-ink truncate">
+                    {/* 10위까지 보일 때는 이름과 부가 정보를 한 줄에 — 1280x720 TV에서도 넘치지 않게 */}
+                    <span className={`min-w-0 flex-1 ${compact ? "flex items-baseline gap-2" : ""}`}>
+                      <span className={`${compact ? "" : "block "}text-base font-bold text-ink truncate`}>
                         {row.nickname}
                       </span>
-                      <span className="block text-xs text-ink-3 truncate">
+                      <span className={`${compact ? "shrink-0 " : "block "}text-xs text-ink-3 truncate`}>
                         {panel.key === "anthem" ? (row.rank_label ? `등급 ${row.rank_label}` : "교가") : row.title}
                       </span>
                     </span>
-                    <span className="font-mono tnum text-2xl font-extrabold text-ink shrink-0">
+                    <span className={`font-mono tnum ${compact ? "text-xl" : "text-2xl"} font-extrabold text-ink shrink-0`}>
                       {row.score}
                     </span>
                   </li>

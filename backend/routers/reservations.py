@@ -396,6 +396,14 @@ async def list_top_scores(
         return {"data": []}
 
 
+def _csv_text(value: Any) -> str:
+    """관람객이 적은 글자를 엑셀이 수식(=, +, -, @ 로 시작)으로 실행하지 않게 앞에 ' 를 붙인다."""
+    text = "" if value is None else str(value)
+    if text == "-":  # 등급 없음 표시는 그대로
+        return text
+    return "'" + text if text[:1] in ("=", "+", "-", "@", "\t", "\r") else text
+
+
 @scores_router.get("/export")
 async def export_scores(
     period: str = Query("today", pattern="^(today|all)$"),
@@ -425,7 +433,8 @@ async def export_scores(
             when = datetime.fromisoformat(when.replace("Z", "+00:00")).astimezone(tz).strftime("%Y-%m-%d %H:%M:%S")
         except ValueError:
             pass
-        w.writerow([i, r.get("nickname"), r.get("score"), r.get("rank_label") or "", r.get("title"), when])
+        w.writerow([i, _csv_text(r.get("nickname")), r.get("score"), _csv_text(r.get("rank_label")),
+                    _csv_text(r.get("title")), when])
     name = f"scores-{title or 'all'}-{period}-{booth_today()}.csv"
     return Response(
         content="\ufeff" + buf.getvalue(),
