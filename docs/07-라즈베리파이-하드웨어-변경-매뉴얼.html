@@ -4,8 +4,8 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="color-scheme" content="light dark">
-<meta name="description" content="라즈베리파이 담당 학생이 센서·액추에이터를 추가·제거·교체할 때 pi/slot_map.py를 고치는 방법. 드라이버 11종 레퍼런스와 오류 메시지 사전 포함.">
-<title>배치표 바꾸기</title>
+<meta name="description" content="라즈베리파이를 처음 맡은 학생이 혼자서 끝까지 갈 수 있도록 — 시스템 속 역할, 파이 준비·접속, PC 연결, 배선 기초, 배치표(pi/slot_map.py) 고치기, 드라이버 11종, 오류 사전, AI 활용, 전시 준비까지 순서대로 정리한 매뉴얼.">
+<title>라즈베리파이 하드웨어 매뉴얼</title>
 <style>
 :root{
   /* PCB 기판(초록)과 구리 패드에서 가져온 색. 중성색도 초록 쪽으로 살짝 기울였습니다. */
@@ -69,6 +69,17 @@ h1{
 }
 .meta-row b{color:var(--ink-2); font-weight:600}
 
+/* ── 읽는 길 ────────────────────────────────────────────── */
+.route{display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:10px; margin:24px 0 8px}
+@media(max-width:760px){ .route{grid-template-columns:repeat(2,minmax(0,1fr))} }
+@media(max-width:440px){ .route{grid-template-columns:1fr} }
+.route > div{border:1px solid var(--line); border-radius:9px; background:var(--surface); padding:13px 14px}
+.route .who{font-weight:700; font-size:14.5px; margin:0 0 6px}
+.route .go{font-family:var(--mono); font-size:12.5px; color:var(--ink-3); margin:0}
+.route .go a{color:var(--pcb); text-decoration:none; font-weight:600}
+.route .go a:hover{text-decoration:underline}
+.route .first{border-color:var(--pcb); border-width:2px}
+
 /* ── 목차 ───────────────────────────────────────────────── */
 nav.toc{
   position:sticky; top:env(safe-area-inset-top,0px); z-index:20;
@@ -77,18 +88,25 @@ nav.toc{
   border-bottom:1px solid var(--line); margin-bottom:8px;
 }
 nav.toc ol{
-  list-style:none; display:flex; gap:2px; overflow-x:auto; margin:0;
+  list-style:none; display:flex; gap:2px; overflow-x:auto; margin:0; max-width:none;
   padding:9px 0; font-family:var(--mono); font-size:12.5px; scrollbar-width:thin;
 }
+@media(min-width:980px){ nav.toc ol{flex-wrap:wrap; row-gap:0} }
+nav.toc li{margin:0}
 nav.toc a{
-  display:block; white-space:nowrap; padding:4px 10px; border-radius:5px;
+  display:block; white-space:nowrap; padding:4px 8px; border-radius:5px;
   color:var(--ink-2); text-decoration:none;
 }
 nav.toc a:hover{background:var(--surface-2); color:var(--ink)}
+nav.toc li.sep{color:var(--line-strong); padding:4px 2px; user-select:none}
 
 /* ── 섹션 ───────────────────────────────────────────────── */
-section{padding-block:40px 8px; scroll-margin-top:60px}
+section{padding-block:40px 8px; scroll-margin-top:96px}
 section + section{border-top:1px solid var(--line)}
+.part{
+  font-family:var(--mono); font-size:11.5px; letter-spacing:.14em; text-transform:uppercase;
+  color:var(--copper); font-weight:700; margin:0 0 10px;
+}
 h2{
   font-size:clamp(22px,3.6vw,28px); line-height:1.25; letter-spacing:-.018em;
   font-weight:750; margin:0 0 6px; text-wrap:balance;
@@ -115,6 +133,7 @@ kbd{
   border:1px solid var(--line-strong); border-bottom-width:2px;
   border-radius:4px; padding:.1em .4em;
 }
+.small{font-size:14px; color:var(--ink-3)}
 
 /* ── 코드블록 ───────────────────────────────────────────── */
 .code{position:relative; margin:0 0 18px}
@@ -126,17 +145,26 @@ kbd{
 .code pre .c{color:var(--code-dim)}
 .code pre .k{color:#7fd1ae}
 .code pre .s{color:#e9b384}
+.code pre .e{color:#f19aa6}
 .code .copy{
   position:absolute; top:9px; right:9px; font-family:var(--mono); font-size:11px;
   background:rgba(255,255,255,.09); color:var(--code-dim); border:1px solid rgba(255,255,255,.14);
   border-radius:5px; padding:3px 9px; cursor:pointer; transition:all .15s;
 }
+.code figcaption + .copy, .code figcaption ~ .copy{top:34px}
 .code .copy:hover{background:rgba(255,255,255,.17); color:var(--code-ink)}
 .code .copy.done{background:var(--pcb); border-color:var(--pcb); color:#fff}
 .code figcaption{
   font-family:var(--mono); font-size:11.5px; color:var(--ink-3);
-  padding:0 0 6px; letter-spacing:.02em;
+  padding:0 64px 6px 0; letter-spacing:.02em;
 }
+.where{
+  display:inline-block; padding:1px 7px; border-radius:4px; margin-right:6px;
+  font-weight:700; letter-spacing:.03em;
+}
+.where.pi{background:var(--pcb-soft); color:var(--pcb)}
+.where.pc{background:var(--copper-soft); color:var(--copper)}
+.where.out{background:var(--surface-2); color:var(--ink-2)}
 
 /* ── 표 ─────────────────────────────────────────────────── */
 .tablewrap{overflow-x:auto; margin:0 0 20px; border:1px solid var(--line); border-radius:8px}
@@ -149,6 +177,11 @@ th{
 tr:last-child td{border-bottom:0}
 td code{background:transparent; padding:0; color:var(--pcb); font-weight:600}
 .tablewrap.compact td,.tablewrap.compact th{padding:7px 11px}
+td.nw{white-space:nowrap}
+tr.group td{
+  background:var(--surface-2); font-family:var(--mono); font-size:11.5px; font-weight:700;
+  letter-spacing:.06em; color:var(--ink-3); padding-block:6px;
+}
 
 /* ── 콜아웃 ─────────────────────────────────────────────── */
 .note{
@@ -158,13 +191,25 @@ td code{background:transparent; padding:0; color:var(--pcb); font-weight:600}
 }
 .note.warn{border-color:var(--warn); background:var(--warn-soft)}
 .note.danger{border-color:var(--danger); background:var(--danger-soft)}
-.note p:last-child{margin-bottom:0}
+.note p:last-child,.note ul:last-child,.note ol:last-child{margin-bottom:0}
+.note ul,.note ol{max-width:none}
 .note .tag{
   font-family:var(--mono); font-size:11px; font-weight:700; letter-spacing:.09em;
   text-transform:uppercase; display:block; margin-bottom:4px; color:var(--pcb);
 }
 .note.warn .tag{color:var(--warn)}
 .note.danger .tag{color:var(--danger)}
+
+.goal{
+  border:1.5px dashed var(--pcb); border-radius:9px; background:var(--surface);
+  padding:12px 16px; margin:0 0 18px; font-size:15px;
+}
+.goal .tag{
+  font-family:var(--mono); font-size:11px; font-weight:700; letter-spacing:.09em;
+  display:block; margin-bottom:4px; color:var(--pcb);
+}
+.goal p:last-child,.goal ul:last-child{margin-bottom:0}
+.goal ul{max-width:none}
 
 /* ── 단계 ───────────────────────────────────────────────── */
 .steps{list-style:none; padding:0; counter-reset:s; max-width:none}
@@ -178,6 +223,7 @@ td code{background:transparent; padding:0; color:var(--pcb); font-weight:600}
   display:grid; place-items:center;
 }
 .steps > li > h3{margin-top:0}
+@media(max-width:480px){ .steps > li{padding-left:40px} }
 
 /* ── 경계 (고치는 곳 / 안 고치는 곳) ──────────────────────── */
 .boundary{display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-bottom:20px}
@@ -189,6 +235,42 @@ td code{background:transparent; padding:0; color:var(--pcb); font-weight:600}
 .boundary .no h4{color:var(--ink-3)}
 .boundary ul{margin:0; padding-left:19px; font-size:14.2px; max-width:none}
 .boundary li{margin-bottom:4px}
+
+/* ── 시스템 흐름도 ──────────────────────────────────────── */
+.flow{
+  display:grid; grid-template-columns:minmax(0,1fr) 92px minmax(0,1fr) 92px minmax(0,1.25fr);
+  align-items:stretch; margin:0 0 12px;
+}
+.fbox{
+  border:1px solid var(--line-strong); border-radius:10px; background:var(--surface);
+  padding:13px 14px; font-size:14px;
+}
+.fbox.me{border:2px solid var(--copper); background:var(--copper-soft)}
+.fbox .ft{font-weight:800; font-size:15.5px; margin:0 0 2px}
+.fbox .fw{font-family:var(--mono); font-size:11px; letter-spacing:.06em; color:var(--ink-3); margin:0 0 8px}
+.fbox ul{margin:0; padding-left:17px; max-width:none}
+.fbox li{margin-bottom:2px}
+.fbox .chain{list-style:none; padding:0; margin:0; font-family:var(--mono); font-size:12.5px}
+.fbox .chain li{padding:3px 8px; border-radius:5px; background:var(--surface); border:1px solid var(--line); margin:0}
+.fbox .chain li.down{border:0; background:transparent; text-align:center; color:var(--ink-3); padding:0; line-height:1.2}
+.farrow{
+  display:flex; flex-direction:column; align-items:center; justify-content:center; gap:2px;
+  font-family:var(--mono); font-size:10.5px; color:var(--ink-3); text-align:center; padding:0 4px;
+}
+.farrow .ar{font-size:20px; color:var(--pcb); line-height:1}
+@media(max-width:760px){
+  .flow{grid-template-columns:1fr}
+  .farrow{flex-direction:row; padding:6px 0; gap:8px}
+  .farrow .ar{transform:rotate(90deg)}
+}
+
+/* ── 낱말 사전 ──────────────────────────────────────────── */
+.gloss{display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px; margin:0 0 20px}
+@media(max-width:620px){ .gloss{grid-template-columns:1fr} }
+.gloss > div{border:1px solid var(--line); border-radius:9px; background:var(--surface); padding:11px 14px}
+.gloss dt{font-weight:700; font-size:15px; margin:0 0 2px}
+.gloss dt small{font-family:var(--mono); font-weight:500; font-size:11.5px; color:var(--ink-3); margin-left:6px}
+.gloss dd{margin:0; font-size:14.2px; color:var(--ink-2)}
 
 /* ── GPIO 핀 배치도 ─────────────────────────────────────── */
 .pinout{
@@ -207,6 +289,7 @@ td code{background:transparent; padding:0; color:var(--pcb); font-weight:600}
   text-align:center; color:var(--ink-3); background:var(--surface-2);
   font-size:11px; min-width:26px;
 }
+.pin-grid .n.mark{box-shadow:inset 0 0 0 2px var(--copper); color:var(--copper); font-weight:700}
 .pin-grid .gpio{color:var(--copper); font-weight:700; background:var(--copper-soft)}
 .pin-grid .pwr{color:var(--danger)}
 .pin-grid .gnd{color:var(--ink-3)}
@@ -225,6 +308,39 @@ td code{background:transparent; padding:0; color:var(--pcb); font-weight:600}
 .pin-legend .g::before{background:var(--copper)}
 .pin-legend .p::before{background:var(--danger)}
 .pin-legend .e::before{background:var(--ink-3)}
+.pin-legend .m::before{background:transparent; box-shadow:inset 0 0 0 2px var(--copper)}
+
+/* ── 배선 그림 ──────────────────────────────────────────── */
+.wiring{
+  background:var(--surface); border:1px solid var(--line); border-radius:9px;
+  padding:14px; margin:0 0 10px; overflow-x:auto;
+}
+.wiring svg{display:block; width:100%; height:auto; min-width:540px; max-width:640px; margin:0 auto}
+.tablewrap.wide table{min-width:560px}
+.wd text{fill:var(--ink-2); font-family:var(--mono); font-size:12px}
+.wd .tt{fill:var(--ink); font-weight:700; font-size:13px}
+.wd .dim{fill:var(--ink-3)}
+.wd .pn{font-size:9.5px; fill:var(--ink-3)}
+.wd .pn.on{fill:#fff; font-weight:700}
+.wd .box{fill:var(--surface-2); stroke:var(--line-strong)}
+.wd .pin{fill:var(--surface); stroke:var(--line-strong)}
+.wd .pin.sig{fill:var(--copper); stroke:var(--copper)}
+.wd .pin.gnd{fill:var(--ink-3); stroke:var(--ink-3)}
+.wd .w-sig{stroke:var(--copper); stroke-width:3; fill:none; stroke-linecap:round}
+.wd .w-gnd{stroke:var(--ink); stroke-width:3; fill:none; stroke-linecap:round}
+.wd .part{fill:var(--surface); stroke:var(--ink-2); stroke-width:1.6}
+.wd .cap{fill:var(--surface-2); stroke:var(--ink-2); stroke-width:1.4}
+.wd .lbl{font-size:11px}
+.wire-legend{
+  display:flex; flex-wrap:wrap; gap:6px 18px; justify-content:center; margin-top:8px;
+  font-family:var(--mono); font-size:11.5px; color:var(--ink-3);
+}
+.wire-legend span::before{
+  content:""; display:inline-block; width:18px; height:3px; border-radius:2px;
+  margin-right:6px; vertical-align:3px;
+}
+.wire-legend .s::before{background:var(--copper)}
+.wire-legend .gd::before{background:var(--ink)}
 
 /* ── 드라이버 카드 ──────────────────────────────────────── */
 .filterbar{
@@ -249,6 +365,7 @@ td code{background:transparent; padding:0; color:var(--pcb); font-weight:600}
   border:1px solid var(--line); border-radius:10px; background:var(--surface);
   padding:18px 20px; margin-bottom:14px;
 }
+@media(max-width:480px){ .drv{padding:15px 14px} }
 .drv-head{display:flex; flex-wrap:wrap; align-items:baseline; gap:8px 12px; margin-bottom:4px}
 .drv-name{font-family:var(--mono); font-size:17px; font-weight:700; color:var(--pcb)}
 .drv-role{
@@ -267,9 +384,10 @@ td code{background:transparent; padding:0; color:var(--pcb); font-weight:600}
   font-family:var(--mono); font-size:11.5px; letter-spacing:.06em; text-transform:uppercase;
   color:var(--ink-3); padding-top:3px; white-space:nowrap;
 }
-.drv dd{margin:0}
+.drv dd{margin:0; min-width:0}
 .drv dd code{background:var(--surface-2); color:var(--ink); font-weight:400}
 .drv dd.req code{color:var(--danger); font-weight:700; background:var(--danger-soft)}
+.drv dd.wire{color:var(--ink-2)}
 
 /* ── 체크리스트 ─────────────────────────────────────────── */
 .check{list-style:none; padding:0; max-width:none}
@@ -290,10 +408,10 @@ td code{background:transparent; padding:0; color:var(--pcb); font-weight:600}
 @media print{
   nav.toc,.code .copy,.filterbar{display:none}
   body{background:#fff; font-size:11pt}
-  section{page-break-inside:avoid; padding-block:20px 4px}
-  .drv{page-break-inside:avoid}
+  section{padding-block:20px 4px}
+  .drv,.note,.goal,.code,.tablewrap,.wiring,.pinout{page-break-inside:avoid}
   .code pre{background:#f4f4f4; color:#111; border:1px solid #ccc}
-  .code pre .c{color:#666} .code pre .k{color:#0a5} .code pre .s{color:#a50}
+  .code pre .c{color:#666} .code pre .k{color:#0a5} .code pre .s{color:#a50} .code pre .e{color:#a02}
 }
 @media (prefers-reduced-motion:reduce){ *{transition:none!important; animation:none!important} }
 </style>
@@ -303,40 +421,143 @@ td code{background:transparent; padding:0; color:var(--pcb); font-weight:600}
 
 <header class="masthead">
   <p class="eyebrow">라즈베리파이 담당 · IoT 개발 플랫폼 키트</p>
-  <h1>배치표 바꾸기</h1>
+  <h1>라즈베리파이 하드웨어 매뉴얼</h1>
   <p class="standfirst">
-    센서나 액추에이터를 <strong>추가·제거·교체</strong>할 때 무엇을 어떻게 고치는지 적어 둔 문서입니다.
-    고치는 파일은 <code>pi/slot_map.py</code> <strong>하나뿐</strong>입니다 —
+    라즈베리파이를 처음 만지는 학생도 <strong>혼자서 끝까지</strong> 갈 수 있도록,
+    처음 켜는 날부터 부품 연결·문제 해결·전시회까지 순서대로 적었습니다.
+    내가 고치는 코드는 <code>pi/slot_map.py</code> <strong>하나뿐</strong>입니다 —
     백엔드·DB·화면·영상인식은 한 줄도 건드리지 않습니다.
   </p>
   <div class="meta-row">
     <span><b>대상</b> 마이스터고 2학년 · 라즈베리파이 담당</span>
+    <span><b>보드</b> Raspberry Pi 5</span>
     <span><b>고치는 파일</b> pi/slot_map.py</span>
     <span><b>드라이버</b> 11종</span>
     <span><b>확인 명령</b> python daemon.py --check</span>
+  </div>
+
+  <div class="route" aria-label="이 문서 읽는 법">
+    <div class="first">
+      <p class="who">처음 맡았다면</p>
+      <p class="go"><a href="#s1">01</a> → <a href="#s2">02</a> → <a href="#s3">03</a>부터 순서대로. 03의 6단계를 하나씩 끝내면 됩니다</p>
+    </div>
+    <div>
+      <p class="who">부품을 바꾸려면</p>
+      <p class="go"><a href="#s10">10</a> 배치표 → <a href="#s11">11</a> 고치는 흐름 → <a href="#s12">12</a> 드라이버 → <a href="#s14">14</a> 확인</p>
+    </div>
+    <div>
+      <p class="who">안 될 때</p>
+      <p class="go"><a href="#s15">15</a> 오류 사전 → <a href="#s16">16</a> 증상 → <a href="#s17">17</a> AI에게 묻기 → 선생님</p>
+    </div>
+    <div>
+      <p class="who">전시 직전</p>
+      <p class="go"><a href="#s19">19</a> 전시 준비 → <a href="#s20">20</a> 체크리스트</p>
+    </div>
   </div>
 </header>
 
 <nav class="toc" aria-label="목차">
   <ol>
-    <li><a href="#s1">1 고치는 곳</a></li>
-    <li><a href="#s2">2 한 줄의 구조</a></li>
-    <li><a href="#s3">3 GPIO 핀 번호</a></li>
-    <li><a href="#s4">4 부품 추가</a></li>
-    <li><a href="#s5">5 드라이버 11종</a></li>
-    <li><a href="#s6">6 제거·교체</a></li>
-    <li><a href="#s7">7 확인</a></li>
-    <li><a href="#s8">8 오류 사전</a></li>
-    <li><a href="#s9">9 자주 하는 실수</a></li>
-    <li><a href="#s10">10 팀 예시</a></li>
-    <li><a href="#s11">11 체크리스트</a></li>
+    <li><a href="#s1">01 맡은 일</a></li>
+    <li><a href="#s2">02 낱말</a></li>
+    <li class="sep" aria-hidden="true">|</li>
+    <li><a href="#s3">03 6단계</a></li>
+    <li><a href="#s4">04 PC에서</a></li>
+    <li><a href="#s5">05 파이 준비</a></li>
+    <li><a href="#s6">06 PC 연결</a></li>
+    <li class="sep" aria-hidden="true">|</li>
+    <li><a href="#s7">07 배선 기초</a></li>
+    <li><a href="#s8">08 핀 번호</a></li>
+    <li><a href="#s9">09 첫 부품</a></li>
+    <li class="sep" aria-hidden="true">|</li>
+    <li><a href="#s10">10 배치표</a></li>
+    <li><a href="#s11">11 고치는 흐름</a></li>
+    <li><a href="#s12">12 드라이버</a></li>
+    <li><a href="#s13">13 제거·교체</a></li>
+    <li><a href="#s14">14 확인</a></li>
+    <li class="sep" aria-hidden="true">|</li>
+    <li><a href="#s15">15 오류 사전</a></li>
+    <li><a href="#s16">16 증상</a></li>
+    <li><a href="#s17">17 AI 활용</a></li>
+    <li class="sep" aria-hidden="true">|</li>
+    <li><a href="#s18">18 팀 예시</a></li>
+    <li><a href="#s19">19 전시 준비</a></li>
+    <li><a href="#s20">20 체크리스트</a></li>
   </ol>
 </nav>
 
 <!-- ══════════════════════════════════════════════════════ -->
 <section id="s1">
-  <h2><span class="num">01</span>고치는 곳은 한 파일뿐입니다</h2>
+  <p class="part">이해편 · 먼저 그림을 잡습니다</p>
+  <h2><span class="num">01</span>내가 맡은 일 — 파이는 시스템에서 무엇을 하나</h2>
   <p class="lede">
+    라즈베리파이는 우리 시스템의 <strong>손과 귀</strong>입니다.
+    무엇을 할지는 백엔드와 대시보드가 정하고, 파이는 그 명령대로 부품을 움직이고
+    센서를 읽어서 알려 줍니다.
+  </p>
+
+  <div class="flow" role="img" aria-label="대시보드와 백엔드는 PC에, 라즈베리파이는 따로 있습니다. 대시보드가 명령을 백엔드에 저장하고, 라즈베리파이가 1초마다 백엔드에 물어봐 명령을 가져가 부품에 반영한 뒤 결과를 보고합니다.">
+    <div class="fbox">
+      <p class="ft">대시보드</p>
+      <p class="fw">PC 브라우저 · localhost:3000</p>
+      <ul>
+        <li>"켜기" 버튼</li>
+        <li>카드에 상태 표시</li>
+      </ul>
+    </div>
+    <div class="farrow"><span class="ar">⇄</span><span>명령 / 상태</span></div>
+    <div class="fbox">
+      <p class="ft">백엔드</p>
+      <p class="fw">PC · FastAPI · :8000</p>
+      <ul>
+        <li>내린 명령 보관</li>
+        <li>하드웨어 보고 기록</li>
+        <li>자동화 규칙 실행</li>
+      </ul>
+    </div>
+    <div class="farrow"><span class="ar">⇄</span><span>Wi-Fi<br>1초마다</span></div>
+    <div class="fbox me">
+      <p class="ft">라즈베리파이 ← 내 담당</p>
+      <p class="fw">daemon.py가 계속 돎</p>
+      <ul class="chain">
+        <li>daemon.py — 묻고 보고</li>
+        <li class="down">↓</li>
+        <li>slot_map.py — 어디에 무엇을</li>
+        <li class="down">↓</li>
+        <li>drivers/ — 부품 다루는 법</li>
+        <li class="down">↓</li>
+        <li>GPIO 핀 → 부저·LED·버튼</li>
+      </ul>
+    </div>
+  </div>
+
+  <h3>"켜기"를 눌렀을 때 일어나는 일</h3>
+  <ol>
+    <li>대시보드에서 <strong>켜기</strong>를 누르면 백엔드에 <strong>내린 명령</strong>(<code>on</code>)이 적힙니다.</li>
+    <li>파이의 데몬(<code>daemon.py</code>)이 <strong>1초마다</strong> 백엔드에 "할 일 있나요?" 하고 물어봅니다.</li>
+    <li>데몬이 명령을 받으면 배치표(<code>slot_map.py</code>)를 보고, 그 부품의 드라이버로 GPIO 핀에 신호를 보냅니다 → 부저가 울립니다.</li>
+    <li>데몬이 "켰습니다"라고 <strong>보고</strong>하면 백엔드가 <strong>하드웨어 보고</strong>(<code>on</code>)를 기록하고, 대시보드 카드가 <strong>동작 중</strong>으로 바뀝니다.</li>
+  </ol>
+  <p>센서는 방향이 반대입니다. 데몬이 버튼·온도 같은 센서를 읽어 백엔드에 보고하면, 대시보드가 값을 보여 주고 자동화 규칙이 그 값을 씁니다.</p>
+
+  <div class="note">
+    <span class="tag">비유하면</span>
+    <p>
+      백엔드는 식당의 <strong>주문판</strong>, 데몬은 1초마다 주문판을 확인하는 <strong>직원</strong>입니다.
+      주문판에 "부저 켜기"가 적히면 직원이 부엌(부품)에 전하고, 주문판 옆에 "켰음"이라고 적어 둡니다.
+      대시보드는 그 주문판을 보여 주는 화면입니다. 직원이 자리를 비우면(데몬이 꺼지면) 주문은 쌓이기만 합니다.
+    </p>
+  </div>
+  <div class="note warn">
+    <span class="tag">왜 백엔드가 파이에게 직접 명령하지 않나요</span>
+    <p>
+      파이는 IP 주소가 자주 바뀌고, 학교 네트워크에서는 밖에서 파이로 접속하기 어렵습니다.
+      그래서 <strong>파이가 먼저 물어보는 방식(폴링)</strong>을 씁니다. 파이만 백엔드 주소를 알면 됩니다.
+    </p>
+  </div>
+
+  <h3>내가 고치는 곳은 한 파일뿐입니다</h3>
+  <p>
     이 키트는 4개 팀(wakeup · classroom · study · subway)이 같이 씁니다.
     공통 파일을 고치면 다른 팀 시스템이 멈춥니다.
   </p>
@@ -346,7 +567,7 @@ td code{background:transparent; padding:0; color:var(--pcb); font-weight:600}
       <h4>✓ 내가 고치는 것</h4>
       <ul>
         <li><code>pi/slot_map.py</code> — 배치표</li>
-        <li><code>pi/.env</code> — 백엔드 주소·인증키</li>
+        <li><code>pi/.env</code> — 백엔드 주소·인증키 (커밋하지 않음)</li>
       </ul>
     </div>
     <div class="no">
@@ -382,11 +603,743 @@ td code{background:transparent; padding:0; color:var(--pcb); font-weight:600}
       </tbody>
     </table>
   </div>
+  <p class="small">단, 데몬을 <strong>다시 켜야</strong> 반영됩니다. 데몬은 시작할 때 배치표를 한 번 읽습니다.</p>
 </section>
 
 <!-- ══════════════════════════════════════════════════════ -->
 <section id="s2">
-  <h2><span class="num">02</span>배치표 한 줄은 이렇게 생겼습니다</h2>
+  <h2><span class="num">02</span>꼭 알아야 할 낱말</h2>
+  <p class="lede">이 문서와 화면 메시지에 계속 나오는 말입니다. 모르는 말이 나오면 여기로 돌아오세요.</p>
+
+  <dl class="gloss">
+    <div><dt>라즈베리파이 5</dt><dd>신용카드만 한 컴퓨터. 리눅스(Raspberry Pi OS)가 돌고, 가장자리의 핀 40개로 부품을 직접 제어합니다.</dd></div>
+    <div><dt>GPIO <small>General Purpose I/O</small></dt><dd>프로그램으로 켜고 끄거나(출력) 상태를 읽을 수 있는(입력) 핀. 전압은 <strong>3.3V</strong>입니다.</dd></div>
+    <div><dt>BCM 번호 · 물리 번호</dt><dd>같은 핀을 부르는 두 가지 이름. <strong>배치표에는 BCM(GPIO) 번호</strong>, 손으로 꽂을 때는 물리 번호(1~40번 자리)를 봅니다 → <a href="#s8">08</a></dd></div>
+    <div><dt>액추에이터 <small>actuator</small></dt><dd>움직이거나 소리·빛을 내는 부품 — 부저, LED, 모터, 서보, 릴레이.</dd></div>
+    <div><dt>센서 <small>sensor</small></dt><dd>무언가를 재서 알려 주는 부품 — 버튼, 터치, 온도, 거리, 압력.</dd></div>
+    <div><dt>슬롯</dt><dd>부품이 들어갈 고정 자리. <code>actuator_01</code>~<code>10</code>, <code>sensor_01</code>~<code>10</code> 모두 20칸. 이름은 바꿀 수 없습니다.</dd></div>
+    <div><dt>배치표 <small>slot_map.py</small></dt><dd>"어느 슬롯에, 어떤 부품을, 몇 번 핀에 꽂았나"를 적은 표. 내가 고치는 유일한 코드입니다.</dd></div>
+    <div><dt>드라이버</dt><dd>부품 종류별로 "어떻게 다루는지"를 담은 파일(<code>pi/drivers/</code>). 11종이 들어 있어 <strong>이름만 고르면</strong> 됩니다.</dd></div>
+    <div><dt>데몬 <small>daemon.py</small></dt><dd>켜 두면 끝없이 돌면서 백엔드와 주고받는 프로그램. 끄려면 <kbd>Ctrl</kbd>+<kbd>C</kbd>. 고치지 않습니다.</dd></div>
+    <div><dt>내린 명령 · 하드웨어 보고</dt><dd>대시보드 카드의 두 칸. 명령(desired)은 대시보드·규칙이 정하고, 보고(current)는 <strong>파이가 실제로 반영한 뒤에만</strong> 바뀝니다.</dd></div>
+    <div><dt>폴링 <small>polling</small></dt><dd>정해진 간격(1초)마다 "할 일 있나요?" 하고 물어보는 방식.</dd></div>
+    <div><dt>흉내내기 모드 <small>Mock</small></dt><dd>GPIO가 없는 PC에서 부품 대신 로그만 찍으며 도는 상태. <strong>PC에서는 정상, 파이에서 뜨면 문제</strong>입니다.</dd></div>
+    <div><dt>.env 파일</dt><dd>백엔드 주소·인증키처럼 컴퓨터마다 다른 값을 적는 파일. 깃허브에 올라가지 않습니다(올리면 안 됩니다).</dd></div>
+    <div><dt>가상환경 <small>venv</small></dt><dd>이 프로젝트용 파이썬 패키지를 따로 담아 두는 폴더. 파이에서 <strong>터미널을 열 때마다 켜야</strong> 합니다 → <a href="#s5">05</a></dd></div>
+    <div><dt>SSH</dt><dd>내 PC에서 파이의 터미널을 원격으로 쓰는 방법. 모니터·키보드 없이 작업할 수 있습니다.</dd></div>
+    <div><dt>IP 주소</dt><dd>같은 Wi-Fi 안에서 컴퓨터를 찾는 번지수(예: <code>192.168.0.25</code>). 공유기가 정해 주므로 <strong>장소가 바뀌면 바뀔 수 있습니다.</strong></dd></div>
+    <div><dt>PWM</dt><dd>아주 빠르게 켰다 껐다 해서 '세기'를 만드는 방법. LED 밝기, 모터 세기, 부저 음높이에 씁니다.</dd></div>
+    <div><dt>풀업 <small>pull_up</small></dt><dd>버튼을 안 눌렀을 때 핀을 3.3V 쪽으로 붙잡아 두는 것. 버튼 종류마다 <code>True</code>/<code>False</code>가 다릅니다.</dd></div>
+    <div><dt>능동 · 수동 부저</dt><dd>능동(active)은 전기만 주면 정해진 소리, 수동(passive)은 파이가 주파수를 만들어 줘야 소리가 납니다. 피에조 부저는 보통 수동입니다.</dd></div>
+    <div><dt>ADC</dt><dd>아날로그 전압을 숫자로 바꾸는 칩. 파이에는 없어서 압력·조도 센서는 MCP3008 같은 칩을 거칩니다.</dd></div>
+  </dl>
+</section>
+
+<!-- ══════════════════════════════════════════════════════ -->
+<section id="s3">
+  <p class="part">준비편 · 처음 한 번만 합니다</p>
+  <h2><span class="num">03</span>혼자 진행하는 순서 — 6단계</h2>
+  <p class="lede">
+    한 번에 다 연결하면 안 될 때 어디서 틀렸는지 찾을 수 없습니다.
+    <strong>한 단계씩</strong> 끝내고, <strong>성공 기준을 눈으로 확인한 다음</strong> 넘어가세요.
+    단계마다 바뀌는 것이 하나뿐이라, 문제가 생기면 방금 바꾼 그것이 원인입니다.
+  </p>
+
+  <ol class="steps">
+    <li>
+      <h3>PC에서 흉내내기로 돌려 보기 <span class="small">— 파이·배선 없음 · <a href="#s4">04</a></span></h3>
+      <div class="goal"><span class="tag">✓ 성공 기준</span><p>대시보드에서 <strong>켜기</strong>를 누르면 PC의 데몬 창에 <code>알람 부저 → on</code>이 찍힌다.</p></div>
+    </li>
+    <li>
+      <h3>파이 준비하고 접속하기 <span class="small">— <a href="#s5">05</a></span></h3>
+      <div class="goal"><span class="tag">✓ 성공 기준</span><p>파이에서 <code>python daemon.py --check</code>를 돌리면 <code>하드웨어 : 실기기 GPIO</code>가 나온다.</p></div>
+    </li>
+    <li>
+      <h3>파이와 PC 연결하기 <span class="small">— 아직 배선 없음 · <a href="#s6">06</a></span></h3>
+      <div class="goal"><span class="tag">✓ 성공 기준</span><p>대시보드에서 켜기 → 카드 배지가 <strong>동작 중</strong>, 파이 터미널에 <code>알람 부저 → on</code>.</p></div>
+    </li>
+    <li>
+      <h3>부품 하나 배선하기 <span class="small">— <a href="#s7">07</a> · <a href="#s8">08</a> · <a href="#s9">09</a></span></h3>
+      <div class="goal"><span class="tag">✓ 성공 기준</span><p>대시보드 켜기/끄기로 <strong>실제 소리</strong>가 나고 멈춘다. 버튼을 누르면 카드에 <strong>눌림</strong>.</p></div>
+    </li>
+    <li>
+      <h3>부품을 하나씩 늘리기 <span class="small">— <a href="#s10">10</a>~<a href="#s14">14</a></span></h3>
+      <div class="goal"><span class="tag">✓ 성공 기준</span><p>부품을 하나 추가할 때마다 <a href="#s20">20</a>의 "부품을 바꿀 때마다" 체크리스트를 모두 통과한다.</p></div>
+    </li>
+    <li>
+      <h3>팀과 합치고 전시 준비 <span class="small">— <a href="#s19">19</a></span></h3>
+      <div class="goal"><span class="tag">✓ 성공 기준</span><p>파이 전원만 꽂으면 데몬이 저절로 켜지고, 팀 화면의 시나리오(알람·미션)대로 부품이 움직인다.</p></div>
+    </li>
+  </ol>
+
+  <div class="note danger">
+    <span class="tag">하드웨어 규칙 — 꼭 지킵니다</span>
+    <ul>
+      <li>실기기에 연결하기 전에 <strong>흉내내기(Mock)에서 먼저</strong> 확인합니다 — 그래서 1단계가 PC입니다.</li>
+      <li>배선은 <strong>전원을 끈 상태</strong>에서만 바꿉니다.</li>
+      <li>실기기 <strong>첫 연결(4단계에서 처음 전원을 넣을 때)은 선생님 입회</strong> 하에 합니다.</li>
+    </ul>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════════════════════ -->
+<section id="s4">
+  <h2><span class="num">04</span>1단계 — PC에서 먼저 해 보기 (흉내내기)</h2>
+  <p class="lede">
+    파이도 배선도 없이, 내 윈도우 PC에서 데몬을 돌려 봅니다. 여기서 되면 <strong>배치표와 키 설정은 맞다</strong>는 뜻이고,
+    나중에 문제가 생겨도 원인을 배선·네트워크로 좁힐 수 있습니다.
+  </p>
+
+  <ol class="steps">
+    <li>
+      <h3>준비 (팀에서 한 번)</h3>
+      <p>저장소 받기와 <code>.env</code> 복사는 <strong>00 통합 매뉴얼 2장</strong>대로 합니다. 그다음 pi 폴더의 패키지를 설치합니다.</p>
+      <figure class="code">
+        <figcaption><span class="where pc">PC · PowerShell</span> 저장소 폴더에서</figcaption>
+        <button class="copy" type="button">복사</button>
+<pre>cd pi
+pip install -r requirements.txt</pre>
+      </figure>
+      <p><code>pi/.env</code>를 열어 두 줄을 확인합니다. <strong>PC에서 돌릴 때만</strong> 주소가 <code>localhost</code>입니다.</p>
+      <figure class="code">
+        <figcaption><span class="where pc">pi/.env</span> PC에서 돌릴 때</figcaption>
+<pre>BACKEND_URL=http://localhost:8000          <span class="c"># 백엔드가 같은 PC에 있으니까</span>
+DEVICE_API_KEY=우리팀이_만든_키              <span class="c"># backend/.env와 한 글자도 다르지 않게</span></pre>
+      </figure>
+    </li>
+    <li>
+      <h3>백엔드와 대시보드 켜기</h3>
+      <p>백엔드 담당이 이미 켜 둔 PC라면 건너뜁니다. 직접 켤 때는 창 두 개를 엽니다.</p>
+      <figure class="code">
+        <figcaption><span class="where pc">PC · PowerShell</span> 창 ① 백엔드</figcaption>
+        <button class="copy" type="button">복사</button>
+<pre>cd backend; .\venv\Scripts\Activate.ps1; uvicorn main:app --reload --host 0.0.0.0 --port 8000</pre>
+      </figure>
+      <figure class="code">
+        <figcaption><span class="where pc">PC · PowerShell</span> 창 ② 대시보드</figcaption>
+        <button class="copy" type="button">복사</button>
+<pre>cd frontend; npm run dev</pre>
+      </figure>
+    </li>
+    <li>
+      <h3>데몬 켜기</h3>
+      <figure class="code">
+        <figcaption><span class="where pc">PC · PowerShell</span> 창 ③ 데몬</figcaption>
+        <button class="copy" type="button">복사</button>
+<pre>cd pi
+python daemon.py</pre>
+      </figure>
+      <figure class="code">
+        <figcaption><span class="where out">화면에 나오는 것</span> 실제 출력 (시각은 다릅니다)</figcaption>
+<pre><span class="c">====================================================================
+ 라즈베리파이 슬롯 데몬 — 시작 점검
+====================================================================</span>
+ 백엔드      : http://localhost:8000
+ 디바이스 키 : 설정됨
+ 하드웨어    : 흉내내기 모드 — ModuleNotFoundError: No module named 'gpiozero'
+               (PC에서는 정상입니다. 파이에서 이 메시지가 보이면 배선·권한을 확인하세요)
+
+ 배치표 슬롯 2개
+   actuator_01   알람 부저            tonal_buzzer   GPIO 18
+   sensor_01     기상 확인 버튼         button_in      GPIO 24
+<span class="c">====================================================================</span>
+00:21:24 [INFO] [pi] 데몬을 시작합니다 — 슬롯 2개, 폴링 1.0초, 재동기화 30.0초
+00:21:24 [INFO] [pi] 백엔드에 연결되었습니다: http://localhost:8000
+00:21:24 [INFO] [pi] [배치표 등록] 사용 슬롯 2개</pre>
+      </figure>
+      <p>PC에는 GPIO가 없으니 <strong>흉내내기 모드</strong>가 정상입니다. 창은 닫지 말고 그대로 둡니다 — 데몬은 계속 돌아야 합니다.</p>
+    </li>
+    <li>
+      <h3>대시보드에서 눌러 보기</h3>
+      <p>
+        브라우저에서 <code>http://localhost:3000/kit</code> → <strong>대시보드</strong> 탭 → <strong>알람 부저</strong> 카드의
+        <strong>켜기</strong>를 누릅니다. 데몬 창에 이런 줄이 생기면 성공입니다.
+      </p>
+      <figure class="code">
+        <figcaption><span class="where out">화면에 나오는 것</span> 숫자는 슬라이더 값에 따라 다릅니다</figcaption>
+<pre>00:21:27 [INFO] [pi] [actuator_01] 알람 부저 → on (passive, 1200Hz, 볼륨 60%)
+00:21:31 [INFO] [pi] [actuator_01] 알람 부저 → off</pre>
+      </figure>
+    </li>
+    <li>
+      <h3>끄기</h3>
+      <p>데몬 창에서 <kbd>Ctrl</kbd>+<kbd>C</kbd>. <code>종료 신호를 받았습니다. 부품을 끄고 정리합니다...</code>가 나오고 끝납니다.</p>
+    </li>
+  </ol>
+
+  <div class="goal">
+    <span class="tag">✓ 1단계 성공 기준</span>
+    <ul>
+      <li>데몬 창에 <code>백엔드에 연결되었습니다</code>와 <code>[배치표 등록] 사용 슬롯 2개</code>가 나왔다</li>
+      <li>켜기·끄기를 누를 때마다 <code>→ on</code> / <code>→ off</code> 줄이 생겼다</li>
+    </ul>
+    <p class="small" style="margin-top:6px">안 되면 → <a href="#s15">15 오류 사전</a>에서 창에 나온 문장을 찾으세요. <code>인증 실패!</code>가 보이면 두 <code>.env</code>의 키가 다른 것입니다.</p>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════════════════════ -->
+<section id="s5">
+  <h2><span class="num">05</span>2단계 — 라즈베리파이 준비하고 접속하기</h2>
+  <p class="lede">
+    파이에 운영체제를 깔고, 내 PC에서 원격으로 접속해, 키트 코드를 받고 설치합니다.
+    <strong>한 번만</strong> 하면 됩니다. 선생님이 이미 해 둔 단계는 건너뛰세요.
+  </p>
+
+  <h3>준비물</h3>
+  <div class="tablewrap compact">
+    <table>
+      <thead><tr><th>준비물</th><th>주의할 것</th></tr></thead>
+      <tbody>
+        <tr><td>라즈베리파이 5</td><td>—</td></tr>
+        <tr><td>전원 어댑터 (USB-C)</td><td><strong>공식 27W(5V 5A) 어댑터</strong>를 권장합니다. 휴대폰 충전기는 전력이 모자라 경고·재부팅이 생깁니다</td></tr>
+        <tr><td>microSD 카드 (16GB 이상) + 카드 리더</td><td>OS를 쓸 때 PC에 꽂습니다</td></tr>
+        <tr><td>PC (윈도우)</td><td>파이와 <strong>같은 Wi-Fi</strong>에 연결합니다 (<a href="#s6">06</a>의 주의 참고)</td></tr>
+        <tr><td>브레드보드 · 점퍼선 · 저항 · 부품</td><td>4단계(배선)부터 필요합니다 → <a href="#s7">07</a></td></tr>
+        <tr><td>(선택) 모니터 · <strong>마이크로</strong> HDMI 케이블 · 키보드</td><td>SSH 접속이 안 될 때만. 파이 5의 HDMI 단자는 작은(마이크로) 단자입니다</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>① OS 설치 <span class="small">— 선생님이 해 두었다면 건너뜀</span></h3>
+  <ol>
+    <li>PC에 <strong>Raspberry Pi Imager</strong>를 설치하고 SD 카드를 꽂습니다.</li>
+    <li>장치 <strong>Raspberry Pi 5</strong>, 운영체제 <strong>Raspberry Pi OS (64-bit)</strong>, 저장소는 SD 카드를 고릅니다.</li>
+    <li>OS 사용자 지정(설정) 화면에서 다음을 채웁니다.
+      <ul>
+        <li><strong>호스트 이름</strong> — 팀 이름으로 (예: <code>wakeup-pi</code>). 접속할 때 씁니다</li>
+        <li><strong>사용자 이름·비밀번호</strong> — 잊으면 처음부터 다시 해야 하니 적어 둡니다</li>
+        <li><strong>Wi-Fi 이름·비밀번호</strong>, 국가 <code>KR</code>, 시간대 <code>Asia/Seoul</code></li>
+        <li><strong>SSH 사용</strong>(비밀번호 인증) 켜기</li>
+      </ul>
+    </li>
+    <li>쓰기가 끝나면 SD 카드를 파이에 꽂고 전원을 연결합니다. <strong>첫 부팅은 몇 분</strong> 걸립니다.</li>
+  </ol>
+
+  <h3>② PC에서 SSH로 접속</h3>
+  <figure class="code">
+    <figcaption><span class="where pc">PC · PowerShell</span> 사용자 이름과 호스트 이름은 ①에서 정한 것</figcaption>
+    <button class="copy" type="button">복사</button>
+<pre>ssh 사용자이름@wakeup-pi.local</pre>
+  </figure>
+  <ul>
+    <li>처음 접속하면 <code>Are you sure you want to continue connecting</code>라고 묻습니다 → <code>yes</code> 입력.</li>
+    <li>비밀번호를 칠 때 <strong>화면에 아무것도 안 보이는 것이 정상</strong>입니다. 그대로 치고 <kbd>Enter</kbd>.</li>
+    <li>줄 앞이 <code>사용자이름@wakeup-pi:~ $</code>로 바뀌면 접속 성공. 이제 치는 명령은 <strong>파이에서</strong> 실행됩니다.</li>
+    <li><code>.local</code> 이름을 못 찾으면 IP로 접속합니다: <code>ssh 사용자이름@192.168.0.31</code>.
+      파이의 IP는 모니터를 연결해 터미널에서 <code>hostname -I</code>로 확인합니다.</li>
+  </ul>
+  <div class="note">
+    <span class="tag">이 문서의 이름표</span>
+    <p>
+      코드 블록 위의 이름표를 보세요. <span class="where pi">파이 터미널</span>은 SSH로 접속한 창,
+      <span class="where pc">PC · PowerShell</span>은 내 PC의 창입니다. 같은 명령이라도 어디서 치느냐에 따라 결과가 다릅니다.
+    </p>
+  </div>
+
+  <h3>③ 프로그램 설치 · 코드 받기 · 가상환경 (한 번만)</h3>
+  <figure class="code">
+    <figcaption><span class="where pi">파이 터미널</span> 한 줄씩 실행하고, 오류 없이 끝나는지 봅니다</figcaption>
+    <button class="copy" type="button">복사</button>
+<pre><span class="c"># 1) 시스템 패키지 — GPIO 라이브러리는 pip가 아니라 여기서 설치합니다</span>
+sudo apt update
+sudo apt install -y git python3-venv python3-gpiozero python3-lgpio
+
+<span class="c"># 2) 키트 코드 받기 — wakeup-v2 자리에 우리 팀 브랜치 이름</span>
+cd ~
+git clone -b wakeup-v2 https://github.com/foxjini/agent-vibe-coding-starter-kit2.git iot-kit
+cd iot-kit/pi
+
+<span class="c"># 3) 가상환경 — --system-site-packages 옵션이 중요합니다</span>
+python3 -m venv --system-site-packages venv
+source venv/bin/activate
+pip install -r requirements.txt</pre>
+  </figure>
+  <div class="note warn">
+    <span class="tag">왜 이렇게 복잡한가요</span>
+    <p>
+      파이 5는 GPIO 칩이 예전 모델과 달라 <code>lgpio</code>가 필요하고, 이것을 pip로 설치하면 빌드 오류가 납니다.
+      그래서 GPIO 라이브러리는 OS 패키지(<code>apt</code>)로 깔고, 가상환경이 그것을 볼 수 있게
+      <code>--system-site-packages</code>를 붙입니다. 이 옵션을 빼면 파이에서도 <strong>흉내내기 모드</strong>로 돕니다.
+      잘못 만들었으면 <code>rm -rf venv</code>로 지우고 3)을 다시 하면 됩니다.
+    </p>
+  </div>
+
+  <h3>④ 잘 깔렸는지 확인</h3>
+  <figure class="code">
+    <figcaption><span class="where pi">파이 터미널</span></figcaption>
+    <button class="copy" type="button">복사</button>
+<pre>python -c "import gpiozero, lgpio; print('GPIO 준비 완료')"
+python daemon.py --check</pre>
+  </figure>
+  <figure class="code">
+    <figcaption><span class="where out">화면에 나오는 것</span> 이 두 줄을 확인합니다</figcaption>
+<pre>GPIO 준비 완료
+<span class="c">...</span>
+ 하드웨어    : 실기기 GPIO</pre>
+  </figure>
+  <div class="goal">
+    <span class="tag">✓ 2단계 성공 기준</span>
+    <p><code>--check</code>에 <code>실기기 GPIO</code>가 나왔다. (<code>흉내내기 모드</code>가 나오면 → <a href="#s16">16</a> "파이에서 흉내내기 모드")</p>
+  </div>
+
+  <h3>매번 할 일 — 터미널을 새로 열 때마다</h3>
+  <figure class="code">
+    <figcaption><span class="where pi">파이 터미널</span> SSH로 다시 들어올 때마다 먼저</figcaption>
+    <button class="copy" type="button">복사</button>
+<pre>cd ~/iot-kit/pi
+source venv/bin/activate</pre>
+  </figure>
+  <p>줄 앞에 <code>(venv)</code>가 붙어 있으면 가상환경이 켜진 상태입니다. 안 붙어 있으면 <code>python</code>·<code>pip</code>가 엉뚱하게 동작합니다.</p>
+
+  <h3>파이에서 파일 고치기 — nano</h3>
+  <div class="tablewrap compact">
+    <table>
+      <thead><tr><th>하고 싶은 것</th><th>누르는 것</th></tr></thead>
+      <tbody>
+        <tr><td>파일 열기</td><td><code>nano slot_map.py</code></td></tr>
+        <tr><td>저장</td><td><kbd>Ctrl</kbd>+<kbd>O</kbd> → <kbd>Enter</kbd></td></tr>
+        <tr><td>나가기</td><td><kbd>Ctrl</kbd>+<kbd>X</kbd> (저장 안 했으면 물어봅니다 — <kbd>Y</kbd>)</td></tr>
+        <tr><td>글자 찾기</td><td><kbd>Ctrl</kbd>+<kbd>W</kbd></td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p class="small">마우스로 커서를 옮길 수 없습니다. 방향키를 쓰세요.</p>
+
+  <h3>파이 끄기</h3>
+  <figure class="code">
+    <figcaption><span class="where pi">파이 터미널</span></figcaption>
+    <button class="copy" type="button">복사</button>
+<pre>sudo poweroff</pre>
+  </figure>
+  <p>초록 불의 깜빡임이 멈춘 뒤 전원선을 뽑습니다. <strong>그냥 뽑으면 SD 카드가 망가질 수 있습니다.</strong></p>
+</section>
+
+<!-- ══════════════════════════════════════════════════════ -->
+<section id="s6">
+  <h2><span class="num">06</span>3단계 — 파이와 PC 연결하기 (아직 배선 없음)</h2>
+  <p class="lede">
+    부품을 꽂기 전에 <strong>통신부터</strong> 성공시킵니다. 이 단계가 되면, 나중에 소리가 안 날 때
+    원인은 배선이나 배치표뿐입니다.
+  </p>
+
+  <div class="note warn">
+    <span class="tag">같은 Wi-Fi여야 합니다</span>
+    <p>
+      파이와 PC가 <strong>같은 공유기</strong>에 붙어 있어야 합니다.
+      학교 Wi-Fi는 보안 때문에 <strong>기기끼리 통신을 막아 둔 경우가 많습니다</strong> — 아래 4번(연결 시험)이 계속 실패하면
+      실습용 공유기나 휴대폰 핫스팟에 둘 다 연결해 보세요.
+    </p>
+  </div>
+
+  <ol class="steps">
+    <li>
+      <h3>PC의 IP 주소 확인</h3>
+      <figure class="code">
+        <figcaption><span class="where pc">PC · PowerShell</span></figcaption>
+        <button class="copy" type="button">복사</button>
+<pre>ipconfig</pre>
+      </figure>
+      <p><strong>무선 LAN 어댑터 Wi-Fi</strong> 항목의 <strong>IPv4 주소</strong>(예: <code>192.168.0.25</code>)를 적어 둡니다. 아래에서는 이 값을 예로 씁니다.</p>
+    </li>
+    <li>
+      <h3>PC 백엔드를 '하드웨어 모드'로 켜기</h3>
+      <p><code>backend/.env</code>에서 한 줄을 바꾸고, 백엔드를 <strong>껐다 다시 켭니다</strong>(<kbd>Ctrl</kbd>+<kbd>C</kbd> 후 다시 실행).
+        <code>--reload</code>는 <code>.env</code> 변경을 알아채지 못합니다.</p>
+      <figure class="code">
+        <figcaption><span class="where pc">backend/.env</span></figcaption>
+<pre>DEVICE_MODE=hardware</pre>
+      </figure>
+      <figure class="code">
+        <figcaption><span class="where pc">PC · PowerShell</span> <code>--host 0.0.0.0</code>을 빼면 파이가 접속하지 못합니다</figcaption>
+        <button class="copy" type="button">복사</button>
+<pre>cd backend; .\venv\Scripts\Activate.ps1; uvicorn main:app --reload --host 0.0.0.0 --port 8000</pre>
+      </figure>
+      <div class="note">
+        <span class="tag">왜 hardware로 바꾸나요</span>
+        <p>
+          <code>mock</code>으로 두면 백엔드가 명령을 받자마자 "반영됐다"고 스스로 적어 버립니다.
+          그러면 <strong>파이가 꺼져 있어도 카드가 '동작 중'</strong>으로 보여서 진짜 동작했는지 알 수 없습니다.
+          <code>hardware</code>로 두면 파이가 실제로 반영하고 보고해야만 '동작 중'이 됩니다.
+        </p>
+      </div>
+      <p>윈도우 방화벽 창이 뜨면 <strong>허용</strong>을 누릅니다. 창이 안 뜨는데 4번(연결 시험)에서 계속 막히면 <strong>관리자 PowerShell</strong>에서 한 번:</p>
+      <figure class="code">
+        <figcaption><span class="where pc">PC · 관리자 PowerShell</span></figcaption>
+        <button class="copy" type="button">복사</button>
+<pre>New-NetFirewallRule -DisplayName "FastAPI 8000" -Direction Inbound -LocalPort 8000 -Protocol TCP -Action Allow</pre>
+      </figure>
+    </li>
+    <li>
+      <h3>파이의 <code>.env</code> 쓰기</h3>
+      <figure class="code">
+        <figcaption><span class="where pi">파이 터미널</span></figcaption>
+        <button class="copy" type="button">복사</button>
+<pre>cd ~/iot-kit/pi
+cp .env.example .env
+nano .env</pre>
+      </figure>
+      <p>세 줄을 고치고 저장합니다(<kbd>Ctrl</kbd>+<kbd>O</kbd> → <kbd>Enter</kbd> → <kbd>Ctrl</kbd>+<kbd>X</kbd>).</p>
+      <figure class="code">
+        <figcaption><span class="where pi">pi/.env</span> 파이에서 돌릴 때</figcaption>
+<pre>BACKEND_URL=http://192.168.0.25:8000     <span class="c"># 1번에서 적은 PC의 IP. localhost 아님!</span>
+DEVICE_API_KEY=우리팀이_만든_키            <span class="c"># backend/.env와 똑같이</span>
+DEVICE_MODE=hardware                     <span class="c"># GPIO를 못 열면 크게 알려 줌</span></pre>
+      </figure>
+      <div class="note danger">
+        <span class="tag">키는 비밀입니다</span>
+        <p>
+          <code>DEVICE_API_KEY</code>는 <strong>AI 채팅창에 붙여넣지 않습니다.</strong> 깃허브에도 올리지 않습니다
+          (<code>.env</code>는 <code>.gitignore</code>에 들어 있어 자동으로 빠집니다). 한 번이라도 채팅에 넣었다면 새 키를 만들어
+          backend · vision · pi 세 곳을 모두 바꿉니다.
+        </p>
+      </div>
+      <p class="small">파이에서 <code>localhost</code>는 <strong>파이 자기 자신</strong>을 뜻합니다. 그래서 PC의 IP를 적어야 합니다.</p>
+    </li>
+    <li>
+      <h3>연결 시험 — 데몬보다 먼저</h3>
+      <figure class="code">
+        <figcaption><span class="where pi">파이 터미널</span> IP는 1번에서 적은 것</figcaption>
+        <button class="copy" type="button">복사</button>
+<pre>curl --max-time 5 http://192.168.0.25:8000/health</pre>
+      </figure>
+      <figure class="code">
+        <figcaption><span class="where out">화면에 나오는 것</span> 앞부분 — <code>"status":"ok"</code>와 <code>"device_mode":"hardware"</code>를 봅니다</figcaption>
+<pre>{"status":"ok","message":"Backend server is running healthy.", <span class="c">... ,</span>"device_mode":"hardware"}</pre>
+      </figure>
+      <div class="tablewrap compact">
+        <table>
+          <thead><tr><th>이렇게 되면</th><th>원인</th></tr></thead>
+          <tbody>
+            <tr><td><strong>바로</strong> <code>Failed to connect</code></td><td>PC 백엔드가 꺼져 있거나 <code>--host 0.0.0.0</code>을 안 줬습니다</td></tr>
+            <tr><td><strong>5초 기다린 뒤</strong> 실패 (<code>timed out</code>)</td><td>방화벽이 막고 있거나, 둘이 다른 Wi-Fi이거나, 학교 Wi-Fi가 기기끼리 통신을 막습니다</td></tr>
+            <tr><td><code>Could not resolve host</code></td><td>주소 오타입니다. <code>http://</code>와 <code>:8000</code>까지 다시 보세요</td></tr>
+            <tr><td><code>"device_mode":"mock"</code></td><td>연결은 됐습니다. ②의 <code>DEVICE_MODE=hardware</code> 후 백엔드를 다시 켜세요</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </li>
+    <li>
+      <h3>데몬 실행하고 대시보드에서 확인</h3>
+      <figure class="code">
+        <figcaption><span class="where pi">파이 터미널</span></figcaption>
+        <button class="copy" type="button">복사</button>
+<pre>python daemon.py</pre>
+      </figure>
+      <figure class="code">
+        <figcaption><span class="where out">화면에 나오는 것</span> 시작 점검 표 다음에</figcaption>
+<pre>00:21:24 [INFO] [pi] 데몬을 시작합니다 — 슬롯 2개, 폴링 1.0초, 재동기화 30.0초
+00:21:24 [INFO] [pi] 백엔드에 연결되었습니다: http://192.168.0.25:8000
+00:21:24 [INFO] [pi] [배치표 등록] 사용 슬롯 2개</pre>
+      </figure>
+      <p>
+        PC 브라우저에서 <code>http://localhost:3000/kit</code> → 대시보드 → 알람 부저 → <strong>켜기</strong>.
+        카드 배지가 잠깐 <strong>반영 대기</strong>였다가 1~2초 안에 <strong>동작 중</strong>으로 바뀌고,
+        <strong>하드웨어 보고</strong> 칸이 <code>on</code>이 되면 성공입니다. 파이 터미널에도 <code>알람 부저 → on</code>이 찍힙니다.
+      </p>
+    </li>
+  </ol>
+
+  <div class="goal">
+    <span class="tag">✓ 3단계 성공 기준</span>
+    <ul>
+      <li>파이에서 <code>curl</code>이 <code>"status":"ok"</code>를 받았다</li>
+      <li>대시보드 켜기 → 배지 <strong>동작 중</strong>, 끄기 → <strong>정지</strong></li>
+      <li>데몬을 <kbd>Ctrl</kbd>+<kbd>C</kbd>로 끈 채 켜기를 누르면 배지가 <strong>반영 대기</strong>에 머문다 (이것까지 보면 완벽합니다)</li>
+    </ul>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════════════════════ -->
+<section id="s7">
+  <p class="part">배선편 · 손으로 연결합니다</p>
+  <h2><span class="num">07</span>배선 기초와 안전</h2>
+  <p class="lede">처음 배선하는 학생이 알아야 할 것만 모았습니다. 부품별 연결 방법은 <a href="#s12">12</a>의 카드마다 <strong>배선</strong> 줄에 있습니다.</p>
+
+  <div class="note danger">
+    <span class="tag">안전 수칙 — 파이를 지키는 7가지</span>
+    <ol>
+      <li><strong>꽂거나 뺄 때는 전원을 끕니다</strong> (<code>sudo poweroff</code> → 불 꺼짐 → 전원선 뽑기).</li>
+      <li>GPIO는 <strong>3.3V</strong>입니다. <strong>5V를 GPIO 핀에 직접 넣으면 핀이 상합니다.</strong></li>
+      <li><strong>5V 핀과 GND를 바로 잇지 않습니다</strong> (합선 — 파이가 꺼지거나 고장 납니다). 3V3과 GND도 마찬가지입니다.</li>
+      <li>LED에는 반드시 <strong>저항(220~330Ω)</strong>을 거칩니다.</li>
+      <li>모터·여러 개의 서보·긴 LED 스트립처럼 전류를 많이 쓰는 부품은 <strong>파이 핀에서 직접 전원을 뽑지 않고</strong> 별도 전원을 씁니다 (GND는 파이와 이어 줍니다).</li>
+      <li>릴레이로 <strong>220V 가정용 전기를 켜고 끄지 않습니다.</strong> 전시용은 건전지·USB 전원 부품으로 충분합니다.</li>
+      <li>처음 전원을 넣을 때는 <strong>선생님이 배선을 확인</strong>한 뒤 켭니다. 타는 냄새·뜨거움이 느껴지면 즉시 전원선을 뽑습니다.</li>
+    </ol>
+  </div>
+
+  <h3>브레드보드 — 구멍끼리 어떻게 이어져 있나</h3>
+  <ul>
+    <li>가운데 홈을 사이에 두고, <strong>한 줄(구멍 5개)이 안에서 이어져</strong> 있습니다. 같은 줄에 꽂은 다리끼리는 전선 없이 연결됩니다.</li>
+    <li>가장자리의 빨강(+)·파랑(−) <strong>긴 줄은 전원용</strong>입니다. 3.3V와 GND를 한 번씩 끌어다 놓고 여러 부품이 나눠 씁니다. (가운데가 끊긴 제품도 있으니 확인하세요)</li>
+    <li>부품 다리 두 개를 <strong>같은 줄</strong>에 꽂으면 그 부품은 양쪽이 이어져 동작하지 않습니다. 버튼·LED는 <strong>가운데 홈을 가로질러</strong> 꽂습니다.</li>
+  </ul>
+
+  <h3>점퍼선 고르기</h3>
+  <div class="tablewrap compact">
+    <table>
+      <thead><tr><th>어디와 어디</th><th>점퍼선</th></tr></thead>
+      <tbody>
+        <tr><td>파이 핀 ↔ 브레드보드</td><td><strong>암-수</strong> (파이 쪽이 구멍 있는 끝)</td></tr>
+        <tr><td>브레드보드 안에서</td><td>수-수</td></tr>
+        <tr><td>파이 핀 ↔ 센서 모듈의 핀</td><td>암-암</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p>색을 약속해 두면 실수가 줄어듭니다 — <strong>빨강 = 전원(3.3V·5V), 검정 = GND, 그 밖의 색 = 신호</strong>.</p>
+
+  <h3>파이 핀의 세 종류</h3>
+  <div class="tablewrap compact">
+    <table>
+      <thead><tr><th>핀</th><th>물리 번호</th><th>쓰는 곳</th></tr></thead>
+      <tbody>
+        <tr><td><strong>3V3</strong> (3.3V 전원)</td><td>1 · 17</td><td>센서 모듈의 VCC. <strong>헷갈리면 3.3V</strong>가 안전합니다</td></tr>
+        <tr><td><strong>5V</strong> 전원</td><td>2 · 4</td><td>서보·초음파 센서·네오픽셀처럼 5V가 필요한 부품의 전원만. <strong>신호선에는 절대 연결하지 않습니다</strong></td></tr>
+        <tr><td><strong>GND</strong> (0V, 접지)</td><td>6 · 9 · 14 · 20 · 25 · 30 · 34 · 39</td><td>모든 부품의 −. 여러 부품이 나눠 써도 됩니다</td></tr>
+        <tr><td><strong>GPIO</strong> (신호)</td><td>나머지</td><td>부품의 신호선(S·IN·OUT·SIG). 핀 하나에 부품 하나</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>자주 쓰는 부품 알아보기</h3>
+  <div class="tablewrap">
+    <table>
+      <thead><tr><th>부품</th><th>알아볼 것</th></tr></thead>
+      <tbody>
+        <tr><td>LED</td><td><strong>긴 다리가 +</strong>(애노드). 긴 다리 → 저항 → GPIO, 짧은 다리 → GND. 반대로 꽂으면 안 켜질 뿐 망가지지는 않습니다</td></tr>
+        <tr><td>저항</td><td>방향이 없습니다. 값은 색띠로 읽기 어려우니 <strong>포장 라벨</strong>이나 멀티미터로 확인합니다</td></tr>
+        <tr><td>푸시버튼 (다리 4개)</td><td>마주 보는 다리끼리 이미 이어져 있습니다. <strong>대각선 다리 두 개</strong>를 쓰면 헷갈리지 않습니다</td></tr>
+        <tr><td>부저 (다리 2개)</td><td>윗면이나 다리 옆의 <strong>+ 표시</strong>, 또는 긴 다리가 +입니다</td></tr>
+        <tr><td>센서 모듈 (작은 기판)</td><td>핀 이름이 인쇄돼 있습니다 — <code>VCC</code>(+) · <code>GND</code>(−) · <code>OUT</code>/<code>S</code>/<code>SIG</code>(신호)</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h4>능동 부저? 수동 부저?</h4>
+  <p>
+    모양으로 짐작할 수 있습니다 — 바닥이 검게 막혀 있거나 윗면에 스티커가 붙어 있으면 <strong>능동</strong>,
+    바닥에 초록 기판이 보이면 <strong>수동</strong>일 때가 많습니다.
+    <strong>확실한 방법</strong>은 배치표의 <code>buzzer_type</code>을 <code>"passive"</code>로 두고 켜 보는 것입니다.
+    "삐—" 소리가 나면 맞고, "틱" 소리만 나거나 조용하면 <code>"active"</code>로 바꿔 다시 켭니다.
+  </p>
+</section>
+
+<!-- ══════════════════════════════════════════════════════ -->
+<section id="s8">
+  <h2><span class="num">08</span>GPIO 핀 번호 — 가장 많이 틀리는 곳</h2>
+  <div class="note danger">
+    <span class="tag">반드시 BCM 번호</span>
+    <p>
+      배치표의 <code>pin</code>은 <strong>BCM(GPIO) 번호</strong>입니다.
+      보드에 꽂는 <strong>물리적 핀 위치 번호가 아닙니다.</strong>
+      예를 들어 <strong>GPIO 18번은 위에서 6번째 줄 오른쪽(물리 12번 자리)</strong>입니다.
+      이걸 헷갈리면 배선은 맞는데 아무 반응이 없습니다.
+    </p>
+  </div>
+
+  <div class="pinout">
+    <div class="pin-grid" role="img" aria-label="라즈베리파이 40핀 헤더 배치도. 왼쪽 열이 홀수 물리핀, 오른쪽 열이 짝수 물리핀입니다. 09장 예시에서 쓰는 물리 12, 14, 18, 20번 자리가 표시되어 있습니다.">
+      <div class="hdr l">기능</div><div class="hdr n">핀</div><div class="hdr n">핀</div><div class="hdr r">기능</div>
+      <div class="l pwr">3V3</div>      <div class="n">1</div>  <div class="n">2</div>  <div class="r pwr">5V</div>
+      <div class="l gpio">GPIO 2</div>  <div class="n">3</div>  <div class="n">4</div>  <div class="r pwr">5V</div>
+      <div class="l gpio">GPIO 3</div>  <div class="n">5</div>  <div class="n">6</div>  <div class="r gnd">GND</div>
+      <div class="l gpio">GPIO 4</div>  <div class="n">7</div>  <div class="n">8</div>  <div class="r gpio">GPIO 14</div>
+      <div class="l gnd">GND</div>      <div class="n">9</div>  <div class="n">10</div> <div class="r gpio">GPIO 15</div>
+      <div class="l gpio">GPIO 17</div> <div class="n">11</div> <div class="n mark">12</div> <div class="r gpio">GPIO 18</div>
+      <div class="l gpio">GPIO 27</div> <div class="n">13</div> <div class="n mark">14</div> <div class="r gnd">GND</div>
+      <div class="l gpio">GPIO 22</div> <div class="n">15</div> <div class="n">16</div> <div class="r gpio">GPIO 23</div>
+      <div class="l pwr">3V3</div>      <div class="n">17</div> <div class="n mark">18</div> <div class="r gpio">GPIO 24</div>
+      <div class="l gpio">GPIO 10</div> <div class="n">19</div> <div class="n mark">20</div> <div class="r gnd">GND</div>
+      <div class="l gpio">GPIO 9</div>  <div class="n">21</div> <div class="n">22</div> <div class="r gpio">GPIO 25</div>
+      <div class="l gpio">GPIO 11</div> <div class="n">23</div> <div class="n">24</div> <div class="r gpio">GPIO 8</div>
+      <div class="l gnd">GND</div>      <div class="n">25</div> <div class="n">26</div> <div class="r gpio">GPIO 7</div>
+      <div class="l gnd">ID_SD</div>    <div class="n">27</div> <div class="n">28</div> <div class="r gnd">ID_SC</div>
+      <div class="l gpio">GPIO 5</div>  <div class="n">29</div> <div class="n">30</div> <div class="r gnd">GND</div>
+      <div class="l gpio">GPIO 6</div>  <div class="n">31</div> <div class="n">32</div> <div class="r gpio">GPIO 12</div>
+      <div class="l gpio">GPIO 13</div> <div class="n">33</div> <div class="n">34</div> <div class="r gnd">GND</div>
+      <div class="l gpio">GPIO 19</div> <div class="n">35</div> <div class="n">36</div> <div class="r gpio">GPIO 16</div>
+      <div class="l gpio">GPIO 26</div> <div class="n">37</div> <div class="n">38</div> <div class="r gpio">GPIO 20</div>
+      <div class="l gnd">GND</div>      <div class="n">39</div> <div class="n">40</div> <div class="r gpio">GPIO 21</div>
+    </div>
+    <div class="pin-legend">
+      <span class="g">GPIO — 배치표에 적는 번호</span>
+      <span class="p">전원 — 부품에 쓰지만 배치표에는 안 적습니다</span>
+      <span class="e">GND·예약 — 배치표에 안 적습니다</span>
+      <span class="m">09 따라 하기에서 쓰는 자리 (12·14·18·20)</span>
+    </div>
+  </div>
+  <p style="font-family:var(--mono); font-size:12.5px; color:var(--ink-3); margin-top:10px">
+    USB 포트가 아래로 가도록 두었을 때, 핀 헤더의 왼쪽 위가 물리 1번입니다. 보드 뒷면에서 보면 1번만 <strong>네모난</strong> 납땜 자국입니다.
+  </p>
+  <div class="note">
+    <span class="tag">파이에서 바로 보기</span>
+    <p>파이 터미널에서 <code>pinout</code>을 치면 지금 보드의 핀 배치도가 그대로 나옵니다 (gpiozero에 들어 있는 명령).</p>
+  </div>
+
+  <h3>어느 핀을 쓸까</h3>
+  <div class="tablewrap compact">
+    <table>
+      <thead><tr><th>구분</th><th>GPIO 번호</th><th>이유</th></tr></thead>
+      <tbody>
+        <tr><td><strong>처음 쓰기 좋은 핀</strong></td><td>4 · 5 · 6 · 12 · 13 · 16 · 17 · 18 · 19 · 20 · 21 · 22 · 23 · 24 · 25 · 26 · 27</td><td>다른 기능과 겹치지 않습니다</td></tr>
+        <tr><td>되도록 피할 핀</td><td>2 · 3</td><td>보드에 풀업 저항이 붙어 있어 버튼·센서 극성이 섞입니다 (I2C용)</td></tr>
+        <tr><td>되도록 피할 핀</td><td>14 · 15</td><td>시리얼 통신(UART)용입니다</td></tr>
+        <tr><td>MCP3008을 쓰면 비워 둘 핀</td><td>7 · 8 · 9 · 10 · 11</td><td>SPI 통신이 씁니다 → <a href="#s12">12</a>의 <code>analog_in</code></td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>핀 하나에 부품 하나</h3>
+  <p>
+    같은 GPIO 번호를 두 슬롯에 적으면 검사기가 잡아 줍니다. 배선도 마찬가지입니다 —
+    <strong>한 GPIO 핀에는 부품 하나만</strong> 연결하세요.
+    GND는 여러 부품이 나눠 써도 됩니다.
+  </p>
+</section>
+
+<!-- ══════════════════════════════════════════════════════ -->
+<section id="s9">
+  <h2><span class="num">09</span>4단계 따라 하기 — 첫 부품 연결 (wakeup 예시)</h2>
+  <p class="lede">
+    기본 배치표(<code>pi/slot_map.py</code>)에 이미 들어 있는 <strong>알람 부저(GPIO 18)</strong>와
+    <strong>기상 확인 버튼(GPIO 24)</strong>을 실제로 연결합니다. 배치표는 고치지 않아도 됩니다.
+    다른 팀도 순서는 똑같습니다 — 부품만 <a href="#s12">12</a>에서 고르세요.
+  </p>
+
+  <div class="wiring">
+    <svg class="wd" viewBox="0 0 600 278" role="img" aria-label="배선 그림. 물리 12번(GPIO 18)은 피에조 부저의 + 다리로, 물리 14번(GND)은 부저의 − 다리로 갑니다. 물리 18번(GPIO 24)과 물리 20번(GND)은 푸시버튼의 대각선 다리 두 개로 갑니다.">
+      <text x="20" y="18" class="tt">파이 핀 헤더 — 물리 11~20번 자리만</text>
+      <rect class="box" x="20" y="30" width="200" height="226" rx="8"/>
+      <!-- 행: 11/12 · 13/14 · 15/16 · 17/18 · 19/20 -->
+      <text x="94" y="64" text-anchor="end" class="dim">GPIO 17</text>
+      <text x="94" y="104" text-anchor="end" class="dim">GPIO 27</text>
+      <text x="94" y="144" text-anchor="end" class="dim">GPIO 22</text>
+      <text x="94" y="184" text-anchor="end" class="dim">3V3</text>
+      <text x="94" y="224" text-anchor="end" class="dim">GPIO 10</text>
+      <circle class="pin" cx="110" cy="60" r="11"/><text x="110" y="63.5" text-anchor="middle" class="pn">11</text>
+      <circle class="pin" cx="110" cy="100" r="11"/><text x="110" y="103.5" text-anchor="middle" class="pn">13</text>
+      <circle class="pin" cx="110" cy="140" r="11"/><text x="110" y="143.5" text-anchor="middle" class="pn">15</text>
+      <circle class="pin" cx="110" cy="180" r="11"/><text x="110" y="183.5" text-anchor="middle" class="pn">17</text>
+      <circle class="pin" cx="110" cy="220" r="11"/><text x="110" y="223.5" text-anchor="middle" class="pn">19</text>
+      <circle class="pin sig" cx="138" cy="60" r="11"/><text x="138" y="63.5" text-anchor="middle" class="pn on">12</text>
+      <circle class="pin gnd" cx="138" cy="100" r="11"/><text x="138" y="103.5" text-anchor="middle" class="pn on">14</text>
+      <circle class="pin" cx="138" cy="140" r="11"/><text x="138" y="143.5" text-anchor="middle" class="pn">16</text>
+      <circle class="pin sig" cx="138" cy="180" r="11"/><text x="138" y="183.5" text-anchor="middle" class="pn on">18</text>
+      <circle class="pin gnd" cx="138" cy="220" r="11"/><text x="138" y="223.5" text-anchor="middle" class="pn on">20</text>
+      <text x="156" y="64" class="tt" style="font-size:12px">GPIO 18</text>
+      <text x="156" y="104" class="tt" style="font-size:12px">GND</text>
+      <text x="156" y="144" class="dim">GPIO 23</text>
+      <text x="156" y="184" class="tt" style="font-size:12px">GPIO 24</text>
+      <text x="156" y="224" class="tt" style="font-size:12px">GND</text>
+      <!-- 전선 -->
+      <path class="w-sig" d="M220 60 H418"/>
+      <path class="w-gnd" d="M220 100 H418"/>
+      <path class="w-sig" d="M220 180 H412"/>
+      <path class="w-gnd" d="M220 220 H412"/>
+      <text x="300" y="53" text-anchor="middle" class="lbl">신호</text>
+      <text x="300" y="93" text-anchor="middle" class="lbl">GND</text>
+      <text x="300" y="173" text-anchor="middle" class="lbl">신호</text>
+      <text x="300" y="213" text-anchor="middle" class="lbl">GND</text>
+      <!-- 부저 -->
+      <circle class="part" cx="446" cy="80" r="34"/>
+      <circle class="cap" cx="446" cy="80" r="7"/>
+      <text x="404" y="53" text-anchor="middle" class="tt" style="font-size:14px">+</text>
+      <text x="404" y="93" text-anchor="middle" class="tt" style="font-size:14px">−</text>
+      <text x="492" y="76" class="tt">피에조 부저</text>
+      <text x="492" y="94" class="dim lbl">actuator_01</text>
+      <!-- 버튼 -->
+      <rect class="part" x="412" y="170" width="60" height="60" rx="6"/>
+      <circle class="cap" cx="442" cy="200" r="17"/>
+      <text x="492" y="196" class="tt">푸시 버튼</text>
+      <text x="492" y="214" class="dim lbl">sensor_01</text>
+      <text x="492" y="232" class="dim lbl">대각선 다리 2개</text>
+    </svg>
+    <div class="wire-legend">
+      <span class="s">신호선 (GPIO)</span>
+      <span class="gd">GND선</span>
+    </div>
+  </div>
+
+  <div class="tablewrap compact wide">
+    <table>
+      <thead><tr><th>부품</th><th>다리</th><th>꽂을 곳</th><th>배치표</th></tr></thead>
+      <tbody>
+        <tr><td rowspan="2">피에조 부저</td><td><strong>+</strong></td><td>물리 <strong>12</strong>번 (GPIO 18)</td><td rowspan="2"><code>actuator_01</code> · <code>"pin": 18</code></td></tr>
+        <tr><td><strong>−</strong></td><td>물리 <strong>14</strong>번 (GND)</td></tr>
+        <tr><td rowspan="2">푸시 버튼</td><td>한쪽 다리</td><td>물리 <strong>18</strong>번 (GPIO 24)</td><td rowspan="2"><code>sensor_01</code> · <code>"pin": 24</code> · <code>"pull_up": True</code></td></tr>
+        <tr><td>대각선 반대 다리</td><td>물리 <strong>20</strong>번 (GND)</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p class="small">
+    다리가 3개인 부저 <strong>모듈</strong>이면 <code>S</code> → 물리 12번, <code>+</code>(VCC) → 물리 1번(3V3), <code>−</code> → 물리 14번.
+    터치센서 모듈이면 <code>SIG</code> → 물리 18번, <code>VCC</code> → 물리 1번, <code>GND</code> → 물리 20번이고, 배치표의 <code>pull_up</code>을 <code>False</code>로 바꿉니다.
+  </p>
+
+  <ol class="steps">
+    <li>
+      <h3>파이를 끕니다</h3>
+      <p><code>sudo poweroff</code> → 초록 불 깜빡임이 멈추면 전원선을 뽑습니다.</p>
+    </li>
+    <li>
+      <h3>부저만 먼저 연결합니다</h3>
+      <p><strong>한 번에 부품 하나씩.</strong> 둘을 같이 꽂았다가 안 되면 어느 쪽 문제인지 모릅니다. 위 표에서 부저 두 줄만 연결하세요.</p>
+    </li>
+    <li>
+      <h3>선생님 확인 → 전원 → 점검 → 실행</h3>
+      <figure class="code">
+        <figcaption><span class="where pi">파이 터미널</span> SSH로 다시 접속한 뒤</figcaption>
+        <button class="copy" type="button">복사</button>
+<pre>cd ~/iot-kit/pi
+source venv/bin/activate
+python daemon.py --check
+python daemon.py</pre>
+      </figure>
+    </li>
+    <li>
+      <h3>대시보드에서 켜기 / 끄기</h3>
+      <p>PC 브라우저 <code>/kit</code> → 알람 부저 → 켜기. <strong>소리가 나고</strong>, 끄기를 누르면 멈추면 성공입니다.</p>
+      <div class="note warn">
+        <span class="tag">소리가 안 날 때 — 이 순서로</span>
+        <ol>
+          <li>파이 터미널에 <code>알람 부저 → on</code>이 찍혔나요? 안 찍혔으면 배선이 아니라 연결 문제입니다 → <a href="#s6">06</a></li>
+          <li>찍혔는데 조용하거나 "틱"만 나면: <kbd>Ctrl</kbd>+<kbd>C</kbd> → <code>nano slot_map.py</code> → <code>"buzzer_type": "active"</code>로 바꾸고 저장 → <code>python daemon.py</code> → 다시 켜기</li>
+          <li>그래도 안 나면 전원을 끄고 <strong>물리 12번</strong>에 꽂았는지, +와 −가 바뀌지 않았는지 봅니다</li>
+        </ol>
+        <p style="margin-top:8px">파이에서 <code>slot_map.py</code>를 고쳤다면 나중에 PC의 파일에도 똑같이 반영하세요 → <a href="#s11">11</a></p>
+      </div>
+    </li>
+    <li>
+      <h3>다시 끄고 버튼을 연결합니다</h3>
+      <p>전원을 끄고, 표의 버튼 두 줄을 연결한 뒤 3번처럼 다시 켭니다.</p>
+    </li>
+    <li>
+      <h3>버튼을 1~2초 꾹 눌러 봅니다</h3>
+      <figure class="code">
+        <figcaption><span class="where out">화면에 나오는 것</span> 파이 터미널</figcaption>
+<pre>[INFO] [pi] [sensor_01] 기상 확인 버튼 눌림 감지</pre>
+      </figure>
+      <p>
+        대시보드의 기상 확인 버튼 카드가 <strong>눌림</strong>으로 바뀌고, 손을 떼면 <strong>대기</strong>로 돌아옵니다.
+        안 눌렀는데 계속 <strong>눌림</strong>이면 <code>pull_up</code>을 반대로 바꿉니다.
+      </p>
+    </li>
+  </ol>
+
+  <div class="goal">
+    <span class="tag">✓ 4단계 성공 기준</span>
+    <ul>
+      <li>대시보드 켜기/끄기로 부저 소리가 나고 멈춘다</li>
+      <li>버튼을 누르면 카드가 <strong>눌림</strong>, 떼면 <strong>대기</strong></li>
+      <li><kbd>Ctrl</kbd>+<kbd>C</kbd>로 데몬을 끄면 울리던 부저도 꺼진다</li>
+    </ul>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════════════════════ -->
+<section id="s10">
+  <p class="part">배치표편 · 부품을 바꿀 때마다</p>
+  <h2><span class="num">10</span>배치표 한 줄은 이렇게 생겼습니다</h2>
 
   <figure class="code">
     <figcaption>pi/slot_map.py</figcaption>
@@ -401,6 +1354,37 @@ td code{background:transparent; padding:0; color:var(--pcb); font-weight:600}
     <span class="s">"buzzer_type"</span>: <span class="s">"passive"</span>,  <span class="c"># 드라이버별 옵션</span>
 },</pre>
   </figure>
+
+  <h3>파일 전체의 모양</h3>
+  <p>
+    <code>slot_map.py</code>는 <code>SLOTS = {</code>로 시작해 <code>}</code>로 끝나는 <strong>큰 상자 하나</strong>이고,
+    그 안에 부품마다 <code>"슬롯이름": { ... },</code> 작은 상자가 들어 있습니다.
+    맨 위의 <code>SLOTS = {</code>와 맨 아래의 <code>}</code>는 지우지 않습니다.
+  </p>
+
+  <h3>파이썬 문법 — 이것만 지키면 됩니다</h3>
+  <div class="tablewrap">
+    <table>
+      <thead><tr><th>규칙</th><th>틀린 예</th><th>맞는 예</th></tr></thead>
+      <tbody>
+        <tr><td>글자는 따옴표로 감쌉니다</td><td><code style="color:var(--danger)">"label": 알람 부저</code></td><td><code>"label": "알람 부저"</code></td></tr>
+        <tr><td>숫자는 따옴표 없이</td><td><code style="color:var(--danger)">"pin": "18"</code></td><td><code>"pin": 18</code></td></tr>
+        <tr><td><code>True</code> · <code>False</code>는 첫 글자 대문자</td><td><code style="color:var(--danger)">"pull_up": true</code></td><td><code>"pull_up": True</code></td></tr>
+        <tr><td>항목이 끝날 때마다 쉼표</td><td><code style="color:var(--danger)">"kind": "buzzer"</code> (쉼표 없음)</td><td><code>"kind": "buzzer",</code></td></tr>
+        <tr><td>부품 상자 <code>}</code> 뒤에도 쉼표</td><td><code style="color:var(--danger)">}</code> 다음 줄에 바로 <code>"sensor_01"</code></td><td><code>},</code></td></tr>
+        <tr><td>중괄호는 짝이 맞아야 합니다</td><td><code style="color:var(--danger)">{</code>는 있는데 <code>}</code>가 없음</td><td>여는 <code>{</code>마다 닫는 <code>}</code></td></tr>
+        <tr><td><code>#</code> 뒤는 메모(실행 안 됨)</td><td>—</td><td>예시 줄을 켜려면 줄 앞의 <code>#</code>와 그 뒤 공백 하나를 지웁니다</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="note">
+    <span class="tag">줄 번호 읽는 요령</span>
+    <p>
+      쉼표를 빼먹으면 파이썬은 <strong>그다음 줄</strong>에서 오류를 알립니다.
+      <code>line 5</code>라고 나오면 5번째 줄과 <strong>바로 윗줄(4번째 줄) 끝</strong>을 같이 보세요.
+      마지막 항목 뒤의 쉼표는 있어도 괜찮습니다 — 헷갈리면 <strong>모든 줄 끝에 쉼표</strong>를 붙이세요.
+    </p>
+  </div>
 
   <h3>슬롯 이름은 정해져 있습니다</h3>
   <p>
@@ -422,8 +1406,8 @@ td code{background:transparent; padding:0; color:var(--pcb); font-weight:600}
       <thead><tr><th>항목</th><th>누가 쓰나</th><th>무엇</th></tr></thead>
       <tbody>
         <tr><td><code>label</code></td><td>둘 다</td><td>대시보드에 보일 이름. 한글로 적으세요</td></tr>
-        <tr><td><code>kind</code></td><td>둘 다</td><td>부품 종류. <code>control_type</code>을 안 적으면 이걸로 위젯을 짐작합니다</td></tr>
-        <tr><td><code>driver</code></td><td>둘 다</td><td><strong>필수.</strong> <code>drivers/</code> 폴더의 파일 이름</td></tr>
+        <tr><td><code>kind</code></td><td>둘 다</td><td>부품 종류. 카드 아이콘을 정하고, <code>control_type</code>을 안 적으면 이걸로 위젯을 짐작합니다</td></tr>
+        <tr><td><code>driver</code></td><td>둘 다</td><td><strong>필수.</strong> <code>drivers/</code> 폴더의 파일 이름 (대소문자까지 똑같이)</td></tr>
         <tr><td><code>pin</code> / <code>pins</code></td><td>둘 다</td><td>GPIO 번호. 핀을 여러 개 쓰면 <code>pins</code></td></tr>
         <tr><td><code>control_type</code></td><td>액추에이터</td><td>대시보드 위젯 모양. 생략하면 드라이버 기본값</td></tr>
         <tr><td><code>value_schema</code></td><td>액추에이터</td><td>슬라이더 범위 — <code>{"min":0,"max":180,"step":5}</code></td></tr>
@@ -452,77 +1436,27 @@ td code{background:transparent; padding:0; color:var(--pcb); font-weight:600}
 </section>
 
 <!-- ══════════════════════════════════════════════════════ -->
-<section id="s3">
-  <h2><span class="num">03</span>GPIO 번호 — 가장 많이 틀리는 곳</h2>
-  <div class="note danger">
-    <span class="tag">반드시 BCM 번호</span>
-    <p>
-      배치표의 <code>pin</code>은 <strong>BCM(GPIO) 번호</strong>입니다.
-      보드에 꽂는 <strong>물리적 핀 위치 번호가 아닙니다.</strong>
-      예를 들어 <strong>GPIO 18번은 위에서 6번째 줄 오른쪽(물리 12번 자리)</strong>입니다.
-      이걸 헷갈리면 배선은 맞는데 아무 반응이 없습니다.
-    </p>
-  </div>
-
-  <div class="pinout">
-    <div class="pin-grid" role="img" aria-label="라즈베리파이 40핀 헤더 배치도. 왼쪽 열이 홀수 물리핀, 오른쪽 열이 짝수 물리핀입니다.">
-      <div class="hdr l">기능</div><div class="hdr n">핀</div><div class="hdr n">핀</div><div class="hdr r">기능</div>
-      <div class="l pwr">3V3</div>      <div class="n">1</div>  <div class="n">2</div>  <div class="r pwr">5V</div>
-      <div class="l gpio">GPIO 2</div>  <div class="n">3</div>  <div class="n">4</div>  <div class="r pwr">5V</div>
-      <div class="l gpio">GPIO 3</div>  <div class="n">5</div>  <div class="n">6</div>  <div class="r gnd">GND</div>
-      <div class="l gpio">GPIO 4</div>  <div class="n">7</div>  <div class="n">8</div>  <div class="r gpio">GPIO 14</div>
-      <div class="l gnd">GND</div>      <div class="n">9</div>  <div class="n">10</div> <div class="r gpio">GPIO 15</div>
-      <div class="l gpio">GPIO 17</div> <div class="n">11</div> <div class="n">12</div> <div class="r gpio">GPIO 18</div>
-      <div class="l gpio">GPIO 27</div> <div class="n">13</div> <div class="n">14</div> <div class="r gnd">GND</div>
-      <div class="l gpio">GPIO 22</div> <div class="n">15</div> <div class="n">16</div> <div class="r gpio">GPIO 23</div>
-      <div class="l pwr">3V3</div>      <div class="n">17</div> <div class="n">18</div> <div class="r gpio">GPIO 24</div>
-      <div class="l gpio">GPIO 10</div> <div class="n">19</div> <div class="n">20</div> <div class="r gnd">GND</div>
-      <div class="l gpio">GPIO 9</div>  <div class="n">21</div> <div class="n">22</div> <div class="r gpio">GPIO 25</div>
-      <div class="l gpio">GPIO 11</div> <div class="n">23</div> <div class="n">24</div> <div class="r gpio">GPIO 8</div>
-      <div class="l gnd">GND</div>      <div class="n">25</div> <div class="n">26</div> <div class="r gpio">GPIO 7</div>
-      <div class="l gnd">ID_SD</div>    <div class="n">27</div> <div class="n">28</div> <div class="r gnd">ID_SC</div>
-      <div class="l gpio">GPIO 5</div>  <div class="n">29</div> <div class="n">30</div> <div class="r gnd">GND</div>
-      <div class="l gpio">GPIO 6</div>  <div class="n">31</div> <div class="n">32</div> <div class="r gpio">GPIO 12</div>
-      <div class="l gpio">GPIO 13</div> <div class="n">33</div> <div class="n">34</div> <div class="r gnd">GND</div>
-      <div class="l gpio">GPIO 19</div> <div class="n">35</div> <div class="n">36</div> <div class="r gpio">GPIO 16</div>
-      <div class="l gpio">GPIO 26</div> <div class="n">37</div> <div class="n">38</div> <div class="r gpio">GPIO 20</div>
-      <div class="l gnd">GND</div>      <div class="n">39</div> <div class="n">40</div> <div class="r gpio">GPIO 21</div>
-    </div>
-    <div class="pin-legend">
-      <span class="g">GPIO — 배치표에 적는 번호</span>
-      <span class="p">전원 — 부품에 쓰지만 배치표에는 안 적습니다</span>
-      <span class="e">GND·예약 — 배치표에 안 적습니다</span>
-    </div>
-  </div>
-  <p style="font-family:var(--mono); font-size:12.5px; color:var(--ink-3); margin-top:10px">
-    USB 포트가 아래로 가도록 두었을 때, 왼쪽 위가 물리 1번입니다.
+<section id="s11">
+  <h2><span class="num">11</span>부품 추가하기 — 고치는 흐름</h2>
+  <p class="lede">
+    배치표는 <strong>PC에서 고치고 깃허브로 파이에 보냅니다.</strong>
+    고치는 곳을 한 군데로 정해 두면, 파이와 PC의 파일이 서로 달라지는 일이 없습니다.
   </p>
-
-  <h3>핀 하나에 부품 하나</h3>
-  <p>
-    같은 GPIO 번호를 두 슬롯에 적으면 검사기가 잡아 줍니다. 배선도 마찬가지입니다 —
-    <strong>한 GPIO 핀에는 부품 하나만</strong> 연결하세요.
-    GND는 여러 부품이 나눠 써도 됩니다.
-  </p>
-</section>
-
-<!-- ══════════════════════════════════════════════════════ -->
-<section id="s4">
-  <h2><span class="num">04</span>부품 추가하기 — 3단계</h2>
 
   <ol class="steps">
     <li>
       <h3>배선하고 GPIO 번호를 적어 둡니다</h3>
       <p>
         전원을 <strong>끄고</strong> 연결하세요. 어느 GPIO에 꽂았는지 종이에 적어 둡니다 —
-        3번 항목의 배치도에서 BCM 번호를 확인하세요.
+        <a href="#s8">08</a>의 배치도에서 BCM 번호를 확인하세요.
       </p>
     </li>
     <li>
-      <h3><code>slot_map.py</code>에 한 줄 추가합니다</h3>
-      <p>빈 슬롯 번호를 하나 골라 적습니다. 5번 항목에서 부품에 맞는 코드를 복사해 오세요.</p>
+      <h3>PC에서 <code>slot_map.py</code>에 한 줄 추가합니다</h3>
+      <p>빈 슬롯 번호를 하나 골라 적습니다. <a href="#s12">12</a>에서 부품에 맞는 코드를 복사해 오세요.
+        파일 아래쪽에 <code>#</code>로 막아 둔 예시가 있다면 <code>#</code>만 지워서 써도 됩니다.</p>
       <figure class="code">
-        <figcaption>예 — 경보 LED를 GPIO 23번에 추가</figcaption>
+        <figcaption>예 — 경보 LED를 GPIO 23번에 추가 (<code>actuator_01</code> 상자 바로 아래에 붙여넣기)</figcaption>
         <button class="copy" type="button">복사</button>
 <pre>    <span class="s">"actuator_02"</span>: {
         <span class="s">"label"</span>: <span class="s">"경보 LED"</span>,
@@ -534,16 +1468,51 @@ td code{background:transparent; padding:0; color:var(--pcb); font-weight:600}
       </figure>
     </li>
     <li>
-      <h3>확인하고 데몬을 다시 실행합니다</h3>
+      <h3>PC에서 먼저 확인합니다 (파이 없이)</h3>
       <figure class="code">
+        <figcaption><span class="where pc">PC · PowerShell</span></figcaption>
         <button class="copy" type="button">복사</button>
 <pre>cd pi
-python daemon.py --check   <span class="c"># 배선·배치표만 확인 (백엔드 없이 됩니다)</span>
-python daemon.py           <span class="c"># 실제 실행</span></pre>
+python daemon.py --check   <span class="c"># 오타·핀 중복을 잡습니다 (백엔드도 GPIO도 필요 없음)</span></pre>
       </figure>
-      <p>대시보드(<code>localhost:3000</code>)를 새로고침하면 카드가 나타납니다.</p>
+      <p><code>고쳐야 할 것</code>이 없고, 새 부품이 목록에 나오면 다음으로 갑니다.</p>
+    </li>
+    <li>
+      <h3>커밋·푸시합니다</h3>
+      <p>평소 쓰는 방법(소스 제어 화면 또는 명령)으로 <strong>우리 팀 브랜치</strong>에 올립니다.</p>
+      <figure class="code">
+        <figcaption><span class="where pc">PC · PowerShell</span> 명령으로 한다면</figcaption>
+        <button class="copy" type="button">복사</button>
+<pre>git add pi/slot_map.py
+git commit -m "[hardware] 경보 LED 추가 (GPIO 23)"
+git push</pre>
+      </figure>
+      <p class="small">올리기 전에 <code>.env</code>가 목록에 없는지 확인합니다 (<code>git status</code>).</p>
+    </li>
+    <li>
+      <h3>파이에서 받고, 확인하고, 데몬을 다시 켭니다</h3>
+      <figure class="code">
+        <figcaption><span class="where pi">파이 터미널</span> 돌고 있는 데몬은 먼저 <kbd>Ctrl</kbd>+<kbd>C</kbd></figcaption>
+        <button class="copy" type="button">복사</button>
+<pre>cd ~/iot-kit
+git pull
+cd pi
+source venv/bin/activate
+python daemon.py --check
+python daemon.py</pre>
+      </figure>
+      <p>대시보드(<code>localhost:3000</code>)를 새로고침하면 카드가 나타납니다. 켜기를 눌러 실제 부품이 움직이는지 봅니다.</p>
     </li>
   </ol>
+
+  <div class="note warn">
+    <span class="tag">파이에서 nano로 바로 고쳤다면</span>
+    <p>
+      배선하면서 급히 고치는 것은 괜찮습니다. 다만 <strong>동작을 확인한 뒤 같은 내용을 PC 파일에도 옮겨</strong> 커밋하세요.
+      그다음 파이에서 <code>git pull</code>이 <code>Your local changes ... would be overwritten</code>로 거부되면,
+      파이 쪽 수정이 PC에 반영된 것을 확인하고 <code>git checkout -- pi/slot_map.py</code>로 되돌린 뒤 다시 <code>git pull</code>합니다.
+    </p>
+  </div>
 
   <div class="note">
     <span class="tag">파이가 없어도 됩니다</span>
@@ -556,11 +1525,12 @@ python daemon.py           <span class="c"># 실제 실행</span></pre>
 </section>
 
 <!-- ══════════════════════════════════════════════════════ -->
-<section id="s5">
-  <h2><span class="num">05</span>드라이버 11종 — 부품에 맞는 것을 고르세요</h2>
+<section id="s12">
+  <h2><span class="num">12</span>드라이버 11종 — 부품에 맞는 것을 고르세요</h2>
   <p class="lede">
     <code>driver</code>에 적는 이름입니다. 부품에 맞는 카드를 찾아 코드를 복사해 쓰세요.
-    <span style="color:var(--danger); font-weight:600">빨간 항목은 반드시 적어야 하는 것</span>입니다.
+    <span style="color:var(--danger); font-weight:600">빨간 항목은 반드시 적어야 하는 것</span>이고,
+    <strong>배선</strong> 줄은 부품을 어디에 꽂는지입니다.
   </p>
 
   <div class="filterbar">
@@ -575,7 +1545,7 @@ python daemon.py           <span class="c"># 실제 실행</span></pre>
   <div id="drv-list">
 
     <!-- ── 액추에이터 ───────────────────────────── -->
-    <article class="drv" data-role="actuator" data-keys="digital_out LED 릴레이 능동부저 스위치 켜기 끄기 relay">
+    <article class="drv" data-role="actuator" data-keys="digital_out LED 릴레이 능동부저 스위치 켜기 끄기 relay 경보등 점멸">
       <div class="drv-head">
         <span class="drv-name">digital_out</span>
         <span class="drv-role act">액추에이터</span>
@@ -584,7 +1554,10 @@ python daemon.py           <span class="c"># 실제 실행</span></pre>
       <p class="drv-use">켜고 끄기만 하는 부품 — LED, 릴레이, 능동 부저.</p>
       <dl>
         <dt>필수</dt><dd class="req"><code>pin</code></dd>
-        <dt>선택</dt><dd><code>active_high</code> 기본 <code>True</code> · <code>blink</code> 기본 <code>False</code>(<code>True</code>면 점멸)</dd>
+        <dt>선택</dt><dd><code>active_high</code> 기본 <code>True</code>(<code>False</code>면 신호를 반대로 — LOW에서 켜지는 릴레이 모듈용) · <code>blink</code> 기본 <code>False</code>(<code>True</code>면 점멸)</dd>
+        <dt>배선</dt><dd class="wire">LED: 긴 다리 → 저항(220~330Ω) → GPIO, 짧은 다리 → GND.
+          릴레이 모듈: <code>IN</code> → GPIO, <code>VCC</code> → 모듈에 적힌 전압(5V/3.3V), <code>GND</code> → GND.
+          끄기를 눌렀는데 켜지고 켜기를 눌렀는데 꺼지면 <code>"active_high": False</code>.</dd>
       </dl>
       <figure class="code"><button class="copy" type="button">복사</button>
 <pre>    <span class="s">"actuator_02"</span>: {
@@ -594,7 +1567,7 @@ python daemon.py           <span class="c"># 실제 실행</span></pre>
     },</pre></figure>
     </article>
 
-    <article class="drv" data-role="actuator" data-keys="pwm_out 진동모터 밝기 세기 모터 vibration 조절">
+    <article class="drv" data-role="actuator" data-keys="pwm_out 진동모터 밝기 세기 모터 vibration 조절 DC모터 컨베이어">
       <div class="drv-head">
         <span class="drv-name">pwm_out</span>
         <span class="drv-role act">액추에이터</span>
@@ -604,6 +1577,8 @@ python daemon.py           <span class="c"># 실제 실행</span></pre>
       <dl>
         <dt>필수</dt><dd class="req"><code>pin</code></dd>
         <dt>선택</dt><dd><code>frequency</code> 기본 <code>100</code> · <code>default_duty</code> 기본 <code>100</code> · <code>min_level</code> 기본 <code>0</code></dd>
+        <dt>배선</dt><dd class="wire"><strong>모터를 GPIO에 직접 연결하지 않습니다.</strong> 모터 드라이버·트랜지스터 모듈의 신호(<code>IN</code>/<code>PWM</code>)만 GPIO에 연결하고,
+          모터 전원은 모듈 쪽에 따로 줍니다(GND는 파이와 공통). LED 밝기라면 <code>digital_out</code>의 LED 배선과 같습니다.</dd>
       </dl>
       <figure class="code"><button class="copy" type="button">복사</button>
 <pre>    <span class="s">"actuator_03"</span>: {
@@ -622,7 +1597,8 @@ python daemon.py           <span class="c"># 실제 실행</span></pre>
       <p class="drv-use">소리를 내는 부품 — 피에조 부저. 주파수를 바꿔 음을 만들 수 있습니다.</p>
       <dl>
         <dt>필수</dt><dd class="req"><code>pin</code></dd>
-        <dt>선택</dt><dd><code>buzzer_type</code> 기본 <code>"passive"</code> — 소리가 안 나면 <code>"active"</code>로 바꿔 보세요</dd>
+        <dt>선택</dt><dd><code>buzzer_type</code> 기본 <code>"passive"</code> — 소리가 안 나면 <code>"active"</code>로 바꿔 보세요 (능동 부저는 주파수 조절이 안 되고 경보 패턴으로 울립니다)</dd>
+        <dt>배선</dt><dd class="wire">다리 2개: <code>+</code> → GPIO, <code>−</code> → GND. 3핀 모듈: <code>S</code> → GPIO, <code>+</code>(VCC) → 3V3, <code>−</code> → GND. 그림은 <a href="#s9">09</a></dd>
       </dl>
       <figure class="code"><button class="copy" type="button">복사</button>
 <pre>    <span class="s">"actuator_01"</span>: {
@@ -630,9 +1606,14 @@ python daemon.py           <span class="c"># 실제 실행</span></pre>
         <span class="s">"driver"</span>: <span class="s">"tonal_buzzer"</span>, <span class="s">"pin"</span>: <span class="k">18</span>,
         <span class="s">"control_type"</span>: <span class="s">"tonal"</span>, <span class="s">"buzzer_type"</span>: <span class="s">"passive"</span>,
     },</pre></figure>
+      <div class="note" style="margin-bottom:0">
+        <span class="tag">스피커는 이 드라이버가 아닙니다</span>
+        <p>음악·음성을 내는 스피커(3.5mm·USB·블루투스)는 키트 드라이버에 없습니다. 꼭 필요하면 부록F 8-3절의 방법으로
+          <code>drivers/</code>에 파일을 하나 추가해야 하니 먼저 선생님과 상의하세요.</p>
+      </div>
     </article>
 
-    <article class="drv" data-role="actuator" data-keys="servo 서보 각도 문 자동문 모터 회전">
+    <article class="drv" data-role="actuator" data-keys="servo 서보 각도 문 자동문 모터 회전 SG90 MG90S 차단기">
       <div class="drv-head">
         <span class="drv-name">servo</span>
         <span class="drv-role act">액추에이터</span>
@@ -641,7 +1622,9 @@ python daemon.py           <span class="c"># 실제 실행</span></pre>
       <p class="drv-use">각도를 지정하는 부품 — 서보모터(SG90 등). 자동문, 차단기.</p>
       <dl>
         <dt>필수</dt><dd class="req"><code>pin</code></dd>
-        <dt>선택</dt><dd><code>min_angle</code> 기본 <code>0</code> · <code>max_angle</code> 기본 <code>180</code> · <code>rest_angle</code> · <code>value_schema</code></dd>
+        <dt>선택</dt><dd><code>min_angle</code> 기본 <code>0</code> · <code>max_angle</code> 기본 <code>180</code> · <code>rest_angle</code>(끄면 돌아갈 각도) · <code>value_schema</code></dd>
+        <dt>배선</dt><dd class="wire">선 3가닥: 갈색(검정) → GND, 빨강 → 5V, 주황(노랑) → GPIO.
+          작은 서보 1개는 파이의 5V로도 돌지만, <strong>2개 이상이거나 파이가 재부팅되면</strong> 별도 5V 전원을 쓰고 GND를 파이와 이어 줍니다.</dd>
       </dl>
       <figure class="code"><button class="copy" type="button">복사</button>
 <pre>    <span class="s">"actuator_04"</span>: {
@@ -652,7 +1635,7 @@ python daemon.py           <span class="c"># 실제 실행</span></pre>
     },</pre></figure>
       <div class="note warn" style="margin-bottom:0">
         <span class="tag">서보만 다릅니다</span>
-        <p>서보는 켤 때 상태가 <code>"on"</code>이 아니라 <code>"move"</code>입니다. 화면이나 규칙에서 서보를 다룰 때 기억하세요.</p>
+        <p>서보는 켤 때 상태가 <code>"on"</code>이 아니라 <code>"move"</code>이고, 대시보드 버튼도 "켜기"가 아니라 "이동"입니다. 화면이나 규칙에서 서보를 다룰 때 기억하세요.</p>
       </div>
     </article>
 
@@ -666,6 +1649,7 @@ python daemon.py           <span class="c"># 실제 실행</span></pre>
       <dl>
         <dt>필수</dt><dd class="req"><code>pin</code></dd>
         <dt>선택</dt><dd><code>count</code> 기본 <code>8</code> (LED 알 개수) · <code>default_color</code> 기본 <code>"#ffffff"</code></dd>
+        <dt>배선</dt><dd class="wire"><code>DIN</code> → GPIO, <code>5V</code> → 5V, <code>GND</code> → GND. 알이 많으면(수십 개) 별도 5V 전원.</dd>
       </dl>
       <figure class="code"><button class="copy" type="button">복사</button>
 <pre>    <span class="s">"actuator_05"</span>: {
@@ -680,7 +1664,7 @@ python daemon.py           <span class="c"># 실제 실행</span></pre>
       </div>
     </article>
 
-    <article class="drv" data-role="actuator" data-keys="rgb_out 3색LED 삼색 무드등 color 애노드 캐소드">
+    <article class="drv" data-role="actuator" data-keys="rgb_out 3색LED 삼색 무드등 color 애노드 캐소드 스탠드">
       <div class="drv-head">
         <span class="drv-name">rgb_out</span>
         <span class="drv-role act">액추에이터</span>
@@ -690,6 +1674,8 @@ python daemon.py           <span class="c"># 실제 실행</span></pre>
       <dl>
         <dt>필수</dt><dd class="req"><code>pins</code> — <code>{"r":17,"g":27,"b":22}</code></dd>
         <dt>선택</dt><dd><code>common_anode</code> 기본 <code>False</code> · <code>frequency</code> 기본 <code>200</code> · <code>default_color</code></dd>
+        <dt>배선</dt><dd class="wire">R·G·B 다리마다 저항을 하나씩 거쳐 각 GPIO로. 가장 긴 공통 다리는
+          공통 음극(캐소드)이면 GND, 공통 양극(애노드)이면 3V3에 꽂고 <code>"common_anode": True</code>. 색이 반대로 나오면 이 값을 바꿉니다.</dd>
       </dl>
       <figure class="code"><button class="copy" type="button">복사</button>
 <pre>    <span class="s">"actuator_06"</span>: {
@@ -715,6 +1701,7 @@ python daemon.py           <span class="c"># 실제 실행</span></pre>
       <dl>
         <dt>필수</dt><dd class="req"><code>pins</code> — <code>[5, 6, 13]</code></dd>
         <dt>선택</dt><dd><code>active_high</code> 기본 <code>True</code> · <code>value_schema</code>로 단계 수 지정</dd>
+        <dt>배선</dt><dd class="wire">LED마다 저항을 <strong>하나씩</strong> 거쳐 각 GPIO로, 짧은 다리는 모두 GND. <code>pins</code>에 적은 순서가 켜지는 순서입니다.</dd>
       </dl>
       <figure class="code"><button class="copy" type="button">복사</button>
 <pre>    <span class="s">"actuator_07"</span>: {
@@ -726,7 +1713,7 @@ python daemon.py           <span class="c"># 실제 실행</span></pre>
     </article>
 
     <!-- ── 센서 ─────────────────────────────────── -->
-    <article class="drv" data-role="sensor" data-keys="button_in 버튼 터치 PIR 스위치 인체감지 누름">
+    <article class="drv" data-role="sensor" data-keys="button_in 버튼 터치 PIR 스위치 인체감지 누름 TTP223 HC-SR501">
       <div class="drv-head">
         <span class="drv-name">button_in</span>
         <span class="drv-role sen">센서</span>
@@ -736,6 +1723,9 @@ python daemon.py           <span class="c"># 실제 실행</span></pre>
       <dl>
         <dt>필수</dt><dd class="req"><code>pin</code></dd>
         <dt>선택</dt><dd><code>pull_up</code> 기본 <code>True</code> · <code>bounce_time</code> 기본 <code>0.05</code>초</dd>
+        <dt>배선</dt><dd class="wire">푸시버튼: 대각선 다리 2개를 GPIO와 GND에 (저항 필요 없음 — 파이 안의 풀업을 씁니다).
+          터치 모듈: <code>VCC</code> → 3V3, <code>GND</code> → GND, <code>SIG</code>/<code>OUT</code> → GPIO.
+          PIR(HC-SR501): <code>VCC</code> → 5V, <code>GND</code> → GND, <code>OUT</code> → GPIO (출력은 3.3V라 바로 연결해도 됩니다).</dd>
       </dl>
       <figure class="code"><button class="copy" type="button">복사</button>
 <pre>    <span class="s">"sensor_01"</span>: {
@@ -746,7 +1736,8 @@ python daemon.py           <span class="c"># 실제 실행</span></pre>
       <div class="note warn" style="margin-bottom:0">
         <span class="tag">반대로 동작하면 pull_up을 뒤집으세요</span>
         <p>일반 푸시버튼은 <code>True</code>, <strong>정전식 터치센서와 PIR은 <code>False</code></strong>입니다.
-           안 눌렀는데 계속 눌린 것으로 나오면 이 값을 바꿔 보세요.</p>
+           안 눌렀는데 계속 눌린 것으로 나오면 이 값을 바꿔 보세요.
+           값은 <strong>바뀔 때만</strong> 보고하므로, 아주 짧게 누르면 카드에서 놓칠 수 있습니다 — 확인할 때는 1~2초 누르세요.</p>
       </div>
     </article>
 
@@ -760,6 +1751,9 @@ python daemon.py           <span class="c"># 실제 실행</span></pre>
       <dl>
         <dt>필수</dt><dd class="req"><code>pin</code></dd>
         <dt>선택</dt><dd><code>measure</code> 기본 <code>"temperature"</code> (<code>"humidity"</code> 가능) · <code>model</code> 기본 <code>"DHT22"</code> · <code>interval</code> 기본 <code>5.0</code> · <code>decimals</code> 기본 <code>1</code></dd>
+        <dt>배선</dt><dd class="wire">3핀 모듈: <code>+</code> → 3V3, <code>OUT</code>(DATA) → GPIO, <code>−</code> → GND.
+          다리 4개짜리 단품이면 DATA와 VCC 사이에 10kΩ 저항을 하나 넣습니다(모듈에는 들어 있습니다).</dd>
+        <dt>설치</dt><dd class="wire">가상환경을 켠 상태에서 <code>pip install adafruit-circuitpython-dht</code>. 안 깔려 있으면 흉내낸 값을 보고합니다.</dd>
       </dl>
       <figure class="code"><button class="copy" type="button">복사</button>
 <pre>    <span class="s">"sensor_02"</span>: {
@@ -779,7 +1773,7 @@ python daemon.py           <span class="c"># 실제 실행</span></pre>
       </div>
     </article>
 
-    <article class="drv" data-role="sensor" data-keys="analog_in 압력 조도 아날로그 ADC MCP3008 가변저항 빛">
+    <article class="drv" data-role="sensor" data-keys="analog_in 압력 조도 아날로그 ADC MCP3008 가변저항 빛 FSR CDS SPI">
       <div class="drv-head">
         <span class="drv-name">analog_in</span>
         <span class="drv-role sen">센서</span>
@@ -789,7 +1783,22 @@ python daemon.py           <span class="c"># 실제 실행</span></pre>
       <dl>
         <dt>필수</dt><dd class="req"><code>channel</code></dd>
         <dt>선택</dt><dd><code>adc</code> 기본 <code>"MCP3008"</code> · <code>scale</code> 기본 <code>100</code> · <code>offset</code> 기본 <code>0</code> · <code>deadband</code> 기본 <code>0</code> · <code>decimals</code> 기본 <code>1</code></dd>
+        <dt>배선</dt><dd class="wire">센서는 MCP3008의 <code>CH0</code>~<code>CH7</code> 중 하나에, MCP3008은 파이의 SPI 핀에 연결합니다 (아래 표).
+          먼저 <code>sudo raspi-config</code> → Interface Options → <strong>SPI</strong>를 켭니다. 선이 많으니 <strong>처음이면 선생님과 함께</strong> 하세요.</dd>
       </dl>
+      <div class="tablewrap compact">
+        <table>
+          <thead><tr><th>MCP3008 핀</th><th>파이 (물리 번호)</th></tr></thead>
+          <tbody>
+            <tr><td>VDD · VREF</td><td>3V3 (1번)</td></tr>
+            <tr><td>AGND · DGND</td><td>GND (6번 등)</td></tr>
+            <tr><td>CLK</td><td>GPIO 11 (23번)</td></tr>
+            <tr><td>DOUT</td><td>GPIO 9 (21번)</td></tr>
+            <tr><td>DIN</td><td>GPIO 10 (19번)</td></tr>
+            <tr><td>CS / SHDN</td><td>GPIO 8 (24번)</td></tr>
+          </tbody>
+        </table>
+      </div>
       <figure class="code"><button class="copy" type="button">복사</button>
 <pre>    <span class="s">"sensor_03"</span>: {
         <span class="s">"label"</span>: <span class="s">"좌석 압력"</span>, <span class="s">"kind"</span>: <span class="s">"pressure"</span>, <span class="s">"unit"</span>: <span class="s">"kg"</span>,
@@ -800,7 +1809,8 @@ python daemon.py           <span class="c"># 실제 실행</span></pre>
         <span class="tag">ADC가 반드시 필요합니다</span>
         <p>라즈베리파이에는 <strong>아날로그 입력 핀이 없습니다.</strong>
            MCP3008 같은 ADC 칩을 거쳐야 읽을 수 있고, 배치표에는 GPIO 번호가 아니라
-           <strong>ADC 채널 번호(0~7)</strong>를 적습니다.</p>
+           <strong>ADC 채널 번호(0~7)</strong>를 적습니다. <code>--check</code> 목록에 <code>GPIO 0</code>처럼 보이는 숫자는 사실 이 채널 번호입니다.
+           GPIO 8·9·10·11은 SPI가 쓰므로 다른 부품에 적지 마세요.</p>
       </div>
     </article>
 
@@ -815,6 +1825,9 @@ python daemon.py           <span class="c"># 실제 실행</span></pre>
         <dt>필수</dt><dd class="req"><code>trigger_pin</code></dd>
         <dt>필수</dt><dd class="req"><code>echo_pin</code></dd>
         <dt>선택</dt><dd><code>max_distance_cm</code> 기본 <code>200</code> · <code>deadband</code> 기본 <code>1.0</code> · <code>decimals</code> 기본 <code>1</code></dd>
+        <dt>배선</dt><dd class="wire"><code>VCC</code> → 5V, <code>GND</code> → GND, <code>TRIG</code> → GPIO(<code>trigger_pin</code>),
+          <code>ECHO</code> → <strong>1kΩ</strong> → GPIO(<code>echo_pin</code>), 그리고 그 GPIO 쪽에서 <strong>2kΩ</strong> → GND.
+          <code>--check</code> 목록에는 핀이 <code>-</code>로 나오는 것이 정상입니다.</dd>
       </dl>
       <figure class="code"><button class="copy" type="button">복사</button>
 <pre>    <span class="s">"sensor_04"</span>: {
@@ -823,6 +1836,14 @@ python daemon.py           <span class="c"># 실제 실행</span></pre>
         <span class="s">"trigger_pin"</span>: <span class="k">20</span>, <span class="s">"echo_pin"</span>: <span class="k">16</span>,
         <span class="s">"interval"</span>: <span class="k">0.5</span>,
     },</pre></figure>
+      <figure class="code">
+        <figcaption>ECHO 분압 — 5V 신호를 약 3.3V로 낮춥니다</figcaption>
+<pre>ECHO ──[ 1kΩ ]──┬── GPIO 16 (echo_pin)
+                │
+              [ 2kΩ ]
+                │
+               GND</pre>
+      </figure>
       <div class="note danger" style="margin-bottom:0">
         <span class="tag">ECHO 핀에 분압저항을 꼭 넣으세요</span>
         <p>HC-SR04의 ECHO는 <strong>5V로 나옵니다.</strong> GPIO는 3.3V용이라
@@ -832,16 +1853,20 @@ python daemon.py           <span class="c"># 실제 실행</span></pre>
 
   </div>
   <p id="drv-empty" hidden style="color:var(--ink-3); font-family:var(--mono); font-size:13.5px">
-    찾는 부품이 없습니다. 검색어를 지우고 전체를 훑어보세요.
+    찾는 부품이 없습니다. 검색어를 지우고 전체를 훑어보세요. 키트에 없는 부품이라면 <a href="#s17">17</a>처럼 AI와 상의하거나 부록F 8-3절을 보세요.
   </p>
 </section>
 
 <!-- ══════════════════════════════════════════════════════ -->
-<section id="s6">
-  <h2><span class="num">06</span>제거 · 핀 변경 · 부품 교체</h2>
+<section id="s13">
+  <h2><span class="num">13</span>제거 · 핀 변경 · 부품 교체</h2>
 
   <h3>부품을 뗄 때</h3>
-  <p>배치표에서 <strong>그 줄을 지우면 끝</strong>입니다. 대시보드에서도 사라집니다.</p>
+  <p>배치표에서 <strong>그 줄을 지우면 끝</strong>입니다. 데몬을 다시 켜면 대시보드에서도 사라지고, 로그에 이렇게 나옵니다.</p>
+  <figure class="code">
+    <figcaption><span class="where out">화면에 나오는 것</span> actuator_02를 지운 뒤</figcaption>
+<pre>[INFO] [pi] [배치표 등록] 사용 슬롯 2개, 자동으로 끈 슬롯 1개 ['actuator_02']</pre>
+  </figure>
   <div class="note">
     <span class="tag">기록은 지워지지 않습니다</span>
     <p>
@@ -872,24 +1897,25 @@ python daemon.py           <span class="c"># 실제 실행</span></pre>
     <code>actuator_02</code>에 있던 것을 <code>actuator_05</code>로 옮기면,
     대시보드에서는 <strong>새 부품이 생기고 옛 부품이 사라진 것</strong>으로 보입니다.
     옛 슬롯의 기록과 이어지지 않으니, 특별한 이유가 없으면 자리를 옮기지 마세요.
+    팀 화면(프론트엔드)이 슬롯 이름으로 부품을 찾고 있다면 <strong>프론트엔드 담당에게도 알려야</strong> 합니다.
   </p>
 </section>
 
 <!-- ══════════════════════════════════════════════════════ -->
-<section id="s7">
-  <h2><span class="num">07</span>확인하기 — <code>--check</code> 읽는 법</h2>
+<section id="s14">
+  <h2><span class="num">14</span>확인하기 — 세 군데를 봅니다</h2>
   <p class="lede">
-    고친 뒤에는 데몬을 켜기 전에 <strong>반드시 한 번</strong> 확인하세요.
-    백엔드도 배선도 없이 돌아갑니다.
+    고친 뒤에는 ① <code>--check</code>로 배치표를, ② 실행 로그로 데몬을, ③ 대시보드 카드로 실제 반영을 확인합니다.
   </p>
 
+  <h3>① <code>--check</code> — 데몬을 켜기 전에 반드시 한 번</h3>
   <figure class="code"><button class="copy" type="button">복사</button>
 <pre>cd pi
 python daemon.py --check</pre></figure>
 
-  <h3>정상일 때</h3>
+  <h4>정상일 때</h4>
   <figure class="code">
-    <figcaption>실제 출력</figcaption>
+    <figcaption><span class="where out">화면에 나오는 것</span> PC에서 실행한 실제 출력</figcaption>
 <pre><span class="c">====================================================================
  라즈베리파이 슬롯 데몬 — 시작 점검
 ====================================================================</span>
@@ -908,15 +1934,15 @@ python daemon.py --check</pre></figure>
     <table>
       <thead><tr><th>이 줄</th><th>확인할 것</th></tr></thead>
       <tbody>
-        <tr><td>백엔드</td><td>파이에서 실행한다면 <code>localhost</code>가 아니라 <strong>PC의 실제 IP</strong>여야 합니다</td></tr>
-        <tr><td>디바이스 키</td><td>"없음"이면 <code>pi/.env</code>의 <code>DEVICE_API_KEY</code>를 채우세요</td></tr>
-        <tr><td>하드웨어</td><td>PC에서는 "흉내내기 모드"가 정상. <strong>파이에서 이게 뜨면 문제</strong>입니다</td></tr>
+        <tr><td>백엔드</td><td>파이에서 실행한다면 <code>localhost</code>가 아니라 <strong>PC의 실제 IP</strong>여야 합니다. 주소를 <strong>보여 줄 뿐 접속해 보지는 않습니다</strong> — 접속 시험은 <a href="#s6">06</a>의 <code>curl</code></td></tr>
+        <tr><td>디바이스 키</td><td>"없음"이면 <code>pi/.env</code>의 <code>DEVICE_API_KEY</code>를 채우세요. 키 값 자체는 화면에 나오지 않습니다</td></tr>
+        <tr><td>하드웨어</td><td>PC에서는 "흉내내기 모드"가 정상. <strong>파이에서는 "실기기 GPIO"</strong>여야 합니다</td></tr>
         <tr><td>배치표 슬롯</td><td>내가 적은 부품이 전부 나오는지, GPIO 번호가 맞는지</td></tr>
       </tbody>
     </table>
   </div>
 
-  <h3>문제가 있을 때</h3>
+  <h4>문제가 있을 때</h4>
   <figure class="code">
 <pre> 배치표 슬롯 3개
    actuator_01   알람 부저            tonal_buzzer   GPIO 18
@@ -930,36 +1956,83 @@ python daemon.py --check</pre></figure>
     <strong>문제가 있는 줄만 빠지고 나머지는 그대로 동작합니다.</strong>
     오타 하나 때문에 전체가 멈추면 수업이 진행되지 않으니 그렇게 만들었습니다.
   </p>
+  <div class="note warn">
+    <span class="tag">--check가 못 잡는 것</span>
+    <p>
+      <code>--check</code>는 배치표의 <strong>모양</strong>만 검사합니다. 드라이버에 꼭 필요한 값(예: <code>pin</code>)을 빠뜨린 것은
+      <strong><code>python daemon.py</code>로 실제로 켤 때</strong> <code>필요한 설정 'pin'이(가) 없습니다</code>로 나옵니다.
+      그래서 <code>--check</code> 다음에 꼭 한 번 켜서 로그를 보세요.
+    </p>
+  </div>
 
-  <h3>배치표를 고친 뒤 도는 자가 점검</h3>
+  <h3>② 실행 로그 — 데몬이 말해 주는 것</h3>
+  <div class="tablewrap">
+    <table>
+      <thead><tr><th style="width:52%">로그에 나온 말</th><th>뜻</th></tr></thead>
+      <tbody>
+        <tr><td><code>데몬을 시작합니다 — 슬롯 2개, 폴링 1.0초</code></td><td>배치표를 읽고 드라이버를 만들었습니다. 슬롯 수가 내가 적은 수와 같은지 보세요</td></tr>
+        <tr><td><code>백엔드에 연결되었습니다: http://…</code></td><td>통신 성공. 끊겼다가 다시 붙을 때도 한 번 나옵니다</td></tr>
+        <tr><td><code>[배치표 등록] 사용 슬롯 2개</code></td><td>대시보드에 카드가 생겼습니다</td></tr>
+        <tr><td><code>[actuator_01] 알람 부저 → on (passive, 1200Hz, 볼륨 60%)</code></td><td>명령을 받아 실제로 반영했습니다. 괄호 안은 반영한 값</td></tr>
+        <tr><td><code>[sensor_01] 기상 확인 버튼 눌림 감지</code></td><td>버튼이 눌렸고 백엔드에 보고합니다</td></tr>
+        <tr><td><code>백엔드 DB가 꺼져 있어 이 등록은 저장되지 않았습니다</code></td><td>경고일 뿐 동작은 계속됩니다. DB가 꺼져 있는 동안 10초마다 <code>[배치표 등록]</code>과 함께 반복되고, PC의 MySQL을 켜면 멈춥니다</td></tr>
+        <tr><td><code>종료 신호를 받았습니다. 부품을 끄고 정리합니다...</code></td><td><kbd>Ctrl</kbd>+<kbd>C</kbd>를 눌렀습니다. 부저 등을 끄고 끝냅니다</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p class="small"><code>[ERROR]</code>나 <code>[WARNING]</code>이 붙은 줄이 보이면 그 문장 그대로 <a href="#s15">15 오류 사전</a>에서 찾으세요.</p>
+
+  <h3>③ 대시보드 카드 — 진짜 반영됐는지</h3>
+  <p>
+    액추에이터 카드에는 <strong>내린 명령</strong>과 <strong>하드웨어 보고</strong> 두 칸이 따로 있고,
+    오른쪽 위 배지가 둘을 비교한 결과입니다. (백엔드가 <code>DEVICE_MODE=hardware</code>일 때 — <a href="#s6">06</a>)
+  </p>
+  <div class="tablewrap compact">
+    <table>
+      <thead><tr><th>배지</th><th>뜻</th><th>이럴 때 확인할 것</th></tr></thead>
+      <tbody>
+        <tr><td class="nw"><strong>보고 없음</strong></td><td>파이가 이 슬롯을 한 번도 보고하지 않았습니다</td><td>데몬이 켜져 있는지, 로그에 <code>백엔드에 연결되었습니다</code>가 있는지</td></tr>
+        <tr><td class="nw"><strong>반영 대기</strong></td><td>명령은 내렸는데 파이가 아직 반영을 보고하지 않았습니다</td><td>1~2초는 정상. 계속 머물면 데몬이 꺼졌거나 연결·키 문제</td></tr>
+        <tr><td class="nw"><strong>동작 중</strong></td><td>파이가 켰다고 보고했습니다</td><td>그런데 부품이 조용하면 → 배선·핀 번호·<code>buzzer_type</code></td></tr>
+        <tr><td class="nw"><strong>정지</strong></td><td>파이가 껐다고 보고했습니다</td><td>—</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p>센서 카드는 보고가 없으면 <strong>보고 없음</strong>, 숫자 센서는 <strong>측정 중</strong>, 버튼은 <strong>눌림</strong>/<strong>대기</strong>로 나옵니다.</p>
+
+  <h3>자가 점검 — 배치표를 고친 뒤</h3>
   <figure class="code"><button class="copy" type="button">복사</button>
 <pre>cd pi
 python test_slot_daemon.py     <span class="c"># 드라이버·배치표 규약 (39항목)</span>
 python test_team_examples.py   <span class="c"># 팀별 예시 배치표 (32항목)</span></pre></figure>
+  <p class="small">GPIO도 백엔드도 없이 PC에서 돌아갑니다. 마지막 줄에 <code>실패 0건</code>이면 통과입니다.</p>
 </section>
 
 <!-- ══════════════════════════════════════════════════════ -->
-<section id="s8">
-  <h2><span class="num">08</span>오류 메시지 사전</h2>
+<section id="s15">
+  <p class="part">해결편 · 막혔을 때</p>
+  <h2><span class="num">15</span>오류 메시지 사전</h2>
   <p class="lede">
-    <code>--check</code>가 보여 주는 메시지 그대로입니다. 화면에 나온 문장을 여기서 찾으세요.
+    <code>--check</code>와 데몬이 실제로 보여 주는 문장입니다. 화면에 나온 문장의 <strong>앞부분</strong>으로 찾으세요
+    (<kbd>Ctrl</kbd>+<kbd>F</kbd>).
   </p>
 
   <div class="tablewrap">
     <table>
       <thead><tr><th style="width:46%">화면에 나온 말</th><th>무엇이 잘못됐나 · 어떻게 고치나</th></tr></thead>
       <tbody>
+        <tr class="group"><td colspan="2">배치표 검사 (--check)</td></tr>
         <tr>
           <td><code>'actuator_1'는 슬롯 이름이 아닙니다</code></td>
-          <td>번호를 <strong>두 자리</strong>로 적어야 합니다. <code>actuator_1</code> → <code>actuator_01</code></td>
+          <td>번호를 <strong>두 자리</strong>로, 모두 <strong>소문자</strong>로 적어야 합니다. <code>actuator_1</code>·<code>Actuator_01</code> → <code>actuator_01</code></td>
         </tr>
         <tr>
           <td><code>'driver'를 적어야 합니다</code></td>
-          <td><code>driver</code> 항목을 빠뜨렸습니다. 5번 항목에서 부품에 맞는 이름을 골라 적으세요</td>
+          <td><code>driver</code> 항목을 빠뜨렸습니다. <a href="#s12">12</a>에서 부품에 맞는 이름을 골라 적으세요</td>
         </tr>
         <tr>
           <td><code>드라이버 'led_out'을(를) 찾을 수 없습니다</code></td>
-          <td>그런 이름의 드라이버가 없습니다. 메시지 뒤에 쓸 수 있는 이름 11개가 같이 나옵니다</td>
+          <td>그런 이름의 드라이버가 없습니다. 메시지 뒤에 쓸 수 있는 이름 11개가 같이 나옵니다. 대문자도 틀린 것으로 봅니다 (<code>Digital_out</code> ✕)</td>
         </tr>
         <tr>
           <td><code>sensor_02는 sensor 슬롯인데 드라이버 'digital_out'은(는) actuator용입니다</code></td>
@@ -983,12 +2056,80 @@ python test_team_examples.py   <span class="c"># 팀별 예시 배치표 (32항�
           <td><code>"pins": 5</code>처럼 적었습니다. <code>[5, 6, 13]</code> 또는 <code>{"r":17,"g":27,"b":22}</code></td>
         </tr>
         <tr>
-          <td><code>slot_map.py를 읽지 못했습니다: ...</code></td>
-          <td>파이썬 문법 오류입니다. 쉼표·중괄호·따옴표가 빠지지 않았는지 보세요</td>
+          <td><code>slot_map.py를 읽지 못했습니다: invalid syntax. Perhaps you forgot a comma? (slot_map.py, line 8)</code></td>
+          <td><strong>쉼표가 빠졌습니다.</strong> 알려 준 줄과 <strong>바로 윗줄 끝</strong>을 보세요. 부품 상자를 닫는 <code>}</code> 뒤의 쉼표를 자주 빠뜨립니다</td>
         </tr>
         <tr>
-          <td><code>401 Unauthorized</code></td>
-          <td><code>backend/.env</code>와 <code>pi/.env</code>의 <code>DEVICE_API_KEY</code>가 다릅니다. 똑같이 맞추세요</td>
+          <td><code>slot_map.py를 읽지 못했습니다: invalid syntax (slot_map.py, line 5)</code></td>
+          <td>파이썬 문법 오류입니다. 위와 같이 그 줄과 윗줄의 쉼표·중괄호·따옴표를 보세요</td>
+        </tr>
+        <tr>
+          <td><code>slot_map.py를 읽지 못했습니다: name 'true' is not defined</code></td>
+          <td><code>true</code> → <code>True</code>, <code>false</code> → <code>False</code> (첫 글자 대문자)</td>
+        </tr>
+        <tr>
+          <td><code>slot_map.py에 SLOTS 딕셔너리가 없습니다.</code></td>
+          <td>맨 위의 <code>SLOTS = {</code>를 지웠거나 이름을 바꿨습니다. 정확히 <code>SLOTS</code>(대문자)</td>
+        </tr>
+        <tr>
+          <td><code>쓸 수 있는 슬롯이 없습니다. pi/slot_map.py의 SLOTS를 확인하세요.</code></td>
+          <td>모든 줄에 문제가 있거나 비어 있습니다. 위의 "고쳐야 할 것"부터 하나씩 고치세요</td>
+        </tr>
+
+        <tr class="group"><td colspan="2">실행할 때 (python daemon.py)</td></tr>
+        <tr>
+          <td><code>pi/.env의 DEVICE_API_KEY가 비어 있습니다. 백엔드와 같은 값을 넣어 주세요.</code></td>
+          <td><code>pi/.env</code>가 없거나 키 줄이 비었습니다. <code>cp .env.example .env</code> 후 키를 채우세요 → <a href="#s6">06</a></td>
+        </tr>
+        <tr>
+          <td><code>actuator_02: 드라이버 'digital_out'에 필요한 설정 'pin'이(가) 없습니다.</code></td>
+          <td>그 드라이버의 <span style="color:var(--danger); font-weight:600">필수 항목</span>을 빠뜨렸습니다. <a href="#s12">12</a>의 카드에서 빨간 항목을 확인하세요. 이 슬롯만 빠지고 나머지는 동작합니다</td>
+        </tr>
+        <tr>
+          <td><code>인증 실패! pi/.env의 DEVICE_API_KEY가 백엔드 .env와 똑같은지 확인하세요.</code></td>
+          <td><code>backend/.env</code>와 <code>pi/.env</code>의 <code>DEVICE_API_KEY</code>가 다릅니다. 앞뒤 공백까지 똑같이 맞추고 <strong>백엔드와 데몬을 둘 다</strong> 다시 켜세요</td>
+        </tr>
+        <tr>
+          <td><code>백엔드에 연결할 수 없습니다 (http://…). 다음 회차에 다시 시도합니다 — ConnectionError</code></td>
+          <td>① PC 백엔드가 켜져 있는지 ② <code>--host 0.0.0.0</code> ③ <code>BACKEND_URL</code>이 PC의 실제 IP인지 ④ 방화벽 ⑤ 같은 Wi-Fi인지. <a href="#s6">06</a>의 <code>curl</code>로 먼저 확인하세요. 백엔드가 살아나면 데몬은 <strong>저절로</strong> 다시 붙습니다</td>
+        </tr>
+        <tr>
+          <td><code>DEVICE_MODE=hardware인데 GPIO를 열지 못했습니다. … No module named 'gpiozero'</code></td>
+          <td>가상환경이 GPIO 라이브러리를 못 봅니다. <code>apt</code>로 <code>python3-gpiozero python3-lgpio</code>를 깔고, venv를 <code>--system-site-packages</code>로 다시 만드세요 → <a href="#s5">05</a></td>
+        </tr>
+        <tr>
+          <td><code>GPIO 부품 OutputDevice(23,)를 만들지 못해 흉내내기로 대체합니다: … GPIO busy</code></td>
+          <td>그 핀을 다른 프로그램이 쓰고 있습니다. <strong>데몬을 두 개 켜지 않았는지</strong>(다른 SSH 창, 자동 실행 서비스 — <a href="#s19">19</a>) 확인하세요</td>
+        </tr>
+        <tr>
+          <td><code>네오픽셀 라이브러리를 쓸 수 없어 색을 로그로만 표시합니다</code> · <code>온습도 라이브러리를 쓸 수 없어 흉내낸 값을 보고합니다</code></td>
+          <td>그 부품용 추가 라이브러리가 없습니다. <a href="#s12">12</a>의 해당 카드(설치·추가 준비)를 보세요. 나머지 부품은 정상 동작합니다</td>
+        </tr>
+        <tr>
+          <td><code>백엔드가 보고를 거부했습니다: sensor_01 — SLOT_DISABLED</code> (또는 <code>UNKNOWN_SLOT</code>)</td>
+          <td>백엔드가 막 다시 켜져서 배치표를 아직 모르거나(DB가 꺼져 있으면 재시작 때 잊습니다), 대시보드에서 그 슬롯을 껐습니다. 데몬이 <strong>10초 안에 자동으로 다시 등록</strong>하니 기다리세요. 계속 나오면 데몬을 다시 켜세요</td>
+        </tr>
+
+        <tr class="group"><td colspan="2">설치·터미널</td></tr>
+        <tr>
+          <td><code>error: externally-managed-environment</code></td>
+          <td>가상환경을 안 켜고 <code>pip install</code>을 했습니다. <code>source venv/bin/activate</code> 후 다시 하세요 (<code>sudo pip</code>로 밀어붙이지 않습니다)</td>
+        </tr>
+        <tr>
+          <td><code>ModuleNotFoundError: No module named 'dotenv'</code> (또는 <code>'requests'</code>)</td>
+          <td>가상환경이 꺼져 있거나 <code>pip install -r requirements.txt</code>를 안 했습니다</td>
+        </tr>
+        <tr>
+          <td><code>bash: python: command not found</code></td>
+          <td>가상환경이 꺼져 있습니다. <code>source venv/bin/activate</code> (또는 <code>python3</code>)</td>
+        </tr>
+        <tr>
+          <td><code>ssh: Could not resolve hostname wakeup-pi.local</code></td>
+          <td>이름으로 못 찾았습니다. 같은 Wi-Fi인지 보고, IP로 접속하세요 → <a href="#s5">05</a></td>
+        </tr>
+        <tr>
+          <td><code>error: Your local changes to the following files would be overwritten by merge</code></td>
+          <td>파이에서 직접 고친 파일이 있습니다 → <a href="#s11">11</a>의 "파이에서 nano로 바로 고쳤다면"</td>
         </tr>
       </tbody>
     </table>
@@ -996,32 +2137,64 @@ python test_team_examples.py   <span class="c"># 팀별 예시 배치표 (32항�
 </section>
 
 <!-- ══════════════════════════════════════════════════════ -->
-<section id="s9">
-  <h2><span class="num">09</span>자주 하는 실수</h2>
+<section id="s16">
+  <h2><span class="num">16</span>증상으로 찾기</h2>
+  <p class="lede">오류 메시지 없이 "그냥 안 될 때"입니다. 위에서부터 하나씩 확인하세요.</p>
 
   <div class="tablewrap">
     <table>
       <thead><tr><th style="width:38%">증상</th><th>원인과 해결</th></tr></thead>
       <tbody>
-        <tr>
-          <td>배선은 맞는데 <strong>아무 반응이 없다</strong></td>
-          <td><strong>물리 핀 번호를 적었을 가능성이 가장 큽니다.</strong> 3번 항목의 배치도로 BCM 번호를 확인하세요</td>
-        </tr>
+        <tr class="group"><td colspan="2">연결·대시보드</td></tr>
         <tr>
           <td>대시보드에 <strong>카드가 안 생긴다</strong></td>
-          <td>파이에서 <code>python daemon.py</code>가 돌고 있어야 슬롯이 등록됩니다. <code>--check</code>로 먼저 확인</td>
+          <td>파이에서 <code>python daemon.py</code>가 돌고 있어야 슬롯이 등록됩니다. 로그에 <code>[배치표 등록]</code>이 있는지 보고 대시보드를 새로고침하세요</td>
         </tr>
         <tr>
-          <td>카드는 있는데 <strong>"하드웨어 반영 대기"</strong>에서 안 바뀐다</td>
+          <td>카드가 계속 <strong>보고 없음</strong></td>
+          <td>데몬이 꺼져 있거나 백엔드에 못 붙었습니다. 로그에 <code>백엔드에 연결할 수 없습니다</code>나 <code>인증 실패!</code>가 있는지 보세요</td>
+        </tr>
+        <tr>
+          <td>카드가 <strong>반영 대기</strong>에서 안 바뀐다</td>
           <td>데몬이 꺼져 있거나, <code>BACKEND_URL</code>이 파이에서 <code>localhost</code>로 되어 있습니다 (PC의 실제 IP를 쓰세요)</td>
+        </tr>
+        <tr>
+          <td>파이를 껐는데도 카드가 <strong>동작 중</strong></td>
+          <td>PC <code>backend/.env</code>가 <code>DEVICE_MODE=mock</code>입니다. <code>hardware</code>로 바꾸고 백엔드를 다시 켜세요 → <a href="#s6">06</a></td>
+        </tr>
+        <tr>
+          <td>어제는 됐는데 <strong>오늘 연결이 안 된다</strong></td>
+          <td>PC의 IP가 바뀌었을 가능성이 큽니다. <code>ipconfig</code>로 다시 보고 <code>pi/.env</code>의 <code>BACKEND_URL</code>을 고친 뒤 데몬을 다시 켜세요</td>
+        </tr>
+        <tr>
+          <td>고쳤는데 <strong>반영이 안 된다</strong></td>
+          <td>데몬을 껐다 다시 켜세요. 배치표와 <code>.env</code>는 시작할 때 한 번 읽습니다. PC에서 고쳤다면 파이에서 <code>git pull</code>을 했는지도 보세요</td>
+        </tr>
+
+        <tr class="group"><td colspan="2">부품 동작</td></tr>
+        <tr>
+          <td>배선은 맞는데 <strong>아무 반응이 없다</strong> (카드는 동작 중)</td>
+          <td><strong>물리 핀 번호를 적었을 가능성이 가장 큽니다.</strong> <a href="#s8">08</a>의 배치도로 BCM 번호를 확인하세요. 그다음 점퍼선이 헐겁지 않은지, 브레드보드의 같은 줄에 꽂았는지</td>
+        </tr>
+        <tr>
+          <td>부저에서 <strong>소리가 안 나거나 '틱'만</strong> 난다</td>
+          <td><code>buzzer_type</code>을 <code>"passive"</code> ↔ <code>"active"</code>로 바꿔 보세요</td>
+        </tr>
+        <tr>
+          <td>데몬을 켜자마자 <strong>부저·릴레이가 계속 켜져 있고</strong> 끄기를 눌러도 안 꺼진다</td>
+          <td>신호가 반대(LOW에서 켜짐)인 모듈일 수 있습니다. <code>digital_out</code> + <code>"active_high": False</code>로 바꿔 보세요. 능동 부저 모듈이면 <code>control_type</code>은 <code>onoff</code>로</td>
         </tr>
         <tr>
           <td>버튼을 <strong>안 눌렀는데 눌린 것으로</strong> 나온다</td>
           <td><code>pull_up</code>을 뒤집으세요. 정전식 터치·PIR은 <code>False</code>입니다</td>
         </tr>
         <tr>
-          <td>부저에서 <strong>소리가 안 난다</strong></td>
-          <td><code>buzzer_type</code>을 <code>"passive"</code> ↔ <code>"active"</code>로 바꿔 보세요</td>
+          <td>버튼을 눌렀는데 카드가 <strong>가끔만 바뀐다</strong></td>
+          <td>값이 바뀔 때만 보고하고 1초마다 확인합니다. 1~2초 꾹 눌러 보세요. 로그의 <code>눌림 감지</code>로 확인하는 것이 가장 정확합니다</td>
+        </tr>
+        <tr>
+          <td>서보가 <strong>떨리거나</strong> 움직일 때 <strong>파이가 재부팅</strong>된다</td>
+          <td>전원이 모자랍니다. 서보에 별도 5V 전원을 쓰고 GND를 파이와 이어 주세요</td>
         </tr>
         <tr>
           <td>센서값이 <strong>차트로 안 그려진다</strong></td>
@@ -1031,31 +2204,102 @@ python test_team_examples.py   <span class="c"># 팀별 예시 배치표 (32항�
           <td>온습도 센서가 <strong>가끔 값을 안 준다</strong></td>
           <td>DHT의 정상 동작입니다. <code>interval</code>이 5초 이상인지만 확인하세요</td>
         </tr>
+
+        <tr class="group"><td colspan="2">파이 자체</td></tr>
         <tr>
           <td>파이에서 <strong>"흉내내기 모드"</strong>가 뜬다</td>
-          <td>GPIO 라이브러리를 못 열었습니다. <code>pi/.env</code>의 <code>GPIOZERO_PIN_FACTORY=lgpio</code>와 권한을 확인하세요</td>
+          <td>GPIO 라이브러리를 못 열었습니다. <code>python -c "import gpiozero, lgpio"</code>가 오류 없이 되는지 보고, 안 되면 <a href="#s5">05</a>의 ③을 다시 (venv는 <code>--system-site-packages</code>로). <code>pi/.env</code>의 <code>DEVICE_MODE</code>가 <code>mock</code>이 아닌지, <code>GPIOZERO_PIN_FACTORY=lgpio</code>인지도 확인하세요</td>
         </tr>
         <tr>
-          <td>고쳤는데 <strong>반영이 안 된다</strong></td>
-          <td>데몬을 껐다 다시 켜세요. 배치표는 시작할 때 한 번 읽습니다</td>
+          <td>SSH 창을 닫았더니 <strong>부품이 멈췄다</strong></td>
+          <td>정상입니다 — 데몬은 그 창에서 돌고 있었습니다. 창을 닫아도 계속 돌게 하려면 <a href="#s19">19</a>의 자동 실행을 쓰세요</td>
+        </tr>
+        <tr>
+          <td>파이가 <strong>저절로 재부팅</strong>되거나 번개 모양 경고가 뜬다</td>
+          <td>전원 부족입니다. 공식 27W 어댑터를 쓰고, 모터·서보는 별도 전원으로 옮기세요</td>
         </tr>
       </tbody>
     </table>
   </div>
+</section>
+
+<!-- ══════════════════════════════════════════════════════ -->
+<section id="s17">
+  <h2><span class="num">17</span>AI에게 도움 받기</h2>
+  <p class="lede">
+    우리는 학교에서 허용한 <strong>채팅형 AI</strong>에 <strong>컨텍스트 팩</strong>(내 담당 파일을 묶은 파일 하나)을 올리고 묻습니다.
+    자세한 방법은 <strong>00 통합 매뉴얼 8장</strong>에 있고, 여기는 라즈베리파이 담당용 요약입니다.
+  </p>
+
+  <ol class="steps">
+    <li>
+      <h3>팩 만들기 (PC)</h3>
+      <figure class="code">
+        <figcaption><span class="where pc">PC · PowerShell</span> 저장소 맨 위 폴더에서</figcaption>
+        <button class="copy" type="button">복사</button>
+<pre>python tools/context_pack.py pi</pre>
+      </figure>
+      <p><code>context_packs/context_pack_pi.md</code>가 생깁니다. 지금 내 <code>slot_map.py</code>가 들어 있으니 <strong>배치표를 고칠 때마다 다시 만듭니다.</strong></p>
+    </li>
+    <li>
+      <h3>새 대화에 팩을 올리고, 하고 싶은 일을 한 문단으로</h3>
+      <figure class="code">
+        <figcaption>요청 예 ① 부품 추가</figcaption>
+        <button class="copy" type="button">복사</button>
+<pre>올린 컨텍스트 팩을 읽었지?
+actuator_02에 경보 LED를 추가하려고 해. GPIO 23번(물리 16번)에 330Ω 저항을 거쳐 연결했어.
+켜기/끄기만 하면 돼. slot_map.py 파일 전체를 다시 줘.</pre>
+      </figure>
+      <figure class="code">
+        <figcaption>요청 예 ② 오류 해결 — 출력을 그대로 붙여넣기</figcaption>
+        <button class="copy" type="button">복사</button>
+<pre>올린 컨텍스트 팩을 읽었지?
+python daemon.py --check 를 돌렸더니 아래처럼 나왔어.
+무엇이 틀렸고 slot_map.py를 어떻게 고치면 되는지 알려 줘.
+
+(여기에 --check 출력 전체를 붙여넣기)</pre>
+      </figure>
+      <figure class="code">
+        <figcaption>요청 예 ③ 배선 묻기</figcaption>
+        <button class="copy" type="button">복사</button>
+<pre>HC-SR04 초음파 센서를 라즈베리파이 5에 연결하려고 해. TRIG는 GPIO 20, ECHO는 GPIO 16을 쓸 거야.
+ECHO 분압저항을 포함해서, 부품 다리마다 파이의 물리 핀 번호를 표로 알려 줘.</pre>
+      </figure>
+    </li>
+    <li>
+      <h3>받은 코드를 내 손으로 넣고, 바로 점검</h3>
+      <p><code>slot_map.py</code>를 통째로 바꿨다면 바로 <code>python daemon.py --check</code>. 실패하면 그 출력을 같은 대화에 붙여넣고 다시 물어봅니다.
+        붙여넣기가 꼬이면 <code>git checkout pi/slot_map.py</code>로 고치기 전으로 돌아갑니다.</p>
+    </li>
+  </ol>
 
   <div class="note danger">
-    <span class="tag">배선할 때</span>
-    <p>
-      부품을 연결하거나 뺄 때는 <strong>파이 전원을 끄세요.</strong>
-      GPIO는 3.3V입니다 — 5V 신호를 직접 넣으면 핀이 상합니다.
-      모터처럼 전류를 많이 쓰는 부품은 파이에서 직접 전원을 뽑지 말고 <strong>별도 전원</strong>을 쓰세요.
-    </p>
+    <span class="tag">AI에게 주지 않는 것 · AI를 믿지 않는 것</span>
+    <ul>
+      <li><code>.env</code> 내용과 <code>DEVICE_API_KEY</code>는 <strong>절대 붙여넣지 않습니다</strong>. (<code>--check</code> 출력에는 키가 안 나오니 그대로 붙여도 됩니다)</li>
+      <li>AI가 알려 준 <strong>배선은 틀릴 수 있습니다.</strong> <a href="#s8">08</a> 배치도로 한 줄씩 대조하고, 전원을 넣기 전에 선생님께 확인받습니다.</li>
+    </ul>
+  </div>
+
+  <h3>AI가 이렇게 말하면 멈추세요</h3>
+  <div class="tablewrap compact">
+    <table>
+      <thead><tr><th>AI가 하는 말</th><th>왜 멈춰야 하나</th></tr></thead>
+      <tbody>
+        <tr><td>"<code>daemon.py</code>나 <code>drivers/</code>를 이렇게 고치세요"</td><td>4팀 공통 코드입니다. 배치표(<code>slot_map.py</code>)로 할 수 있는 방법을 다시 물어보세요</td></tr>
+        <tr><td>"<code>RPi.GPIO</code>로 새로 짜 드릴게요"</td><td>파이 5에서는 <code>RPi.GPIO</code>가 동작하지 않고, 키트 방식도 아닙니다</td></tr>
+        <tr><td>"<code>"pin": 12</code>로 적으세요" (물리 12번 자리에 꽂았다면서)</td><td>배치표는 BCM 번호입니다. 물리 12번 = <code>"pin": 18</code></td></tr>
+        <tr><td>"<code>sudo pip install</code>로 설치하세요"</td><td>가상환경 안에서 <code>pip</code>로 깝니다. sudo가 필요한 것은 키트가 안내한 네오픽셀뿐입니다</td></tr>
+        <tr><td>"백엔드에 엔드포인트를 추가하세요"</td><td>백엔드는 고치지 않습니다. 정말 필요하면 선생님께 먼저</td></tr>
+      </tbody>
+    </table>
   </div>
 </section>
 
 <!-- ══════════════════════════════════════════════════════ -->
-<section id="s10">
-  <h2><span class="num">10</span>팀별 예시 배치표</h2>
+<section id="s18">
+  <p class="part">마무리편 · 팀과 합치고 전시까지</p>
+  <h2><span class="num">18</span>팀별 예시 배치표</h2>
   <p class="lede">
     <code>pi/examples/</code>에 4팀 예시가 들어 있습니다. 복사해서 시작하세요.
   </p>
@@ -1064,6 +2308,7 @@ python test_team_examples.py   <span class="c"># 팀별 예시 배치표 (32항�
 <pre>cd pi
 cp examples/slot_map_study.py slot_map.py     <span class="c"># study 팀</span>
 python daemon.py --check</pre></figure>
+  <p class="small">윈도우 PowerShell에서도 <code>cp</code>가 동작합니다.</p>
 
   <div class="tablewrap compact">
     <table>
@@ -1071,8 +2316,8 @@ python daemon.py --check</pre></figure>
       <tbody>
         <tr><td>wakeup</td><td><code>slot_map_wakeup.py</code></td><td>알람 부저, 기상 확인 버튼</td></tr>
         <tr><td>study</td><td><code>slot_map_study.py</code></td><td>스탠드 RGB 조명, 등받이·방석 진동 모터, 스탠드 릴레이, 터치 입력</td></tr>
-        <tr><td>classroom</td><td><code>slot_map_classroom.py</code></td><td>교실 환경·출입 관련 부품 5개</td></tr>
-        <tr><td>subway</td><td><code>slot_map_subway.py</code></td><td>혼잡도 표시 관련 부품 3개</td></tr>
+        <tr><td>classroom</td><td><code>slot_map_classroom.py</code></td><td>서보(자동문), 좌석 LED, 네오픽셀, 부저, 릴레이</td></tr>
+        <tr><td>subway</td><td><code>slot_map_subway.py</code></td><td>혼잡도 단계 LED, 컨베이어 모터, 좌석 압력센서</td></tr>
       </tbody>
     </table>
   </div>
@@ -1082,36 +2327,139 @@ python daemon.py --check</pre></figure>
     <p>
       핀 번호는 <strong>실제 배선에 맞게 고쳐야 합니다.</strong>
       예시의 번호를 그대로 두고 다른 곳에 꽂으면 동작하지 않습니다.
+      카메라는 슬롯을 쓰지 않습니다 — 영상인식 담당의 <code>vision/</code>이 따로 보냅니다.
     </p>
+  </div>
+
+  <h3>팀원과 맞춰야 할 것</h3>
+  <div class="tablewrap compact">
+    <table>
+      <thead><tr><th>누구와</th><th>무엇을</th></tr></thead>
+      <tbody>
+        <tr><td>백엔드 담당</td><td><code>DEVICE_API_KEY</code>(같은 값), 백엔드 PC의 IP, <code>DEVICE_MODE=hardware</code></td></tr>
+        <tr><td>프론트엔드 담당</td><td>어느 슬롯(<code>actuator_01</code> 등)에 무엇이 있는지 — 팀 화면의 시나리오가 슬롯 이름으로 부품을 켭니다. <strong>슬롯을 바꾸면 꼭 알립니다</strong></td></tr>
+        <tr><td>팀 전체</td><td>자동화 규칙(예: 7시 30분에 부저 켜기)은 코드가 아니라 대시보드 <code>/kit</code> → 자동화 규칙에서 만듭니다</td></tr>
+      </tbody>
+    </table>
   </div>
 </section>
 
 <!-- ══════════════════════════════════════════════════════ -->
-<section id="s11">
-  <h2><span class="num">11</span>고치고 나서 확인할 것</h2>
+<section id="s19">
+  <h2><span class="num">19</span>전시 준비 — 전원만 꽂으면 켜지게</h2>
+  <p class="lede">
+    지금까지는 SSH 창에서 데몬을 켰기 때문에 <strong>창을 닫으면 데몬도 꺼집니다.</strong>
+    전시 때는 파이 전원만 꽂으면 데몬이 저절로 켜지도록 <strong>자동 실행 서비스</strong>로 등록합니다.
+    모든 기능이 손으로 켠 데몬에서 잘 동작한 <strong>다음</strong>에 하세요.
+  </p>
 
+  <h3>① 자동 실행 등록 (한 번만)</h3>
+  <figure class="code">
+    <figcaption><span class="where pi">파이 터미널</span> 블록 전체를 한 번에 복사해 붙여넣습니다 — 경로와 사용자 이름은 자동으로 채워집니다</figcaption>
+    <button class="copy" type="button">복사</button>
+<pre>cd ~/iot-kit/pi
+sudo tee /etc/systemd/system/iot-daemon.service &gt; /dev/null &lt;&lt;EOF
+[Unit]
+Description=IoT kit pi daemon (slot_map.py)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+User=$(whoami)
+WorkingDirectory=$PWD
+ExecStart=$PWD/venv/bin/python daemon.py
+Environment=PYTHONUNBUFFERED=1
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
+EOF
+sudo systemctl daemon-reload
+sudo systemctl enable --now iot-daemon</pre>
+  </figure>
+
+  <h3>② 잘 도는지 확인</h3>
+  <figure class="code">
+    <figcaption><span class="where pi">파이 터미널</span></figcaption>
+    <button class="copy" type="button">복사</button>
+<pre>sudo systemctl status iot-daemon       <span class="c"># active (running)이면 정상. q로 나가기</span>
+sudo journalctl -u iot-daemon -f       <span class="c"># 데몬 로그 보기. Ctrl+C는 '보기'만 멈춥니다</span></pre>
+  </figure>
+  <p>그다음 <code>sudo reboot</code>로 파이를 다시 켜고, SSH로 아무것도 하지 않은 채 대시보드에서 켜기가 되는지 봅니다.</p>
+
+  <h3>③ 등록한 뒤에 달라지는 것</h3>
+  <div class="tablewrap compact">
+    <table>
+      <thead><tr><th>하고 싶은 것</th><th>명령</th></tr></thead>
+      <tbody>
+        <tr><td>배치표·<code>.env</code>를 고친 뒤 반영</td><td><code>sudo systemctl restart iot-daemon</code></td></tr>
+        <tr><td>손으로 <code>python daemon.py</code>를 켜서 시험</td><td>먼저 <code>sudo systemctl stop iot-daemon</code> — <strong>두 개가 동시에 돌면 GPIO busy</strong></td></tr>
+        <tr><td>자동 실행 그만두기</td><td><code>sudo systemctl disable --now iot-daemon</code></td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p class="small">네오픽셀은 sudo 권한이 필요해 이 설정으로는 색이 나오지 않을 수 있습니다. 네오픽셀을 쓰는 팀은 선생님과 상의하세요.</p>
+
+  <h3>④ 전시장에서</h3>
+  <ul>
+    <li><strong>네트워크가 바뀌면 IP도 바뀝니다.</strong> 전시장 Wi-Fi(또는 가져간 공유기)에 PC와 파이를 연결하고, <code>ipconfig</code> → <code>pi/.env</code>의 <code>BACKEND_URL</code> 수정 → <code>sudo systemctl restart iot-daemon</code>.
+      파이가 새 Wi-Fi를 모르면 모니터를 연결해 데스크톱에서 Wi-Fi를 추가하거나, <strong>미리 같은 이름·비밀번호의 휴대폰 핫스팟</strong>을 등록해 두면 편합니다.</li>
+    <li>백엔드를 클라우드(Render)에 배포했다면 <code>BACKEND_URL</code>에 그 주소(<code>https://…onrender.com</code>)를 적습니다 → 00 매뉴얼 12장.</li>
+    <li>전원은 공식 어댑터로, 멀티탭은 발에 걸리지 않는 곳에. 끌 때는 <code>sudo poweroff</code>.</li>
+    <li>예비 점퍼선·저항, 그리고 <strong>배선표 사진</strong>을 챙겨 갑니다. 이동 중에 빠진 선을 사진대로 다시 꽂으면 됩니다.</li>
+  </ul>
+</section>
+
+<!-- ══════════════════════════════════════════════════════ -->
+<section id="s20">
+  <h2><span class="num">20</span>체크리스트</h2>
+  <p class="lede">체크한 것은 이 브라우저에 기억됩니다.</p>
+
+  <h3>A · 처음 세팅을 끝냈을 때 (1~3단계)</h3>
   <ul class="check">
-    <li><input type="checkbox" id="c1"><label for="c1">전원을 끄고 배선했다</label></li>
-    <li><input type="checkbox" id="c2"><label for="c2">배치표의 <code>pin</code>이 <strong>BCM 번호</strong>다 (물리 핀 번호가 아니다)</label></li>
-    <li><input type="checkbox" id="c3"><label for="c3">슬롯 번호를 두 자리로 적었다 — <code>actuator_02</code></label></li>
-    <li><input type="checkbox" id="c4"><label for="c4">같은 GPIO 번호를 두 군데 적지 않았다</label></li>
-    <li><input type="checkbox" id="c5"><label for="c5">센서에는 <code>unit</code>을, 액추에이터에는 <code>control_type</code>을 적었다</label></li>
-    <li><input type="checkbox" id="c6"><label for="c6"><code>python daemon.py --check</code>에서 "고쳐야 할 것"이 0개다</label></li>
-    <li><input type="checkbox" id="c7"><label for="c7">내가 적은 부품이 모두 목록에 나왔다</label></li>
-    <li><input type="checkbox" id="c8"><label for="c8"><code>python test_slot_daemon.py</code>가 통과했다</label></li>
-    <li><input type="checkbox" id="c9"><label for="c9">데몬을 다시 켠 뒤 대시보드에 카드가 나왔다</label></li>
-    <li><input type="checkbox" id="c10"><label for="c10">대시보드에서 조작했을 때 실제 부품이 움직였다</label></li>
-    <li><input type="checkbox" id="c11"><label for="c11">고친 <code>slot_map.py</code>를 팀 브랜치에 커밋했다</label></li>
+    <li><input type="checkbox" id="a1"><label for="a1">PC에서 데몬을 켜고 대시보드 켜기 → <code>알람 부저 → on</code>을 봤다</label></li>
+    <li><input type="checkbox" id="a2"><label for="a2">SSH로 파이에 접속할 수 있다 (사용자 이름·비밀번호를 적어 두었다)</label></li>
+    <li><input type="checkbox" id="a3"><label for="a3">파이에서 <code>--check</code>에 <code>실기기 GPIO</code>가 나온다</label></li>
+    <li><input type="checkbox" id="a4"><label for="a4">파이에서 <code>curl</code>로 PC 백엔드의 <code>"status":"ok"</code>를 받았다</label></li>
+    <li><input type="checkbox" id="a5"><label for="a5">PC 백엔드가 <code>DEVICE_MODE=hardware</code>이고, 대시보드 켜기 → 배지 <strong>동작 중</strong>을 봤다</label></li>
+    <li><input type="checkbox" id="a6"><label for="a6"><code>DEVICE_API_KEY</code>를 AI 채팅이나 깃허브에 올리지 않았다</label></li>
+  </ul>
+
+  <h3>B · 부품을 바꿀 때마다</h3>
+  <ul class="check">
+    <li><input type="checkbox" id="b1"><label for="b1">전원을 끄고 배선했다</label></li>
+    <li><input type="checkbox" id="b2"><label for="b2">배치표의 <code>pin</code>이 <strong>BCM 번호</strong>다 (물리 핀 번호가 아니다)</label></li>
+    <li><input type="checkbox" id="b3"><label for="b3">슬롯 번호를 두 자리로 적었다 — <code>actuator_02</code></label></li>
+    <li><input type="checkbox" id="b4"><label for="b4">같은 GPIO 번호를 두 군데 적지 않았다</label></li>
+    <li><input type="checkbox" id="b5"><label for="b5">센서에는 <code>unit</code>을, 액추에이터에는 <code>control_type</code>을 적었다</label></li>
+    <li><input type="checkbox" id="b6"><label for="b6"><code>python daemon.py --check</code>에서 "고쳐야 할 것"이 0개다</label></li>
+    <li><input type="checkbox" id="b7"><label for="b7">내가 적은 부품이 모두 목록에 나왔다</label></li>
+    <li><input type="checkbox" id="b8"><label for="b8"><code>python test_slot_daemon.py</code>가 통과했다</label></li>
+    <li><input type="checkbox" id="b9"><label for="b9">데몬을 다시 켠 뒤 로그에 <code>[ERROR]</code>가 없고, 대시보드에 카드가 나왔다</label></li>
+    <li><input type="checkbox" id="b10"><label for="b10">대시보드에서 조작했을 때 실제 부품이 움직였다</label></li>
+    <li><input type="checkbox" id="b11"><label for="b11">고친 <code>slot_map.py</code>를 팀 브랜치에 커밋했고, 파이에도 같은 내용이 있다</label></li>
+    <li><input type="checkbox" id="b12"><label for="b12">슬롯을 바꿨다면 프론트엔드 담당에게 알렸다</label></li>
+  </ul>
+
+  <h3>C · 전시 전날</h3>
+  <ul class="check">
+    <li><input type="checkbox" id="c1"><label for="c1">자동 실행을 등록했고, <code>sudo reboot</code> 후 손대지 않아도 동작했다</label></li>
+    <li><input type="checkbox" id="c2"><label for="c2">팀 화면의 시나리오(알람·미션 등)를 처음부터 끝까지 실제 부품으로 돌려 봤다</label></li>
+    <li><input type="checkbox" id="c3"><label for="c3">전시장 네트워크에서 쓸 <code>BACKEND_URL</code>을 정했다 (공유기·핫스팟·배포 주소)</label></li>
+    <li><input type="checkbox" id="c4"><label for="c4">배선표 사진, 예비 점퍼선·저항, 공식 전원 어댑터를 챙겼다</label></li>
+    <li><input type="checkbox" id="c5"><label for="c5">끌 때는 <code>sudo poweroff</code>라는 것을 팀원 모두 안다</label></li>
   </ul>
 
   <div class="foot">
     <p>
-      더 자세한 내용은 저장소의 <strong>docs/00 · 2차 개발 통합 매뉴얼 4장</strong>에 있습니다.
+      더 자세한 내용은 저장소의 <strong>docs/00 · 2차 개발 통합 매뉴얼</strong>에 있습니다 —
+      설치는 2장, 라즈베리파이 요약은 4장, AI 활용은 8장, 자가 점검은 9장.
       드라이버를 직접 만들어야 할 만큼 특이한 부품이라면 <strong>부록F 8-3절</strong>을 보세요 —
       <code>drivers/</code>에 파일 하나를 추가하면 되고, 역시 공통 코드는 고치지 않습니다.
     </p>
     <p style="margin-top:14px; font-family:var(--mono); font-size:12.5px">
-      막혔을 때 → ① <code>--check</code> 다시 읽기 → ② 8번 오류 사전 → ③ 9번 자주 하는 실수 → ④ 선생님
+      막혔을 때 → ① 로그·<code>--check</code> 다시 읽기 → ② <a href="#s15">15</a> 오류 사전 → ③ <a href="#s16">16</a> 증상 → ④ <a href="#s17">17</a> AI에게 묻기 → ⑤ 선생님
     </p>
   </div>
 </section>
@@ -1174,7 +2522,7 @@ python daemon.py --check</pre></figure>
   });
 
   // 체크리스트는 이 브라우저에만 기억합니다
-  var KEY = 'pi-hw-checklist-v1';
+  var KEY = 'pi-hw-checklist-v2';
   var boxes = Array.prototype.slice.call(document.querySelectorAll('.check input'));
   try {
     var saved = JSON.parse(localStorage.getItem(KEY) || '{}');
