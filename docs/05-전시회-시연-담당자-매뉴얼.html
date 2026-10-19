@@ -1,0 +1,672 @@
+<meta charset="utf-8">
+<title>부스 시연 담당자 매뉴얼</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Black+Han+Sans&family=JetBrains+Mono:wght@400;600;700&family=Noto+Sans+KR:wght@400;500;700;800&display=swap">
+<style>
+  /* 레이아웃: 축제 당일 현장에서 펼쳐 보는 한 줄 문서. 위에 붙는 목차, 역할 카드 → 하루 시간표 → 관람객 응대 → 교가 대회 → 대본 → 문제 대처.
+     색은 04 매뉴얼과 같은 제품 팔레트 — 밝은 테마 = `/`·`/admin`의 낮 팔레트, 어두운 테마 = `/booth`의 무대 팔레트 */
+  :root {
+    --canvas:#F1F3F1; --surface:#FFFFFF; --raised:#F6F7F5;
+    --line:#E3E6E2; --line-strong:#C9CDC6;
+    --ink:#15181A; --ink-2:#51565B; --ink-3:#868C90;
+    --brass:#7A5510; --brass-soft:#F7EFDE; --on-brass:#FFFFFF;
+    --live:#A92B22; --live-soft:#FBEBE9;
+    --free:#116B4E; --free-soft:#E4F2EC;
+    --term:#16181B; --term-line:#2A2D31; --term-ink:#E6E8E4; --term-dim:#8D948F;
+    --display:"Black Han Sans", "Noto Sans KR", "Malgun Gothic", system-ui, sans-serif;
+    --sans:"Noto Sans KR", system-ui, -apple-system, "Malgun Gothic", "Apple SD Gothic Neo", sans-serif;
+    --mono:"JetBrains Mono", ui-monospace, "Cascadia Mono", Consolas, monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --canvas:#0B0A0D; --surface:#141318; --raised:#1D1B22;
+      --line:#2A2830; --line-strong:#3C3946;
+      --ink:#F3F1F5; --ink-2:#B3AEBD; --ink-3:#7D7889;
+      --brass:#E9BC5E; --brass-soft:#2B2214; --on-brass:#17130A;
+      --live:#FF6150; --live-soft:#2C1513;
+      --free:#4FDCA6; --free-soft:#0E2B22;
+      --term:#1D1B22; --term-line:#3C3946; --term-ink:#F3F1F5; --term-dim:#7D7889;
+      color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --canvas:#0B0A0D; --surface:#141318; --raised:#1D1B22;
+    --line:#2A2830; --line-strong:#3C3946;
+    --ink:#F3F1F5; --ink-2:#B3AEBD; --ink-3:#7D7889;
+    --brass:#E9BC5E; --brass-soft:#2B2214; --on-brass:#17130A;
+    --live:#FF6150; --live-soft:#2C1513;
+    --free:#4FDCA6; --free-soft:#0E2B22;
+    --term:#1D1B22; --term-line:#3C3946; --term-ink:#F3F1F5; --term-dim:#7D7889;
+    color-scheme: dark;
+  }
+
+  html { scroll-padding-top: calc(env(safe-area-inset-top, 0px) + 64px); }
+  body { margin: 0; background: var(--canvas); color: var(--ink); font-family: var(--sans); font-size: 15px; line-height: 1.72; }
+  body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 20; background: var(--canvas); }
+  .wrap {
+    --gut: max(16px, min(4vw, 32px));
+    max-width: 960px; margin: 0 auto; padding-block: 0 96px;
+    padding-left: max(var(--gut), env(safe-area-inset-left, 0px));
+    padding-right: max(var(--gut), env(safe-area-inset-right, 0px));
+  }
+  h1, h2, h3, h4 { margin: 0; line-height: 1.3; text-wrap: balance; }
+  p { margin: 0; }
+  a { color: var(--brass); text-underline-offset: 3px; }
+  strong { color: var(--ink); font-weight: 700; }
+  code { font-family: var(--mono); font-size: .86em; background: var(--raised); border: 1px solid var(--line); padding: .05em .38em; border-radius: 5px; color: var(--ink); overflow-wrap: anywhere; }
+  :focus-visible { outline: 2px solid var(--brass); outline-offset: 2px; border-radius: 4px; }
+  .btn { font-family: var(--mono); font-size: .84em; font-weight: 700; -webkit-box-decoration-break: clone; box-decoration-break: clone; color: var(--ink); background: var(--surface); border: 1px solid var(--line-strong); border-bottom-width: 2px; padding: .05em .45em; border-radius: 6px; }
+
+  /* ── 표지 ─────────────────────────────────────────── */
+  .cover { padding-block: 56px 28px; display: flex; flex-direction: column; gap: 16px; }
+  .eyebrow { font-family: var(--mono); font-size: 12px; font-weight: 600; letter-spacing: .12em; color: var(--brass); }
+  .cover h1 { font-family: var(--display); font-weight: 400; font-size: clamp(34px, 6.4vw, 58px); line-height: 1.08; letter-spacing: -.01em; }
+  .lede { font-size: 17px; color: var(--ink-2); max-width: 62ch; }
+  .meta { display: flex; flex-wrap: wrap; gap: 6px 22px; font-size: 13px; color: var(--ink-3); }
+  .meta b { color: var(--ink-2); font-weight: 700; margin-right: 6px; }
+  .golden { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; margin-top: 6px; }
+  .golden div { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 13px 15px; display: flex; flex-direction: column; gap: 3px; }
+  .golden .n { font-family: var(--display); font-size: 26px; color: var(--brass); line-height: 1.1; font-variant-numeric: tabular-nums; }
+  .golden .d { font-size: 13.5px; color: var(--ink-2); line-height: 1.5; }
+
+  /* ── 위에 붙는 목차 ───────────────────────────────── */
+  .toc { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 10; background: var(--canvas); border-block: 1px solid var(--line);
+         margin-left: calc(-1 * max(var(--gut), env(safe-area-inset-left, 0px))); margin-right: calc(-1 * max(var(--gut), env(safe-area-inset-right, 0px)));
+         padding-left: max(var(--gut), env(safe-area-inset-left, 0px)); padding-right: max(var(--gut), env(safe-area-inset-right, 0px)); }
+  .toc ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: row; gap: 4px; overflow-x: auto; white-space: nowrap; scrollbar-width: none; }
+  .toc a { display: inline-block; padding: 11px 12px; font-size: 13.5px; font-weight: 700; color: var(--ink-2); text-decoration: none; border-bottom: 2px solid transparent; }
+  .toc a:hover { color: var(--ink); border-bottom-color: var(--brass); }
+
+  /* ── 큰 구획 ──────────────────────────────────────── */
+  .block { padding-top: 64px; display: flex; flex-direction: column; gap: 18px; }
+  .part-head { display: flex; align-items: baseline; gap: 16px; flex-wrap: wrap; padding-bottom: 14px; border-bottom: 2px solid var(--ink); }
+  .part-head .no { font-family: var(--display); font-size: clamp(34px, 6vw, 50px); color: var(--brass); line-height: 1; }
+  .part-head h2 { font-size: clamp(23px, 3.6vw, 29px); font-weight: 800; letter-spacing: -.01em; }
+  .part-head .sub { flex-basis: 100%; color: var(--ink-2); font-size: 15px; }
+  h3 { font-size: 19px; font-weight: 800; letter-spacing: -.01em; }
+  h4 { font-size: 15px; font-weight: 800; }
+  .section { display: flex; flex-direction: column; gap: 14px; padding-top: 30px; }
+  .section > p, li { color: var(--ink-2); }
+  ol, ul { margin: 0; padding-left: 22px; display: flex; flex-direction: column; gap: 6px; }
+
+  /* ── 부스 배치도 ──────────────────────────────────── */
+  .fig { margin: 0; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 16px; display: flex; flex-direction: column; gap: 10px; }
+  .fig .scroll { overflow-x: auto; }
+  .fig svg { display: block; width: 100%; min-width: 640px; height: auto; }
+  .fig figcaption { font-size: 13.5px; color: var(--ink-2); }
+  .dg text { fill: var(--ink); font-family: var(--sans); }
+  .dg .t { font-size: 14px; font-weight: 800; }
+  .dg .s { font-size: 12px; fill: var(--ink-3); }
+  .dg .room { fill: var(--raised); stroke: var(--ink-2); stroke-width: 2; }
+  .dg .thing { fill: var(--surface); stroke: var(--line-strong); stroke-width: 1.2; }
+  .dg .door { stroke: var(--brass); stroke-width: 4; }
+  .dg .flow { fill: none; stroke: var(--ink-3); stroke-width: 1.5; stroke-dasharray: 6 5; }
+  .dg .ah { fill: var(--ink-3); }
+  .dg .pin { fill: var(--brass); }
+  .dg .pin-n { fill: var(--on-brass); font-family: var(--mono); font-size: 14px; font-weight: 700; }
+
+  /* ── 역할 카드 ────────────────────────────────────── */
+  .roles { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 14px; }
+  .role { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 16px 17px; display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+  .role-top { display: flex; align-items: center; gap: 10px; }
+  .role-n { width: 28px; height: 28px; border-radius: 50%; background: var(--brass); color: var(--on-brass); display: grid; place-items: center; font-family: var(--mono); font-weight: 700; font-size: 14px; flex: none; }
+  .role h3 { font-size: 17px; }
+  .role .where { font-size: 12.5px; color: var(--ink-3); }
+  .role ul { font-size: 14px; gap: 4px; }
+  .role label { display: flex; align-items: center; gap: 8px; font-size: 12.5px; font-weight: 700; color: var(--ink-3); }
+  .role input { flex: 1; min-width: 0; font-family: var(--sans); font-size: 14px; font-weight: 700; padding: 5px 9px; border-radius: 7px; border: 1px dashed var(--line-strong); background: var(--raised); color: var(--ink); }
+  .role input::placeholder { color: var(--ink-3); font-weight: 500; }
+
+  /* ── 시간표 ───────────────────────────────────────── */
+  .tl { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 0; }
+  .tl li { display: grid; grid-template-columns: 96px minmax(0, 1fr); gap: 16px; }
+  .tl .at { font-family: var(--mono); font-weight: 700; font-size: 13.5px; color: var(--brass); padding-top: 13px; text-align: right; font-variant-numeric: tabular-nums; }
+  .tl .what { position: relative; padding: 12px 0 20px 22px; border-left: 2px solid var(--line-strong); display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+  .tl .what::before { content: ""; position: absolute; left: -7px; top: 19px; width: 12px; height: 12px; border-radius: 50%; background: var(--surface); border: 2px solid var(--brass); }
+  .tl li:last-child .what { border-left-color: transparent; }
+  .tl .what > b { color: var(--ink); font-size: 15.5px; }
+  .tl .what ol, .tl .what ul { font-size: 14px; gap: 3px; }
+  .who { display: inline-flex; flex-wrap: wrap; gap: 4px; }
+  .who span { font-size: 11.5px; font-weight: 800; color: var(--ink-2); background: var(--raised); border: 1px solid var(--line); border-radius: 999px; padding: 0 8px; }
+
+  /* ── 관람객 응대 단계 ─────────────────────────────── */
+  .guest { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 12px; counter-reset: g; }
+  .guest > li { counter-increment: g; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px 15px 58px; position: relative; display: flex; flex-direction: column; gap: 7px; }
+  .guest > li::before { content: counter(g); position: absolute; left: 16px; top: 14px; width: 28px; height: 28px; border-radius: 50%; border: 2px solid var(--brass); color: var(--brass); display: grid; place-items: center; font-family: var(--mono); font-weight: 700; font-size: 13px; }
+  .guest h4 { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+  .guest p { font-size: 14px; color: var(--ink-2); }
+  .say { display: flex; gap: 10px; align-items: flex-start; background: var(--brass-soft); border-radius: 10px; padding: 9px 12px; color: var(--ink); font-weight: 500; font-size: 14.5px; }
+  .say::before { content: "말하기"; flex: none; font-size: 11px; font-weight: 800; color: var(--brass); border: 1px solid var(--brass); border-radius: 999px; padding: 0 7px; margin-top: 3px; }
+
+  /* ── 표 ───────────────────────────────────────────── */
+  .tw { overflow-x: auto; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; }
+  table { border-collapse: collapse; width: 100%; min-width: 560px; font-size: 14px; }
+  th { text-align: left; font-size: 12px; font-weight: 700; letter-spacing: .04em; color: var(--ink-3); padding: 11px 14px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+  td { padding: 11px 14px; border-bottom: 1px solid var(--line); vertical-align: top; color: var(--ink-2); }
+  tr:last-child td { border-bottom: none; }
+  td.when { font-family: var(--mono); font-weight: 700; color: var(--brass); white-space: nowrap; font-variant-numeric: tabular-nums; }
+  td .line { color: var(--ink); font-weight: 500; }
+  .wide { min-width: 760px; }
+  tr.group td { background: var(--raised); font-size: 12px; font-weight: 800; letter-spacing: .04em; color: var(--ink-3); padding-block: 7px; }
+
+  /* ── 알림 상자 ────────────────────────────────────── */
+  .note { display: flex; gap: 12px; align-items: flex-start; padding: 13px 15px; border-radius: 10px; background: var(--raised); border: 1px solid var(--line); font-size: 14px; color: var(--ink-2); }
+  .tag { flex: none; font-size: 11.5px; font-weight: 800; padding: 2px 9px; border-radius: 999px; margin-top: 2px; background: var(--surface); color: var(--ink-2); border: 1px solid var(--line-strong); }
+  .note.warn { background: var(--live-soft); border-color: color-mix(in srgb, var(--live) 30%, transparent); }
+  .note.warn .tag { background: var(--live); color: var(--canvas); border-color: transparent; }
+  .note.ok { background: var(--free-soft); border-color: color-mix(in srgb, var(--free) 30%, transparent); }
+  .note.ok .tag { background: var(--free); color: var(--canvas); border-color: transparent; }
+  .note > div { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+
+  /* ── 이름 쓰는 법 ─────────────────────────────────── */
+  .names { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 8px; }
+  .names div { border-radius: 10px; padding: 10px 12px; border: 1px solid var(--line); background: var(--surface); display: flex; flex-direction: column; gap: 2px; }
+  .names .v { font-family: var(--mono); font-weight: 700; font-size: 15px; color: var(--ink); }
+  .names .why { font-size: 12.5px; color: var(--ink-3); }
+  .names .good { border-color: color-mix(in srgb, var(--free) 45%, transparent); }
+  .names .good .v::before { content: "○ "; color: var(--free); }
+  .names .bad .v { text-decoration: line-through; text-decoration-color: var(--live); }
+  .names .bad .v::before { content: "× "; color: var(--live); text-decoration: none; display: inline-block; }
+
+  /* ── 대회 규칙 정하기 ─────────────────────────────── */
+  .decide { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 10px 16px; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 16px; }
+  .decide label { display: flex; flex-direction: column; gap: 5px; font-size: 13px; font-weight: 700; color: var(--ink-2); min-width: 0; }
+  .decide input, .decide select { font-family: var(--sans); font-size: 14.5px; padding: 7px 10px; border-radius: 8px; border: 1px solid var(--line-strong); background: var(--raised); color: var(--ink); min-width: 0; width: 100%; box-sizing: border-box; }
+  .decide .hint { grid-column: 1 / -1; font-size: 12.5px; color: var(--ink-3); }
+
+  /* ── 상품 배부 단계 ───────────────────────────────── */
+  .steps { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 0; counter-reset: s; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; }
+  .steps li { counter-increment: s; display: grid; grid-template-columns: 30px minmax(0, 1fr); gap: 12px; padding: 12px 16px; border-bottom: 1px solid var(--line); font-size: 14px; }
+  .steps li:last-child { border-bottom: none; }
+  .steps li::before { content: counter(s); width: 24px; height: 24px; border-radius: 50%; background: var(--brass); color: var(--on-brass); display: grid; place-items: center; font-family: var(--mono); font-size: 12.5px; font-weight: 700; margin-top: 1px; }
+
+  .sql { margin: 0; background: var(--term); color: var(--term-ink); border: 1px solid var(--term-line); border-radius: 10px; padding: 12px 14px; overflow-x: auto; font-family: var(--mono); font-size: 13px; line-height: 1.7; }
+  .sql .c { color: var(--term-dim); }
+
+  /* ── 문답 ─────────────────────────────────────────── */
+  .faq { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 12px; }
+  .faq div { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px; display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+  .faq .q { font-weight: 800; color: var(--ink); }
+  .faq .q::before { content: "Q. "; color: var(--brass); font-family: var(--mono); }
+  .faq p { font-size: 14px; color: var(--ink-2); }
+
+  /* ── 체크리스트 ───────────────────────────────────── */
+  .checks { display: grid; grid-template-columns: repeat(auto-fit, minmax(270px, 1fr)); gap: 14px; }
+  .check { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; overflow: hidden; display: flex; flex-direction: column; }
+  .check h4 { padding: 12px 15px; border-bottom: 1px solid var(--line); font-size: 14.5px; }
+  .check label { display: flex; gap: 10px; align-items: flex-start; padding: 10px 15px; border-bottom: 1px solid var(--line); font-size: 14px; color: var(--ink-2); cursor: pointer; }
+  .check label:last-child { border-bottom: none; }
+  .check input { margin-top: 5px; width: 15px; height: 15px; flex: none; accent-color: var(--brass); }
+  .check input:checked + span { color: var(--ink-3); text-decoration: line-through; }
+  .row { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px; }
+  .reset { font-family: var(--sans); font-size: 12.5px; font-weight: 700; color: var(--ink-2); background: var(--surface); border: 1px solid var(--line-strong); border-radius: 8px; padding: 5px 12px; cursor: pointer; }
+  .small { font-size: 13px; color: var(--ink-3); }
+
+  footer { margin-top: 72px; padding-top: 22px; border-top: 1px solid var(--line); font-size: 12.5px; color: var(--ink-3); display: flex; flex-direction: column; gap: 10px; }
+  footer ul { padding-left: 18px; gap: 4px; }
+
+  @media (max-width: 560px) {
+    .tl li { grid-template-columns: 70px minmax(0, 1fr); gap: 10px; }
+    .tl .at { font-size: 12.5px; }
+    .guest > li { padding-left: 16px; padding-top: 50px; }
+  }
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; scroll-behavior: auto !important; } }
+</style>
+
+<div class="wrap">
+
+<header class="cover">
+  <div class="eyebrow">본편 05 · 시연 담당자 · 축제 당일</div>
+  <h1>부스 시연<br>담당자 매뉴얼</h1>
+  <p class="lede">축제 날 부스를 지키는 사람을 위한 문서입니다. 설치는 끝났다고 보고, 켜고 점검하고, 관람객을 맞고, 교가 부르기 대회를 운영하고, 상품을 나눠 주고, 끄기까지를 순서대로 담았습니다. 설치와 설정은 04 매뉴얼을 보세요.</p>
+  <div class="meta">
+    <span><b>대상</b>시연 담당 4명 · 도우미 · 지도 교사</span>
+    <span><b>기준</b><code>karaoke</code> 브랜치</span>
+    <span><b>준비</b>개장 40분 전부터</span>
+  </div>
+  <div class="golden" aria-label="외워 둘 숫자">
+    <div><span class="n">3분</span><span class="d">관람객 한 명의 이용 시간. 입장 비밀번호를 누른 순간부터 셉니다</span></div>
+    <div><span class="n">2분</span><span class="d">호출된 뒤 키패드를 누를 때까지 기다려 주는 시간</span></div>
+    <div><span class="n">1:29</span><span class="d">교가 영상 길이. 끝까지 부르면 저절로 채점됩니다</span></div>
+    <div><span class="n">10자</span><span class="d">순위판에 올릴 이름의 최대 길이. “이름+반”으로 적게 합니다</span></div>
+  </div>
+</header>
+
+<nav class="toc" aria-label="목차">
+  <ul>
+    <li><a href="#roles">역할</a></li>
+    <li><a href="#day">하루 순서</a></li>
+    <li><a href="#guest">관람객 응대</a></li>
+    <li><a href="#anthem">교가 대회</a></li>
+    <li><a href="#prize">상품 배부</a></li>
+    <li><a href="#script">발표 대본</a></li>
+    <li><a href="#trouble">문제 대처</a></li>
+    <li><a href="#faq">자주 묻는 질문</a></li>
+    <li><a href="#checks">체크리스트</a></li>
+  </ul>
+</nav>
+
+<!-- ═══════════════════════ 역할 ═══════════════════════ -->
+<section class="block" id="roles">
+  <div class="part-head">
+    <span class="no">1</span><h2>자리와 역할</h2>
+    <p class="sub">네 자리를 한 명씩 맡습니다. 사람이 모자라면 안내와 부스 진행을 한 사람이 겸하고, 운영석과 하드웨어는 따로 둡니다. 담당자 이름을 적어 두면 이 브라우저에 남습니다.</p>
+  </div>
+
+  <figure class="fig">
+    <div class="scroll">
+      <svg class="dg" viewBox="0 0 760 300" role="img" aria-label="부스 배치 예시. 입구의 QR 안내판(1번 안내), 부스 문 옆 키패드와 도어락, 부스 안 TV와 마이크·스피커(2번 부스 진행), 옆 책상의 운영 노트북(3번 관리자), 부스 뒤 라즈베리파이(4번 하드웨어)">
+        <defs><marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="ah" d="M0,0 L10,5 L0,10 z"/></marker></defs>
+        <!-- 줄 -->
+        <rect class="thing" x="24" y="196" width="128" height="62" rx="8"/>
+        <text class="t" x="88" y="222" text-anchor="middle">QR 안내판</text>
+        <text class="s" x="88" y="242" text-anchor="middle">관람객 줄</text>
+        <path class="flow" d="M152 226 C 220 226, 250 226, 296 226" marker-end="url(#ah)"/>
+        <!-- 부스 -->
+        <rect class="room" x="300" y="40" width="250" height="220" rx="6"/>
+        <line class="door" x1="300" y1="196" x2="300" y2="252"/>
+        <text class="s" x="312" y="62">부스 안</text>
+        <rect class="thing" x="330" y="76" width="190" height="56" rx="6"/>
+        <text class="t" x="425" y="101" text-anchor="middle">부스 TV · /booth</text>
+        <text class="s" x="425" y="120" text-anchor="middle">반주 영상 · 순위판 · 안내 음성</text>
+        <rect class="thing" x="330" y="150" width="88" height="44" rx="6"/>
+        <text class="t" x="374" y="177" text-anchor="middle">마이크</text>
+        <rect class="thing" x="432" y="150" width="88" height="44" rx="6"/>
+        <text class="t" x="476" y="177" text-anchor="middle">스피커</text>
+        <rect class="thing" x="250" y="150" width="40" height="40" rx="5"/>
+        <text class="s" x="270" y="146" text-anchor="middle">키패드</text>
+        <!-- 라즈베리파이 -->
+        <rect class="thing" x="566" y="40" width="160" height="62" rx="8"/>
+        <text class="t" x="646" y="66" text-anchor="middle">라즈베리파이</text>
+        <text class="s" x="646" y="86" text-anchor="middle">도어락 · 릴레이 · LED</text>
+        <!-- 운영석 -->
+        <rect class="thing" x="566" y="196" width="160" height="62" rx="8"/>
+        <text class="t" x="646" y="222" text-anchor="middle">운영 노트북</text>
+        <text class="s" x="646" y="242" text-anchor="middle">/admin · 서버</text>
+        <!-- 담당 표시 -->
+        <circle class="pin" cx="40" cy="186" r="15"/><text class="pin-n" x="40" y="191" text-anchor="middle">1</text>
+        <circle class="pin" cx="540" cy="232" r="15"/><text class="pin-n" x="540" y="237" text-anchor="middle">2</text>
+        <circle class="pin" cx="736" cy="196" r="15"/><text class="pin-n" x="736" y="201" text-anchor="middle">3</text>
+        <circle class="pin" cx="736" cy="40" r="15"/><text class="pin-n" x="736" y="45" text-anchor="middle">4</text>
+      </svg>
+    </div>
+    <figcaption>배치 예시입니다. 전시장 자리에 맞게 바꾸되, 운영 노트북은 관람객 손이 닿지 않는 곳에 두고 키패드는 문 바로 옆에 둡니다. 번호는 아래 역할 카드와 같습니다.</figcaption>
+  </figure>
+
+  <div class="roles">
+    <div class="role">
+      <div class="role-top"><span class="role-n">1</span><div><h3>안내</h3><div class="where">입구 · QR 안내판 옆</div></div></div>
+      <label for="who-1">담당 <input id="who-1" type="text" maxlength="20" placeholder="이름 적기" autocomplete="off"></label>
+      <ul>
+        <li>QR 찍는 법과 <strong>이름 쓰는 법</strong>을 알려 줍니다</li>
+        <li>줄을 정리하고, 폰에 뜬 예상 대기 시간을 그대로 안내합니다</li>
+        <li>체험이 끝날 때마다 마이크 커버를 갈아 끼웁니다</li>
+      </ul>
+    </div>
+    <div class="role">
+      <div class="role-top"><span class="role-n">2</span><div><h3>부스 진행</h3><div class="where">부스 문 옆 · 안</div></div></div>
+      <label for="who-2">담당 <input id="who-2" type="text" maxlength="20" placeholder="이름 적기" autocomplete="off"></label>
+      <ul>
+        <li>키패드 입력을 돕고 <span class="btn">노래방 시작하기</span>를 안내합니다</li>
+        <li>교가를 끝까지 부르게 하고, 점수를 크게 읽어 줍니다</li>
+        <li>마이크 거리와 방향을 잡아 줍니다</li>
+      </ul>
+    </div>
+    <div class="role">
+      <div class="role-top"><span class="role-n">3</span><div><h3>운영석 (관리자)</h3><div class="where">운영 노트북 · <code>/admin</code></div></div></div>
+      <label for="who-3">담당 <input id="who-3" type="text" maxlength="20" placeholder="이름 적기" autocomplete="off"></label>
+      <ul>
+        <li>대기열을 보고, 오지 않는 사람은 <span class="btn">다음 사람 호출</span></li>
+        <li>교가 순위를 확인하고 상품 명단을 뽑아 배부를 기록합니다</li>
+        <li>자리를 비울 때는 노트북을 잠급니다</li>
+      </ul>
+    </div>
+    <div class="role">
+      <div class="role-top"><span class="role-n">4</span><div><h3>하드웨어</h3><div class="where">라즈베리파이 옆</div></div></div>
+      <label for="who-4">담당 <input id="who-4" type="text" maxlength="20" placeholder="이름 적기" autocomplete="off"></label>
+      <ul>
+        <li>도어락·릴레이·LED·키패드가 지시대로 움직이는지 봅니다</li>
+        <li>배선이 드러나지 않게, 도어락 손끼임 가드를 지킵니다</li>
+        <li>이상이 생기면 운영석과 함께 원인을 찾습니다</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════ 하루 순서 ═══════════════════════ -->
+<section class="block" id="day">
+  <div class="part-head">
+    <span class="no">2</span><h2>하루 순서</h2>
+    <p class="sub">시각은 개장 시각을 기준으로 적었습니다. 켜는 순서를 바꾸면 화면에 목록이 비어 보이거나 연결이 끊기므로 위에서부터 차례대로 합니다.</p>
+  </div>
+
+  <ol class="tl">
+    <li><span class="at">개장 −40분</span><div class="what"><b>켜기</b><span class="who"><span>운영석</span><span>하드웨어</span></span>
+      <ol>
+        <li>공유기</li>
+        <li>XAMPP에서 MySQL <span class="btn">Start</span></li>
+        <li>백엔드 창, 프론트엔드 창 (04 매뉴얼 “매일 켜는 순서”)</li>
+        <li>라즈베리파이 전원 (켜지면 데몬이 저절로 실행됩니다)</li>
+        <li>부스 TV에 <code>/booth</code>를 띄우고 F11, 왼쪽 아래 <span class="btn">소리 켜기 — 한 번 눌러 주세요</span></li>
+        <li>운영 노트북에 <code>/admin</code>, 관리자 PIN으로 <span class="btn">인증</span></li>
+      </ol></div></li>
+    <li><span class="at">개장 −25분</span><div class="what"><b>시험으로 한 바퀴</b><span class="who"><span>전원</span></span>
+      <ol>
+        <li>폰으로 QR → 이름 “연습” → <span class="btn">체험권 받기</span> → 곧바로 입장 비밀번호가 뜹니다</li>
+        <li>키패드에 네 자리 → 문 열림, 조명, 환영 음성</li>
+        <li><span class="btn">노래방 시작하기</span> → 🏫 교가 → <span class="btn">반주 시작 &amp; 가창하기</span>, 가사가 금색으로 채워지는지 10초만 봅니다</li>
+        <li>운영석에서 <span class="btn">이용 종료 (퇴실곡+전원차단)</span> → 퇴실곡, 문 잠김, 15초 뒤 대기 화면</li>
+      </ol>
+      <span class="small">끝까지 부르지 않고 끝냈으므로 이 기록은 순위에 남지 않습니다. 시험할 때 <span class="btn">노래 완료 &amp; 점수 채점! 💯</span>은 누르지 않습니다.</span></div></li>
+    <li><span class="at">개장 −10분</span><div class="what"><b>소리와 마이크</b><span class="who"><span>부스 진행</span><span>운영석</span></span>
+      <ul>
+        <li>운영석 <span class="btn">스피커 테스트</span>로 부스 볼륨을 맞춥니다</li>
+        <li>마이크는 <strong>스피커를 등지게</strong> 놓습니다. 교가 반주에 작은 가이드 멜로디가 있어서, 마이크가 스피커 소리를 주워 담으면 점수가 부풀어 오릅니다</li>
+        <li>관리자 화면 운영 요약이 “지시대로 동작 중”이고 대기열이 비어 있는지 봅니다</li>
+      </ul></div></li>
+    <li><span class="at">개장</span><div class="what"><b>줄 받기 시작</b><span class="who"><span>안내</span></span>
+      <span class="small">첫 체험권은 바로 호출됩니다. 이후로는 한 사람에 4~5분, 한 시간에 12~15명이 체험합니다.</span></div></li>
+    <li><span class="at">매 정시</span><div class="what"><b>한 시간마다 점검</b><span class="who"><span>운영석</span><span>안내</span></span>
+      <ul>
+        <li>관리자 화면 <strong>교가 순위 · 상품 배부</strong> 패널을 훑어보고 이상한 기록이 없는지 봅니다</li>
+        <li>마이크 커버가 넉넉한지, 노트북 충전기가 꽂혀 있는지 봅니다</li>
+      </ul></div></li>
+    <li><span class="at">예약 시간</span><div class="what"><b>점심 12:30~13:20 · 저녁 17:30~18:30</b><span class="who"><span>안내</span></span>
+      <span class="small">이 시간에 예약한 학생이 있으면 체험 호출이 잠시 멈춥니다. 관람객 폰에도 이유가 뜹니다. 줄 선 관람객에게 “예약 시간이 끝나면 다시 호출됩니다”라고 알려 줍니다.</span></div></li>
+    <li><span class="at">마감 −30분</span><div class="what"><b>줄 마감</b><span class="who"><span>안내</span><span>운영석</span></span>
+      <span class="small">QR 안내판을 가리고 “오늘 체험은 마감되었습니다”를 붙입니다. 남은 대기 인원은 관리자 화면 대기열에서 셉니다. 떠난 사람의 체험권은 ⊗로 취소합니다.</span></div></li>
+    <li><span class="at">마감</span><div class="what"><b>집계 · 상품 · 끄기</b><span class="who"><span>운영석</span><span>하드웨어</span></span>
+      <ol>
+        <li>마지막 관람객의 이용이 끝난 뒤 <a href="#prize">상품 배부</a> 순서대로 오늘 교가 순위 CSV를 저장합니다</li>
+        <li>라즈베리파이 데몬 Ctrl+C. 도어락을 잠그고 전원을 끈 뒤 종료합니다</li>
+        <li>프론트엔드·백엔드 창에서 Ctrl+C, XAMPP의 MySQL <span class="btn">Stop</span></li>
+      </ol></div></li>
+  </ol>
+</section>
+
+<!-- ═══════════════════════ 관람객 응대 ═══════════════════════ -->
+<section class="block" id="guest">
+  <div class="part-head">
+    <span class="no">3</span><h2>관람객 한 명 맞이하기</h2>
+    <p class="sub">관람객 한 명이 QR을 찍고 나갈 때까지의 순서와, 그때 할 말입니다. 말은 그대로 읽어도 되고 자기 말투로 바꿔도 됩니다.</p>
+  </div>
+
+  <ol class="guest">
+    <li><h4>QR 찍고 이름 쓰기 <span class="who"><span>안내</span></span></h4>
+      <p class="say">QR을 찍고 이름을 적으면 줄이 섭니다. 이름은 순위판에 나오니까 이름 뒤에 반을 붙여 주세요.</p>
+      <p>폰에 대기 번호, 앞에 남은 사람 수, 예상 대기 시간이 뜹니다. 페이지를 닫아도 체험권은 그 폰에 남습니다.</p></li>
+    <li><h4>기다리기 <span class="who"><span>안내</span></span></h4>
+      <p class="say">차례가 되면 폰에 비밀번호 네 자리가 뜨고, 부스에서 번호를 불러 드려요. 2분 안에 와 주세요.</p>
+      <p>떠나는 사람은 폰에서 <span class="btn">체험권 버리기</span>를 누르면 줄에서 바로 빠집니다.</p></li>
+    <li><h4>호출과 입장 <span class="who"><span>부스 진행</span></span></h4>
+      <p class="say">폰에 뜬 네 자리를 문 옆 키패드에 눌러 주세요. 확인 키는 없어요.</p>
+      <p>문이 열리고 조명이 켜지며 부스 TV에 “OOO님, 환영합니다!”가 뜹니다. 여기서부터 3분입니다. 2분 안에 오지 않으면 다음 사람에게 넘어가고, 놓친 사람은 폰에서 <span class="btn">다시 줄 서기</span>를 누릅니다.</p></li>
+    <li><h4>이름 확인과 노래방 시작 <span class="who"><span>부스 진행</span></span></h4>
+      <p class="say">순위에 올라갈 이름이 맞는지 봐 주세요. 맞으면 노래방 시작하기를 눌러요.</p>
+      <p>마이크 권한을 허용하면 주변 소음을 잠깐 잽니다. “준비 완료”가 뜨면 됩니다. 이 몇 초 동안은 주변 사람도 조용히 해 달라고 합니다.</p></li>
+    <li><h4>교가 부르기 <span class="who"><span>부스 진행</span></span></h4>
+      <p class="say">가사가 금색으로 채워질 때 맞춰 부르면 돼요. 마이크는 입에서 한 뼘, 끝까지 불러야 점수가 나와요.</p>
+      <p>🏫 교가가 처음부터 골라져 있습니다. <span class="btn">반주 시작 &amp; 가창하기</span>를 누르면 전주 4마디 뒤에 첫 소절이 나옵니다. 화면의 ●●●● 가 다 사라지면 시작입니다.</p></li>
+    <li><h4>점수 발표 <span class="who"><span>부스 진행</span></span></h4>
+      <p class="say">점수 나왔습니다! 음정, 박자, 성량, 표현으로 매겨요. 오늘의 교가 순위는 대기 화면에서 볼 수 있어요.</p>
+      <p>영상이 끝나면 저절로 채점되어 “순위와 애창곡 기록에 올렸습니다”가 뜹니다. 남은 시간에 다른 곡을 불러도 되지만, 3분 안에 끝나지 않는 곡은 점수 없이 끊깁니다.</p></li>
+    <li><h4>퇴장과 정리 <span class="who"><span>부스 진행</span><span>안내</span></span></h4>
+      <p class="say">시간이 다 됐어요. 즐거우셨나요? 순위는 저쪽 화면에서 확인하세요.</p>
+      <p>3분이 지나면 종료 안내와 퇴실곡이 나오고 전원이 꺼지며 문이 잠깁니다. 15초 뒤 부스 TV가 대기 화면으로 돌아가고 다음 사람이 호출됩니다. 그사이 마이크 커버를 갈아 끼웁니다.</p></li>
+  </ol>
+</section>
+
+<!-- ═══════════════════════ 교가 대회 ═══════════════════════ -->
+<section class="block" id="anthem">
+  <div class="part-head">
+    <span class="no">4</span><h2>교가 부르기 대회</h2>
+    <p class="sub">교가 점수만 따로 모아 순위를 매기고 상품을 줍니다. 다른 곡의 점수는 “오늘의 순위”에 따로 쌓이고 교가 순위에는 섞이지 않습니다.</p>
+  </div>
+
+  <div class="section" style="padding-top:0">
+    <h3>순위를 매기는 규칙</h3>
+    <div class="tw">
+      <table>
+        <thead><tr><th>이런 경우</th><th>순위에서는</th></tr></thead>
+        <tbody>
+          <tr><td>같은 사람이 여러 번 불렀다</td><td><strong>이름당 가장 높은 점수 하나</strong>만 남습니다. 몇 번이든 다시 도전할 수 있습니다</td></tr>
+          <tr><td>점수가 같다</td><td><strong>먼저 부른 사람</strong>이 앞섭니다</td></tr>
+          <tr><td>이름을 비워 “익명”으로 불렀다</td><td>기록마다 따로 올라갑니다. 누구인지 알 수 없어 상품을 줄 수 없습니다</td></tr>
+          <tr><td>끝까지 불렀다</td><td>영상이 끝나는 순간 저절로 채점되어 올라갑니다</td></tr>
+          <tr><td>중간에 <span class="btn">노래 완료 &amp; 점수 채점! 💯</span>을 눌렀다</td><td>그때까지 부른 만큼으로 채점되어 <strong>그대로 올라갑니다</strong>. 대회에서는 누르지 않게 진행 담당이 막습니다</td></tr>
+          <tr><td>3분이 끝나 노래가 중간에 끊겼다</td><td>올라가지 않습니다</td></tr>
+          <tr><td><span class="btn">가상보컬</span>로 채점했다</td><td>올라가지 않습니다. 마이크가 고장 났을 때 채점을 보여 주는 용도입니다</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="section">
+    <h3>이름 쓰는 법</h3>
+    <p>순위판은 이름으로 같은 사람을 알아봅니다. 줄 설 때 폰에 적은 이름이 그대로 부스와 순위판에 올라가고, 최대 10자입니다. 순위판은 누구나 보는 화면이라 학번이나 전화번호는 적지 않게 합니다.</p>
+    <div class="names">
+      <div class="good"><span class="v">김민제1-3</span><span class="why">이름+반. 동명이인과 구분됩니다</span></div>
+      <div class="good"><span class="v">박민성</span><span class="why">외부 관람객은 이름만</span></div>
+      <div class="bad"><span class="v">20312김민제</span><span class="why">학번은 공개 화면에 남습니다</span></div>
+      <div class="bad"><span class="v">익명</span><span class="why">상품을 줄 수 없습니다</span></div>
+    </div>
+    <div class="note"><span class="tag">다시 도전</span><p>두 번째 도전부터는 <strong>처음과 똑같은 이름</strong>을 적어야 최고 점수 하나로 합쳐집니다. “김민제1-3”과 “김민제 1-3”은 다른 사람으로 봅니다.</p></div>
+  </div>
+
+  <div class="section">
+    <h3>공정하게 하려면</h3>
+    <ul>
+      <li><strong>마이크는 스피커를 등지게</strong>, 입에서 한 뼘. 반주에 섞인 가이드 멜로디를 마이크가 주우면 부르지 않아도 점수가 나옵니다. 단일지향 마이크를 씁니다.</li>
+      <li>노래방을 시작할 때 주변 소음을 재므로, 그 몇 초 동안 줄 선 사람들이 떠들지 않게 합니다.</li>
+      <li>부스 볼륨은 개장 전에 맞춘 뒤 대회 동안 바꾸지 않습니다.</li>
+      <li>팀원과 시연 발표자의 기록은 이름을 “시연”으로 해서, 시상할 때 건너뜁니다.</li>
+    </ul>
+  </div>
+
+  <div class="section">
+    <h3>우리 팀이 정한 것</h3>
+    <p>대회 전에 팀과 지도 교사가 정하고 여기에 적어 둡니다. 시스템은 “이름당 최고 점수, 같으면 먼저 부른 사람”까지만 정해 줍니다.</p>
+    <form class="decide" id="decide" onsubmit="return false">
+      <label for="dc-range">집계 기준
+        <select id="dc-range">
+          <option value="">고르기</option>
+          <option>날마다 따로 (관리자 화면 [오늘])</option>
+          <option>축제 전체를 합쳐서 (관리자 화면 [전체])</option>
+        </select></label>
+      <label for="dc-count">시상 인원 <input id="dc-count" type="text" placeholder="예: 1~3등" autocomplete="off"></label>
+      <label for="dc-gift">상품 <input id="dc-gift" type="text" placeholder="예: 1등 문화상품권" autocomplete="off"></label>
+      <label for="dc-when">시상 시각과 장소 <input id="dc-when" type="text" placeholder="예: 매일 16:00 부스 앞" autocomplete="off"></label>
+      <label for="dc-dup">한 사람이 두 날 모두 순위에 들면
+        <select id="dc-dup">
+          <option value="">고르기</option>
+          <option>한 번만 준다 (다음 순위에게)</option>
+          <option>날마다 준다</option>
+        </select></label>
+      <label for="dc-check">본인 확인 방법 <input id="dc-check" type="text" placeholder="예: 학생증 또는 담임 확인" autocomplete="off"></label>
+      <p class="hint">적은 내용은 이 브라우저에만 남습니다. 팀원과 나누려면 안내판에 옮겨 적습니다.</p>
+    </form>
+  </div>
+
+  <div class="section" id="prize">
+    <h3>상품 배부</h3>
+    <ol class="steps">
+      <li><span>운영 노트북 <code>/admin</code>의 <strong>교가 순위 · 상품 배부</strong> 패널에서 <span class="btn">오늘</span> 또는 <span class="btn">전체</span>를 고릅니다. 정한 집계 기준을 따릅니다.</span></li>
+      <li><span><span class="btn">새로고침</span>을 누릅니다. 15초마다 저절로 새로 받지만, 시상 직전에는 한 번 누릅니다.</span></li>
+      <li><span><span class="btn">CSV 내려받기</span>로 <code>교가순위-오늘.csv</code>를 저장합니다. 엑셀에서 한글이 깨지지 않고 순위·이름·점수·등급·기록 시각이 들어 있습니다.</span></li>
+      <li><span>수상자를 부르고 본인을 확인합니다. 같은 이름이 있으면 <strong>기록 시각</strong>을 물어서 맞춰 봅니다. “시연” 기록은 건너뜁니다.</span></li>
+      <li><span>상품을 준 뒤 그 줄의 <span class="btn">배부 표시</span>를 눌러 “배부함”으로 바꿉니다.</span></li>
+      <li><span>마감 때 CSV를 한 번 더 저장해 USB에도 옮겨 둡니다.</span></li>
+    </ol>
+    <div class="note warn"><span class="tag">한 대에서만</span><p>“배부함” 표시는 <strong>그 노트북 브라우저에만</strong> 기록되고 서버에는 남지 않습니다. 상품은 운영 노트북 한 대에서만 표시하고, 다른 기기에서 확인하지 않습니다. CSV 파일이 공식 명단입니다.</p></div>
+    <div class="note"><span class="tag">로그인</span><p>CSV를 받을 때 “관리자 인증이 만료되었습니다”가 뜨면 관리자 PIN으로 다시 <span class="btn">인증</span>합니다. 관리자 PIN을 모르는 사람은 CSV를 받을 수 없습니다.</p></div>
+  </div>
+
+  <div class="section">
+    <h3>연습 기록 정리</h3>
+    <p>리허설은 <strong>전날</strong> 합니다. 날짜가 바뀌면 오늘 순위는 저절로 비워집니다. 당일 아침에 꼭 연습해야 한다면 <span class="btn">가상보컬</span>을 쓰면 기록이 남지 않습니다.</p>
+    <p>이름 “연습”으로 남은 기록이 대회 순위에 섞였다면, 운영석이 XAMPP의 phpMyAdmin(<code>http://localhost/phpmyadmin</code>)에서 <code>smart_control</code> 데이터베이스를 고르고 SQL 탭에서 실행합니다.</p>
+    <pre class="sql"><span class="c">-- 이름이 정확히 '연습'인 기록만 지운다. 되돌릴 수 없으니 이름을 두 번 확인한다</span>
+DELETE FROM score_records WHERE nickname = '연습';</pre>
+  </div>
+</section>
+
+<!-- ═══════════════════════ 발표 대본 ═══════════════════════ -->
+<section class="block" id="script">
+  <div class="part-head">
+    <span class="no">5</span><h2>5분 발표 시연 대본</h2>
+    <p class="sub">심사위원이나 손님 앞에서 보여 줄 때의 순서입니다. 교가 한 곡을 끝까지 부르는 판입니다. 시작 전에 대기열이 비어 있어야 첫 체험권이 바로 호출됩니다.</p>
+  </div>
+
+  <div class="tw">
+    <table class="wide">
+      <thead><tr><th>시간</th><th>말할 것</th><th>할 것</th><th>보이는 것</th></tr></thead>
+      <tbody>
+        <tr><td class="when">0:00</td><td class="line">“학교 노래방 부스는 누가 문을 열고, 전원을 켜고, 끝나면 끄는지가 늘 문제였습니다. 저희 부스는 예약과 일회용 비밀번호로 이 일을 사람 없이 합니다.”</td><td>부스 TV 대기 화면을 가리킨다</td><td>키패드, QR, 지금 호출, 오늘의 교가 순위</td></tr>
+        <tr><td class="when">0:25</td><td class="line">“축제에 오신 분은 QR만 찍으면 됩니다.”</td><td>폰으로 QR → 이름 “시연” → <span class="btn">체험권 받기</span></td><td>폰에 대기 번호와 곧바로 “지금 입장하세요”, 비밀번호</td></tr>
+        <tr><td class="when">0:50</td><td class="line">“받은 네 자리를 키패드에 누르면…”</td><td>키패드에 비밀번호</td><td>도어락 해제, 전원·조명, 환영 음성, “시연님, 환영합니다!”</td></tr>
+        <tr><td class="when">1:10</td><td class="line">“오늘은 교가 부르기 대회를 합니다. 교가 반주와 가사 영상은 저희가 악보를 보고 직접 만들었습니다.”</td><td><span class="btn">노래방 시작하기</span> → 🏫 교가 → <span class="btn">반주 시작 &amp; 가창하기</span>, 끝까지 부른다</td><td>1080p 노래방 영상, 금색으로 채워지는 가사, 음정·성량 미터</td></tr>
+        <tr><td class="when">2:40</td><td class="line">“영상이 끝나면 음정, 박자, 성량, 표현을 저절로 채점합니다.”</td><td>기다린다</td><td>점수와 등급, “순위와 애창곡 기록에 올렸습니다”</td></tr>
+        <tr><td class="when">3:05</td><td class="line">“이용 종료 10분 전이 되면 조명이 깜빡여 알려 줍니다.”</td><td>운영석 <span class="btn">종료 10분 전 (LED 깜빡임)</span></td><td>LED 깜빡임, “종료 10분 전” 띠와 음성</td></tr>
+        <tr><td class="when">3:30</td><td class="line">“시간이 끝나면 퇴실곡을 틀고 전원과 도어락을 스스로 정리합니다.”</td><td>운영석 <span class="btn">이용 종료 (퇴실곡+전원차단)</span></td><td>퇴실곡, 전원 차단·도어락 잠금, 15초 뒤 대기 화면의 “오늘의 교가 순위”에 “시연”</td></tr>
+        <tr><td class="when">4:10</td><td class="line">“예약 비밀번호는 정해진 시간에만 열립니다.”</td><td>학생 폰 <code>/</code>에서 내일 예약 → 받은 PIN을 키패드에</td><td>“아직 예약 시간이 아닙니다”와 쓸 수 있는 시각</td></tr>
+        <tr><td class="when">4:40</td><td class="line">“비밀번호 없이는 노래방이 열리지 않고, 다섯 번 틀리면 잠깁니다. 교가 순위는 선생님 화면에서 명단으로 뽑아 상품을 드립니다. 감사합니다.”</td><td>운영석이 교가 순위 패널을 보여 준다</td><td>교가 순위 · 상품 배부 패널</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="note"><span class="tag">시간이 짧을 때</span><p>3분밖에 없으면 1:10 장면에서 교가 대신 순위판과 관리자 패널만 보여 주고 0:00 → 0:25 → 0:50 → 3:30 → 4:40만 합니다. 4:10 장면에서 거부되는 것이 정상입니다.</p></div>
+</section>
+
+<!-- ═══════════════════════ 문제 대처 ═══════════════════════ -->
+<section class="block" id="trouble">
+  <div class="part-head">
+    <span class="no">6</span><h2>문제가 생겼을 때</h2>
+    <p class="sub">관람객 앞에서는 “잠깐만요, 금방 됩니다”라고 말하고 첫 칸만 합니다. 원인 찾기는 관람객이 빠진 뒤에 합니다.</p>
+  </div>
+
+  <div class="tw">
+    <table class="wide">
+      <thead><tr><th>증상</th><th>지금 할 일</th><th>나중에 볼 것</th></tr></thead>
+      <tbody>
+        <tr class="group"><td colspan="3">교가 대회</td></tr>
+        <tr><td>교가 영상이 검은 화면이거나 안 움직인다</td><td>곡 목록에서 다른 곡을 눌렀다가 🏫 교가를 다시 누르고 <span class="btn">반주 시작 &amp; 가창하기</span></td><td>계속 안 되면 “내장 자동 반주”로 넘어간 것입니다. 가사 영상이 없고 끝에 <span class="btn">노래 완료 &amp; 점수 채점! 💯</span>을 눌러야 합니다. 운영석이 <code>frontend/public/media/karaoke/</code>에 <code>school-anthem.mp4</code>·<code>.webm</code>이 있는지 확인</td></tr>
+        <tr><td>부르지 않았는데 점수가 높다, 점수가 다들 비슷하게 높다</td><td>마이크를 스피커 반대쪽으로 돌리고 스피커 볼륨을 한 단계 낮춥니다</td><td>마이크가 반주의 가이드 멜로디를 주워 담는 중입니다. 단일지향 마이크로 바꿉니다</td></tr>
+        <tr><td>부른 사람이 교가 순위에 없다</td><td>대기 화면 순위판은 8초마다 바뀝니다. 첫 패널 “오늘의 교가 순위”를 기다립니다</td><td>가상보컬로 불렀거나, 3분이 끝나 중간에 끊겼거나, 이름을 다르게 적은 경우입니다. 관리자 패널 <span class="btn">새로고침</span>으로 확인</td></tr>
+        <tr><td>같은 사람이 순위에 두 번 있다</td><td>그대로 둡니다. 시상할 때 높은 쪽만 셉니다</td><td>띄어쓰기나 반 표기가 달라 다른 이름으로 들어간 것입니다</td></tr>
+        <tr><td>CSV 내려받기가 안 된다</td><td>관리자 PIN으로 다시 <span class="btn">인증</span></td><td>로그인 유지 시간이 지났습니다. 전시 날에는 8시간으로 늘려 둡니다 (04 매뉴얼 부록)</td></tr>
+        <tr class="group"><td colspan="3">부스</td></tr>
+        <tr><td>안내 음성·퇴실곡이 안 나온다</td><td>부스 TV 왼쪽 아래 <span class="btn">소리 켜기</span>. “안내 음성 꺼짐”이면 눌러서 켭니다</td><td>브라우저는 한 번도 누르지 않은 화면의 소리를 막습니다. 운영석 <span class="btn">스피커 테스트</span></td></tr>
+        <tr><td>마이크가 소리를 못 잡는다</td><td>마이크 연결을 확인하고, 안 되면 <span class="btn">가상보컬</span>로 채점만 보여 줍니다 (순위에는 안 오름)</td><td>브라우저 마이크 권한, 노트북 입력 장치</td></tr>
+        <tr><td>다른 곡 영상이 안 나온다</td><td>12초 기다리면 내장 자동 반주로 넘어갑니다</td><td>네트워크가 유튜브를 막음. 운영석 <span class="btn">10곡 후보 전체 점검</span></td></tr>
+        <tr><td>키패드를 눌러도 반응이 없다</td><td>부스 TV 대기 화면의 화면 키패드로 같은 비밀번호를 누릅니다</td><td>하드웨어 담당이 라즈베리파이 데몬과 키패드 배선을 봅니다 (부록I)</td></tr>
+        <tr><td>“여러 번 틀려 잠시 막혔습니다”</td><td>30초 기다린 뒤 다시 누릅니다</td><td>5번 연속 오입력. 장난이 이어지면 키패드 옆에 사람을 둡니다</td></tr>
+        <tr><td>부스 TV에 <span class="btn">노래방 시작하기</span>가 없다</td><td>정상입니다. 비밀번호로 인증해야 나타납니다</td><td>—</td></tr>
+        <tr class="group"><td colspan="3">줄과 대기열</td></tr>
+        <tr><td>관람객이 비밀번호를 놓쳤다</td><td>운영석이 대기열 패널 “지금 호출” 칸의 번호를 읽어 줍니다</td><td>이 번호는 관리자 화면에만 보입니다</td></tr>
+        <tr><td>호출된 사람이 안 온다</td><td>2분 뒤 저절로 다음 사람에게 넘어갑니다. 급하면 <span class="btn">다음 사람 호출</span></td><td>장난 체험권은 ⊗로 취소</td></tr>
+        <tr><td>관람객 폰에서 QR이 안 열린다</td><td>운영 노트북 IP 주소의 <code>:3000/try</code>를 직접 알려 줍니다</td><td>폰이 전시장 공유기 Wi-Fi에 붙었는지 확인</td></tr>
+        <tr class="group"><td colspan="3">운영석</td></tr>
+        <tr><td>모든 화면의 목록이 비었다</td><td>XAMPP에서 MySQL을 다시 <span class="btn">Start</span></td><td>DB가 꺼지면 화면은 떠도 점수가 저장되지 않습니다</td></tr>
+        <tr><td>관리자 화면 지시는 바뀌는데 기기가 안 움직인다</td><td>하드웨어 담당을 부릅니다</td><td>라즈베리파이 데몬이 멈췄거나 Wi-Fi가 끊김 (부록I)</td></tr>
+        <tr><td>문이 안 잠기거나 안 열린다</td><td>사람이 안에 있으면 먼저 문을 열어 내보내고, 그 부스는 잠시 쉽니다</td><td>하드웨어 담당이 도어락 전원과 릴레이를 확인. 안전이 먼저입니다</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<!-- ═══════════════════════ 자주 묻는 질문 ═══════════════════════ -->
+<section class="block" id="faq">
+  <div class="part-head">
+    <span class="no">7</span><h2>관람객이 자주 묻는 것</h2>
+  </div>
+  <div class="faq">
+    <div><span class="q">점수는 어떻게 매겨요?</span><p>100점 만점에 음정 35, 박자 30, 성량 20, 표현 15점입니다. 노래방을 시작할 때 주변 소음을 재서 그 위로 들리는 목소리만 셉니다. 등급은 높은 순서로 SSS, SS, S, A+, A, B입니다.</p></div>
+    <div><span class="q">다시 불러도 돼요?</span><p>네. QR로 다시 줄을 서면 됩니다. 같은 이름으로 부르면 가장 높은 점수 하나만 순위에 남습니다.</p></div>
+    <div><span class="q">제 순위는 어디서 봐요?</span><p>부스 TV 대기 화면의 첫 패널 “오늘의 교가 순위”에 10위까지 나옵니다. 패널은 8초마다 바뀝니다.</p></div>
+    <div><span class="q">다른 노래도 불러도 돼요?</span><p>학생 애창곡 10곡이 있습니다. 다만 이용 시간이 3분이라 긴 곡은 중간에 끝나고 점수가 남지 않습니다. 대회 참가자는 교가부터 부르세요.</p></div>
+    <div><span class="q">교가 영상은 어디서 났어요?</span><p>팀이 학교 교가 악보를 보고 반주를 편곡하고 가사 영상까지 직접 만들었습니다. 전주 4마디, 1절, 후주로 1분 29초입니다.</p></div>
+    <div><span class="q">제 이름이 저장돼요?</span><p>순위판에 적은 이름과 점수, 부른 시각만 저장됩니다. 학번이나 전화번호는 적지 마세요.</p></div>
+    <div><span class="q">상품은 언제 줘요?</span><p>위 “우리 팀이 정한 것”에 적은 시각과 장소를 안내합니다. 본인 확인을 위해 순위에 올린 이름을 기억해 두라고 알려 줍니다.</p></div>
+    <div><span class="q">문이 잠기면 못 나가요?</span><p>문이 잠기는 것은 밖에서 비밀번호 없이 들어오지 못하게 하려는 것입니다. 안에서 나오는 방법은 하드웨어 담당이 개장 전에 직접 확인해 두고, 그대로 알려 줍니다. 확인이 안 됐으면 부스 진행이 문 옆을 지킵니다.</p></div>
+  </div>
+</section>
+
+<!-- ═══════════════════════ 체크리스트 ═══════════════════════ -->
+<section class="block" id="checks">
+  <div class="part-head">
+    <span class="no">8</span><h2>체크리스트</h2>
+    <p class="sub">체크 상태는 이 브라우저에만 남습니다. 다음 날 아침에는 <span class="btn">체크 모두 지우기</span>를 누르고 시작합니다.</p>
+  </div>
+  <div class="checks">
+    <div class="check">
+      <h4>개장 전</h4>
+      <label><input type="checkbox" id="c-o1"><span>켜는 순서대로 켰고 관리자 화면 운영 요약이 “지시대로 동작 중”</span></label>
+      <label><input type="checkbox" id="c-o2"><span>부스 TV <code>/booth</code> 전체 화면, <span class="btn">소리 켜기</span>를 눌러 “안내 음성 켜짐”</span></label>
+      <label><input type="checkbox" id="c-o3"><span>시험 한 바퀴: 체험권 → 키패드 → 문 열림 → 교가 10초 → 이용 종료</span></label>
+      <label><input type="checkbox" id="c-o4"><span>마이크가 스피커를 등지고, <span class="btn">스피커 테스트</span> 볼륨이 적당하다</span></label>
+      <label><input type="checkbox" id="c-o5"><span>대기열이 비어 있고 오늘 교가 순위에 연습 기록이 없다</span></label>
+      <label><input type="checkbox" id="c-o6"><span>QR 안내판, 이름 쓰는 법 안내문, 마이크 커버, 상품이 준비됐다</span></label>
+      <label><input type="checkbox" id="c-o7"><span>노트북 절전 “안 함”, 충전기 연결</span></label>
+      <label><input type="checkbox" id="c-o8"><span>문이 잠긴 상태에서 부스 안에서 문을 열고 나올 수 있는지 직접 해 봤다</span></label>
+    </div>
+    <div class="check">
+      <h4>한 시간마다</h4>
+      <label><input type="checkbox" id="c-h1"><span>교가 순위에 이상한 기록이 없다</span></label>
+      <label><input type="checkbox" id="c-h2"><span>마이크 커버가 넉넉하다</span></label>
+      <label><input type="checkbox" id="c-h3"><span>관리자 화면이 로그인 상태다</span></label>
+      <label><input type="checkbox" id="c-h4"><span>배선이 드러나지 않고 도어락 가드가 제자리에 있다</span></label>
+    </div>
+    <div class="check">
+      <h4>마감</h4>
+      <label><input type="checkbox" id="c-c1"><span>줄 마감 안내를 붙이고 남은 대기 인원을 처리했다</span></label>
+      <label><input type="checkbox" id="c-c2"><span>교가 순위 CSV를 저장하고 USB에도 옮겼다</span></label>
+      <label><input type="checkbox" id="c-c3"><span>상품을 주고 <span class="btn">배부 표시</span>를 했다</span></label>
+      <label><input type="checkbox" id="c-c4"><span>라즈베리파이 → 프론트엔드·백엔드 → MySQL 순서로 껐다</span></label>
+      <label><input type="checkbox" id="c-c5"><span>도어락이 잠긴 상태로 전원이 꺼졌다</span></label>
+    </div>
+  </div>
+  <div class="row"><button type="button" class="reset" id="reset-checks">체크 모두 지우기</button></div>
+</section>
+
+<footer>
+  <span>더 자세한 문서</span>
+  <ul>
+    <li><a href="https://github.com/foxjini/agent-vibe-coding-starter-kit2/blob/karaoke/docs/04-%EC%84%A4%EC%B9%98-%EC%82%AC%EC%9A%A9-%EC%8B%9C%EC%97%B0-%EB%A7%A4%EB%89%B4%EC%96%BC.html">04 노래방 부스 설치·시연 매뉴얼</a> · 설치, 켜고 끄는 명령, 전시용 설정, 화면별 사용법</li>
+    <li><a href="https://github.com/foxjini/agent-vibe-coding-starter-kit2/blob/karaoke/docs/%EB%B6%80%EB%A1%9DI-%EB%9D%BC%EC%A6%88%EB%B2%A0%EB%A6%AC%ED%8C%8C%EC%9D%B45-%EC%8B%A4%EA%B8%B0%EA%B8%B0-%EB%A7%88%EC%9D%B4%EA%B7%B8%EB%A0%88%EC%9D%B4%EC%85%98-%EB%A7%A4%EB%89%B4%EC%96%BC.html">부록I 라즈베리파이 5 연동</a> · 배선, 자가진단, 부팅 자동 실행</li>
+    <li><a href="https://github.com/foxjini/agent-vibe-coding-starter-kit2/blob/karaoke/media-src/school-anthem/README.md">교가 노래방 영상 만들기</a> · 악보를 고쳐 영상을 다시 만드는 법</li>
+  </ul>
+  <span>본편 05 · 웹 예약 연동 자동화 학교 노래방 부스 관리 시스템 · 인천전자마이스터고</span>
+</footer>
+
+</div>
+
+<script>
+(function () {
+  "use strict";
+  var PREFIX = "boothShowManual:";
+  function load(key) { try { return localStorage.getItem(PREFIX + key); } catch (e) { return null; } }
+  function save(key, value) {
+    try { if (value === null || value === "") localStorage.removeItem(PREFIX + key); else localStorage.setItem(PREFIX + key, value); } catch (e) {}
+  }
+
+  // 담당자 이름 · 대회 규칙 — 적은 값을 이 브라우저에 남긴다
+  var fields = document.querySelectorAll(".role input, #decide input, #decide select");
+  Array.prototype.forEach.call(fields, function (el) {
+    var saved = load("field:" + el.id);
+    if (saved !== null) el.value = saved;
+    el.addEventListener(el.tagName === "SELECT" ? "change" : "input", function () { save("field:" + el.id, el.value); });
+  });
+
+  // 체크리스트
+  var boxes = document.querySelectorAll(".check input[type=checkbox]");
+  Array.prototype.forEach.call(boxes, function (box) {
+    box.checked = load("check:" + box.id) === "1";
+    box.addEventListener("change", function () { save("check:" + box.id, box.checked ? "1" : null); });
+  });
+  var reset = document.getElementById("reset-checks");
+  if (reset) reset.addEventListener("click", function () {
+    Array.prototype.forEach.call(boxes, function (box) { box.checked = false; save("check:" + box.id, null); });
+  });
+})();
+</script>
