@@ -438,7 +438,9 @@ python daemon.py               <span class="c"># 끄기: Ctrl+C</span></pre></di
       <tr><td>네오픽셀</td><td>DIN → GPIO, 5V, GND</td><td>추가 라이브러리·sudo 필요 → 선생님과</td></tr>
       <tr><td>온습도 DHT22 (3핀)</td><td>+ → 3V3, OUT → GPIO, − → GND</td><td><code>pip install adafruit-circuitpython-dht</code> · <code>interval</code> 5초 이상</td></tr>
       <tr><td>초음파 HC-SR04</td><td>VCC → 5V, GND, TRIG → GPIO, ECHO → <strong>1kΩ</strong> → GPIO (+ 그 GPIO에서 <strong>2kΩ</strong> → GND)</td><td><strong>ECHO 분압 필수</strong> (5V 신호)</td></tr>
-      <tr><td>압력·조도 (아날로그)</td><td>MCP3008 칩을 거쳐 SPI로 (CLK 23 · DOUT 21 · DIN 19 · CS 24번 자리)</td><td><code>sudo raspi-config</code>에서 SPI 켜기 · 선생님과</td></tr>
+      <tr><td>MCP3008 (아날로그 → 숫자 칩)</td><td>VDD·VREF → 3V3, AGND·DGND → GND, CLK → 물리 23, DOUT → 물리 21, DIN → 물리 19, CS → 물리 24</td><td><code>sudo raspi-config</code>에서 SPI 켜기 · 선생님과</td></tr>
+      <tr><td>조도 센서 (CDS)</td><td>한쪽 다리 → 3V3, 다른 다리 → MCP3008 <code>CH0</code>, 그리고 <code>CH0</code>에서 <strong>10kΩ</strong> → GND</td><td>저항이 없으면 값이 안 변함 · 배치표에는 <code>"channel": 0</code></td></tr>
+      <tr><td>압력 센서 (FSR)</td><td>조도 센서와 같은 방법 (CH 번호만 다르게)</td><td><code>"channel"</code>에 CH 번호</td></tr>
     </tbody>
   </table></div>
   <p class="small">점퍼선: 파이 핀 ↔ 브레드보드는 <strong>암-수</strong>. 색 약속: 빨강 = 전원, 검정 = GND, 나머지 = 신호.</p>
@@ -450,7 +452,8 @@ python daemon.py               <span class="c"># 끄기: Ctrl+C</span></pre></di
   <h2>부품 추가 — 6단계 (부품마다 한 바퀴)</h2>
   <ol class="steps">
     <li><b>전원 끄고 배선 · GPIO 번호 메모</b>파이에서 <code>sudo poweroff</code> → 불 꺼짐 → 전원선 뽑기 → 7번 슬라이드대로 연결 → "GPIO 몇 번"을 적어 둡니다.</li>
-    <li><b>PC에서 <code>pi/slot_map.py</code>에 한 줄 추가</b>빈 슬롯 번호를 골라 10번 슬라이드의 예시 줄을 붙여넣고 <code>label</code>·<code>pin</code>을 바꿉니다. <code>SLOTS = {</code>와 마지막 <code>}</code> 사이에 넣습니다.</li>
+    <li><b>PC에서 <code>pi/slot_map.py</code>에 한 줄 추가</b>빈 슬롯 번호를 골라 10번 슬라이드의 예시 줄을 붙여넣고 <code>label</code>·<code>pin</code>을 바꿉니다. <code>SLOTS = {</code>와 마지막 <code>}</code> 사이에 넣습니다.
+      <div class="box no" style="margin-top:8px"><b class="k">같은 슬롯 이름이 두 번 있으면 앞의 것이 조용히 사라집니다</b><p>붙여넣기 전에 <kbd>Ctrl</kbd>+<kbd>F</kbd>로 그 슬롯 이름(예: <code>actuator_02</code>)을 찾아봅니다. 파일 아래쪽 <code>#</code> 예시에 같은 번호가 있으면 그 예시를 지웁니다. 오류도 경고도 나오지 않으니 <code>--check</code> 목록에 내 부품이 다 있는지 꼭 봅니다.</p></div></li>
     <li><b>PC에서 확인</b><div class="cmd"><div class="cmd-h"><span class="where">PC · PowerShell</span><button class="copy" type="button">복사</button></div><pre>cd pi; python daemon.py --check; cd ..</pre></div>"고쳐야 할 것"이 없고 새 부품이 목록에 나오면 다음으로.</li>
     <li><b>커밋 · 푸시 · 프론트 담당에게 알리기</b><code>git add pi/slot_map.py</code> → <code>git commit -m "[hardware] …"</code> → <code>git push</code></li>
     <li><b>파이에서 받고 다시 켜기</b><div class="cmd"><div class="cmd-h"><span class="where pi">파이 터미널 (돌던 데몬은 먼저 Ctrl+C)</span><button class="copy" type="button">복사</button></div><pre>cd ~/iot-kit &amp;&amp; git pull &amp;&amp; cd pi
@@ -541,6 +544,11 @@ python daemon.py</pre></div></li>
         "label": "좌석 압력", "kind": "pressure", "unit": "kg",
         "driver": "analog_in", "channel": 0,
         "scale": 120, "deadband": 0.5,
+    },
+    "sensor_06": {
+        "label": "방 밝기", "kind": "light", "unit": "%",
+        "driver": "analog_in", "channel": 1,
+        "scale": 100, "deadband": 0.5,
     },</pre></div>
   </div>
   <p class="small">팀별 전체 예시는 <code>pi/examples/slot_map_팀이름.py</code>에 있습니다. 예시의 슬롯 번호·핀 번호는 <strong>우리 배선과 약속표대로</strong> 바꿉니다.</p>
@@ -562,6 +570,7 @@ python daemon.py</pre></div></li>
           <tr><td><code>"kind": "led"</code> (끝에 쉼표 없음)</td><td><code>"kind": "led",</code> — 줄 끝마다 쉼표</td></tr>
           <tr><td><code>}</code> 다음 줄에 바로 다음 슬롯</td><td><code>},</code> — 상자 뒤에도 쉼표</td></tr>
           <tr><td><code>"actuator_2"</code> · <code>"Actuator_02"</code></td><td><code>"actuator_02"</code></td></tr>
+          <tr><td>같은 슬롯 이름을 두 번 씀</td><td>한 번만 — 두 번이면 <strong>앞의 것이 오류 없이 사라짐</strong></td></tr>
         </tbody>
       </table></div>
       <p class="small">오류에 <code>line 8</code>이라고 나오면 8번째 줄과 <strong>바로 윗줄 끝</strong>을 같이 봅니다 (빠진 쉼표).</p>
@@ -599,7 +608,8 @@ python daemon.py</pre></div></li>
  배치표 슬롯 2개                          <span class="c">← 내가 적은 부품이 다 있나</span>
    actuator_01   알람 부저   tonal_buzzer   GPIO 18
    sensor_01     기상 확인 버튼  button_in   GPIO 24</pre></div>
-      <p class="small"><code>⚠ 고쳐야 할 것</code>이 있으면 그 줄만 빠지고 나머지는 동작합니다 → 14번 슬라이드. <code>--check</code>는 <code>pin</code>을 빠뜨린 것은 못 잡습니다 — 실행 로그까지 봅니다.</p>
+      <p class="small"><code>⚠ 고쳐야 할 것</code>이 있으면 그 줄만 빠지고 나머지는 동작합니다 → 14번 슬라이드. <code>--check</code>는 <code>pin</code>을 빠뜨린 것·물리 번호를 적은 것은 못 잡습니다 — 실행 로그까지 봅니다.</p>
+      <p class="small">조도·압력(<code>analog_in</code>)은 목록에 <code>GPIO 0</code>처럼 보이지만 <strong>MCP3008 채널 번호</strong>입니다. 초음파(<code>distance_in</code>)는 <code>-</code>로 보이는 것이 정상입니다.</p>
     </div>
     <div>
       <h3>② 실행 로그 (<code>python daemon.py</code>)</h3>
@@ -683,6 +693,7 @@ sensor_01의 푸시버튼을 정전식 터치센서 모듈(TTP223)로 바꿨어.
       <tr><td><code>인증 실패! pi/.env의 DEVICE_API_KEY가 …</code></td><td>파이 <code>pi/.env</code>와 PC <code>backend/.env</code>의 키를 똑같이 → 둘 다 재시작</td></tr>
       <tr><td><code>백엔드에 연결할 수 없습니다 (http://…)</code></td><td>PC 백엔드 켜짐? <code>--host 0.0.0.0</code>? <code>BACKEND_URL</code>이 PC IP? 같은 공유기? → 파이에서 <code>curl --max-time 5 http://PC_IP:8000/health</code></td></tr>
       <tr><td><code>DEVICE_MODE=hardware인데 GPIO를 열지 못했습니다</code></td><td><code>source venv/bin/activate</code>를 했나? 계속되면 선생님께 (venv 재생성)</td></tr>
+      <tr><td><code>GPIO 부품 AngularServo(32,)를 만들지 못해 흉내내기로 대체합니다: 32 is not a valid pin name</code></td><td><strong>물리 번호를 적었습니다.</strong> 6번 슬라이드에서 GPIO 번호로 (2~27). 이 경고가 나오면 카드는 '동작 중'이어도 부품은 안 움직입니다</td></tr>
       <tr><td><code>… GPIO busy</code></td><td>데몬이 두 개 돌고 있음 → 다른 창 Ctrl+C 또는 <code>sudo systemctl stop iot-daemon</code></td></tr>
       <tr><td><code>백엔드 DB가 꺼져 있어 이 등록은 저장되지 않았습니다</code></td><td>PC의 XAMPP MySQL을 켭니다 (동작은 계속됨)</td></tr>
       <tr><td><code>error: externally-managed-environment</code></td><td>가상환경을 안 켰습니다: <code>source venv/bin/activate</code></td></tr>
@@ -703,6 +714,7 @@ sensor_01의 푸시버튼을 정전식 터치센서 모듈(TTP223)로 바꿨어.
       <tr><td>버튼을 <strong>안 눌렀는데 눌림</strong></td><td><code>pull_up</code> 뒤집기 (버튼 True · 터치/PIR False)</td></tr>
       <tr><td>버튼이 카드에 <strong>가끔만</strong> 보임</td><td>1~2초 꾹 누르기. 로그의 <code>눌림 감지</code>로 확인</td></tr>
       <tr><td>서보가 떨리거나 <strong>파이가 재부팅</strong></td><td>전원 부족 → 서보 별도 5V, GND 공통</td></tr>
+      <tr><td>SG90에 180°를 보내도 <strong>절반 정도만</strong> 돈다</td><td>키트 서보 드라이버가 SG90보다 좁은 신호 범위를 씁니다. 배치표로는 못 고칩니다 → 실제로 도는 각도를 재서 <strong>선생님께</strong> 알립니다</td></tr>
       <tr><td>센서 카드에 <strong>차트가 없음</strong></td><td><code>unit</code>을 적었나</td></tr>
       <tr><td>고쳤는데 <strong>반영이 안 됨</strong></td><td>파이에서 <code>git pull</code> 했나? 데몬을 다시 켰나?</td></tr>
       <tr><td>어제 됐는데 <strong>오늘 연결 안 됨</strong></td><td>PC IP가 바뀜 → PC <code>ipconfig</code> → 파이 <code>nano .env</code>의 <code>BACKEND_URL</code> 수정 → 데몬 재시작</td></tr>

@@ -429,7 +429,8 @@ NEXT_PUBLIC_TEAM_TAGLINE=미션을 끝내야 알람이 꺼집니다</pre></div>
   </table></div>
   <div class="grid g3">
     <div class="box"><b class="k">올리는 법</b><p>AI에서 <strong>새 대화</strong> → 생긴 <code>.md</code> 파일을 <strong>파일로 올리기</strong> → 같은 메시지에 프롬프트(8번 슬라이드).</p></div>
-    <div class="box warn"><b class="k">시나리오 파일을 --add 했다면</b><p>프롬프트 [바꿀 곳]에 "<strong>이번에는 scenarios/○○.ts도 고친다</strong>"고 꼭 적습니다.</p></div>
+    <div class="box warn"><b class="k">시나리오 파일을 --add 했다면</b><p>프롬프트 [바꿀 곳]에 "<strong>이번에는 scenarios/○○.ts도 고친다</strong>"고 꼭 적습니다.
+      그리고 화면 묶음에는 <strong>배치표가 들어 있지 않으니</strong>, 새 부품의 슬롯·control_type·값을 약속표에서 옮겨 [목표]에 적습니다.</p></div>
     <div class="box no"><b class="k">비밀값</b><p><code>.env.local</code>은 묶음에 안 들어갑니다. 올리기 전 묶음에서 <code>KEY</code>·<code>PASSWORD</code>를 <kbd>Ctrl</kbd>+<kbd>F</kbd>로 한 번 찾아봅니다.</p></div>
   </div>
 </section>
@@ -507,12 +508,16 @@ NEXT_PUBLIC_TEAM_TAGLINE=미션을 끝내야 알람이 꺼집니다</pre></div>
            경고가 뜬다. {"value": 5}를 보내면 경고가 사라진다. 판정 함수 테스트 파일도 있다.
 [진행] 먼저 계획만 3~5줄로 보여 줘.</pre></div>
     <div>
-      <div class="prompt"><div class="prompt-h"><span>우리 시나리오 고치기 — 팩: merge_ui.py --add</span><button class="copy" type="button">복사</button></div>
-<pre>[목표] 미션 성공 뒤 기상 확인 팝업에 남은 시간을 큰 숫자로 보여 주고 싶어.
-[바꿀 곳] 이번에는 scenarios/useWakeup.ts도 고친다.
-         frontend/components/team/WakeupConfirmModal.tsx
-[바꾸지 말 것] 판정 규칙(wakeupEngine.ts), 슬롯 이름
-[완료 기준] 팝업이 뜨면 남은 초가 1초마다 줄어든다. 확인을 누르면 사라진다.
+      <div class="prompt"><div class="prompt-h"><span>새 부품을 우리 시나리오에 — 팩: merge_ui.py --add (검증한 예)</span><button class="copy" type="button">복사</button></div>
+<pre>[목표] 알람이 울리면(미션 시작) 커튼 서보(actuator_02, control_type servo,
+       켜기 상태 "move", 값 {angle})를 180도로 열고 싶어.
+       기상 화면 왼쪽 열에 방 밝기(sensor_02, 조도 센서, 값 {"value": 0~100}, 단위 %)를
+       큰 숫자 카드로 보여 줘.
+[바꿀 곳] 이번에는 scenarios/useWakeup.ts도 고친다. frontend/app/wakeup/page.tsx,
+         새 파일 frontend/components/team/RoomLightCard.tsx
+[바꾸지 말 것] 판정 규칙(wakeupEngine.ts), 부저·버튼 동작. 슬롯 이름은 WAKEUP_SLOTS 상수에 모아 줘
+[완료 기준] 알람 울리기를 누르면 actuator_02에 move / angle 180 명령이 나간다.
+           sensor_02에 {"value": 35}를 보내면 카드에 35 %가 보인다.
 [진행] 먼저 계획만.</pre></div>
       <div class="prompt"><div class="prompt-h"><span>오류가 났을 때 — 같은 대화에</span><button class="copy" type="button">복사</button></div>
 <pre>네가 준 코드를 넣고 npx eslint . 를 돌렸더니 아래 오류가 나왔어.
@@ -604,6 +609,7 @@ Invoke-RestMethod -Method Post -Uri $url -Headers $h -ContentType "application/j
     <div class="box warn"><b class="k">SLOT_DISABLED</b><p>그 슬롯이 아직 등록 안 됨 → 파이 담당에게 데몬을 한 번 켜 달라고 합니다(한 번 등록되면 파이를 꺼도 남음).</p></div>
     <div class="box"><b class="k">부품 켜기 쪽</b><p>파이가 꺼져 있으면 카드가 <strong>반영 대기</strong>에 머뭅니다. 화면 쪽은 정상입니다.</p></div>
   </div>
+  <div class="box warn"><b class="k">파이가 켜져 있으면</b><p>실제 센서 값이 1초 안에 가짜 값을 덮어씁니다(특히 조도·거리처럼 계속 변하는 센서). 가짜 입력 시험은 <strong>파이 데몬을 끈 상태</strong>에서 합니다.</p></div>
 </section>
 
 <!-- 14 ─────────────────────────────────────────── -->
