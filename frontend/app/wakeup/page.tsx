@@ -31,6 +31,9 @@ import WakeupConfirmModal from "@/components/team/WakeupConfirmModal";
 import WakeupMissionCard from "@/components/team/WakeupMissionCard";
 import { useWakeup } from "@/scenarios/useWakeup";
 
+/** 팀 이름은 `frontend/.env.local`의 NEXT_PUBLIC_TEAM_NAME에서 옵니다 (study 화면과 같음). */
+const TEAM_NAME = process.env.NEXT_PUBLIC_TEAM_NAME || "스마트 기상 시스템";
+
 const NOTICE_STYLES: Record<string, string> = {
   info: "border-sky-200 bg-sky-50 text-sky-800",
   success: "border-emerald-200 bg-emerald-50 text-emerald-800",
@@ -59,7 +62,7 @@ export default function WakeupDashboardPage() {
         {/* 머리말 */}
         <header className="mb-6 flex flex-wrap items-start justify-between gap-3">
           <div>
-            <h1 className="text-2xl font-semibold text-slate-900">스마트 기상 시스템</h1>
+            <h1 className="text-2xl font-semibold text-slate-900">{TEAM_NAME}</h1>
             <p className="mt-1 text-sm text-slate-500">
               {config.mode === "pattern"
                 ? "알람이 울리면 화면에 나온 패턴을 똑같이 이어 그려야 꺼집니다"

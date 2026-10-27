@@ -164,7 +164,7 @@ export function useWakeup(): WakeupApi {
     // 화면이 열려 있으면 팝업으로 확인을 받습니다.
     const popupTimer = setTimeout(() => {
       setPopup({
-        message: "기상 확인: 2차 수면 방지를 위해 확인 버튼을 누르거나 버튼을 눌러 주세요!",
+        message: "기상 확인: 2차 수면 방지를 위해 화면의 버튼이나 기상 확인 버튼을 눌러 주세요!",
         timeLeft: config.confirmTimeoutSeconds,
       });
 
