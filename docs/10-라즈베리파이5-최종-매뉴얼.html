@@ -474,7 +474,7 @@ python daemon.py</pre></div></li>
       <tr><td><code>digital_out</code></td><td>LED · 릴레이 · 능동 부저 (켜기/끄기)</td><td><code>pin</code></td><td><code>active_high</code>, 점멸은 <code>control_type: "pulse"</code></td><td>actuator</td></tr>
       <tr><td><code>pwm_out</code></td><td>진동 모터 · LED 밝기 · 모터 속도</td><td><code>pin</code></td><td><code>frequency</code></td><td>actuator</td></tr>
       <tr><td><code>tonal_buzzer</code></td><td>피에조 부저 (음 높이)</td><td><code>pin</code></td><td><code>buzzer_type</code>: <code>"passive"</code> / <code>"active"</code></td><td>actuator</td></tr>
-      <tr><td><code>servo</code></td><td>서보모터 (각도)</td><td><code>pin</code></td><td><code>value_schema</code>, <code>rest_angle</code></td><td>actuator</td></tr>
+      <tr><td><code>servo</code></td><td>서보모터 (각도)</td><td><code>pin</code></td><td><code>value_schema</code>, <code>rest_angle</code>, SG90이면 <code>min_pulse_ms</code> 0.5 · <code>max_pulse_ms</code> 2.4</td><td>actuator</td></tr>
       <tr><td><code>neopixel_out</code></td><td>네오픽셀 (데이터선 1개)</td><td><code>pin</code></td><td><code>count</code></td><td>actuator</td></tr>
       <tr><td><code>rgb_out</code></td><td>3색 LED (다리 4개)</td><td><code>pins</code> <code>{"r","g","b"}</code></td><td><code>common_anode</code></td><td>actuator</td></tr>
       <tr><td><code>level_out</code></td><td>LED 여러 개 단계 표시</td><td><code>pins</code> <code>[5, 6, 13]</code></td><td><code>value_schema</code></td><td>actuator</td></tr>
@@ -511,6 +511,7 @@ python daemon.py</pre></div></li>
         "driver": "servo", "pin": 12,
         "control_type": "servo",
         "value_schema": {"min": 0, "max": 180, "step": 5},
+        "min_pulse_ms": 0.5, "max_pulse_ms": 2.4,   # SG90 — 180°까지 돌게
     },
     "actuator_05": {
         "label": "무드등", "kind": "rgb_led",
@@ -716,10 +717,10 @@ sensor_01의 푸시버튼을 정전식 터치센서 모듈(TTP223)로 바꿨어.
       <tr><td>버튼을 <strong>안 눌렀는데 눌림</strong></td><td><code>pull_up</code> 뒤집기 (버튼 True · 터치/PIR False)</td></tr>
       <tr><td>버튼이 카드에 <strong>가끔만</strong> 보임</td><td>1~2초 꾹 누르기. 로그의 <code>눌림 감지</code>로 확인</td></tr>
       <tr><td>서보가 떨리거나 <strong>파이가 재부팅</strong></td><td>전원 부족 → 서보 별도 5V, GND 공통</td></tr>
-      <tr><td>SG90에 180°를 보내도 <strong>절반 정도만</strong> 돈다</td><td>키트 서보 드라이버가 SG90보다 좁은 신호 범위를 씁니다. 배치표로는 못 고칩니다 → 실제로 도는 각도를 재서 <strong>선생님께</strong> 알립니다</td></tr>
+      <tr><td>SG90에 180°를 보내도 <strong>절반 정도만</strong> 돈다</td><td>배치표 서보 줄에 <code>"min_pulse_ms": 0.5, "max_pulse_ms": 2.4</code> 추가 → 데몬 재시작. 0°·180° 끝에서 <strong>드르륵 떨거나 뜨거우면</strong> 0.6 / 2.3처럼 조금 좁힙니다. (옵션이 안 먹으면 키트 업데이트 받기 — 아래 줄)</td></tr>
       <tr><td>센서 카드에 <strong>차트가 없음</strong></td><td><code>unit</code>을 적었나</td></tr>
       <tr><td>고쳤는데 <strong>반영이 안 됨</strong></td><td>파이에서 <code>git pull</code> 했나? 데몬을 다시 켰나?</td></tr>
-      <tr><td><code>pulse</code> 경고등이 깜빡이지 않고 <strong>계속 켜져 있음</strong> · 초음파 센서를 단 뒤 <strong>데몬이 로그 없이 멈춤</strong></td><td>예전 키트의 드라이버 문제입니다 (10월 27일 수정). 팀 브랜치에 <strong>키트 업데이트 받기</strong>: PC에서 <code>git fetch origin</code> → <code>git merge origin/platform</code> → <code>git push</code> → 파이에서 <code>git pull</code></td></tr>
+      <tr><td><code>pulse</code> 경고등이 깜빡이지 않고 <strong>계속 켜져 있음</strong> · 초음파 센서를 단 뒤 <strong>데몬이 로그 없이 멈춤</strong> · 서보 펄스 옵션이 안 먹음</td><td>예전 키트의 드라이버 문제입니다 (10월 27일 수정). 팀 브랜치에 <strong>키트 업데이트 받기</strong>: PC에서 <code>git fetch origin</code> → <code>git merge origin/platform</code> → <code>git push</code> → 파이에서 <code>git pull</code></td></tr>
       <tr><td>어제 됐는데 <strong>오늘 연결 안 됨</strong></td><td>PC IP가 바뀜 → PC <code>ipconfig</code> → 파이 <code>nano .env</code>의 <code>BACKEND_URL</code> 수정 → 데몬 재시작</td></tr>
       <tr><td>SSH 창을 닫았더니 <strong>부품이 멈춤</strong></td><td>정상. 계속 돌게 하려면 16번 슬라이드의 자동 실행</td></tr>
       <tr><td><code>git pull</code>이 <code>Your local changes … would be overwritten</code></td><td>파이에서 직접 고친 파일이 있음 → 같은 내용을 PC에도 반영했는지 확인 → <code>git checkout -- pi/slot_map.py</code> → 다시 <code>git pull</code></td></tr>
