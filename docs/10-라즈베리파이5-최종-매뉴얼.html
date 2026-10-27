@@ -430,7 +430,7 @@ python daemon.py               <span class="c"># 끄기: Ctrl+C</span></pre></di
       <tr><td>부저 (2핀 / 3핀 모듈)</td><td><code>+</code> → GPIO, <code>−</code> → GND · 모듈: <code>S</code> → GPIO, VCC → 3V3, GND</td><td>소리가 안 나면 <code>buzzer_type</code> 바꾸기</td></tr>
       <tr><td>푸시 버튼</td><td>대각선 다리 2개 → GPIO와 GND</td><td>저항 없이 <code>"pull_up": True</code></td></tr>
       <tr><td>터치 모듈 (TTP223 등)</td><td>VCC → 3V3, GND, SIG → GPIO</td><td><code>"pull_up": False</code></td></tr>
-      <tr><td>PIR (HC-SR501)</td><td>VCC → 5V, GND, OUT → GPIO</td><td>출력 3.3V · <code>"pull_up": False</code></td></tr>
+      <tr><td>PIR (HC-SR501)</td><td>VCC → 5V, GND, OUT → GPIO</td><td>출력 3.3V · <code>"pull_up": False</code> · 화면에는 버튼과 같은 <code>pressed</code>로 전달</td></tr>
       <tr><td>릴레이 모듈</td><td>IN → GPIO, VCC → 모듈 표기 전압, GND</td><td>반대로 켜지면 <code>"active_high": False</code></td></tr>
       <tr><td>서보 (SG90 등)</td><td>갈색 → GND, 빨강 → 5V, 주황 → GPIO</td><td>2개 이상이면 별도 5V</td></tr>
       <tr><td>진동·DC 모터</td><td>모터 드라이버/트랜지스터 모듈의 IN → GPIO</td><td><strong>모터를 GPIO에 직접 연결 금지</strong></td></tr>
@@ -478,7 +478,7 @@ python daemon.py</pre></div></li>
       <tr><td><code>neopixel_out</code></td><td>네오픽셀 (데이터선 1개)</td><td><code>pin</code></td><td><code>count</code></td><td>actuator</td></tr>
       <tr><td><code>rgb_out</code></td><td>3색 LED (다리 4개)</td><td><code>pins</code> <code>{"r","g","b"}</code></td><td><code>common_anode</code></td><td>actuator</td></tr>
       <tr><td><code>level_out</code></td><td>LED 여러 개 단계 표시</td><td><code>pins</code> <code>[5, 6, 13]</code></td><td><code>value_schema</code></td><td>actuator</td></tr>
-      <tr><td><code>button_in</code></td><td>버튼 · 터치 · PIR</td><td><code>pin</code></td><td><code>pull_up</code> (버튼 True / 터치·PIR False)</td><td>sensor</td></tr>
+      <tr><td><code>button_in</code></td><td>버튼 · 터치 · PIR (화면에는 셋 다 <code>e.pressed</code> — 프론트 담당에게 알리기)</td><td><code>pin</code></td><td><code>pull_up</code> (버튼 True / 터치·PIR False)</td><td>sensor</td></tr>
       <tr><td><code>dht_in</code></td><td>온습도 DHT22 / DHT11</td><td><code>pin</code></td><td><code>measure</code>, <code>interval</code> 5.0</td><td>sensor</td></tr>
       <tr><td><code>analog_in</code></td><td>압력 · 조도 (MCP3008 경유)</td><td><code>channel</code> (0~7)</td><td><code>scale</code>, <code>deadband</code></td><td>sensor</td></tr>
       <tr><td><code>distance_in</code></td><td>초음파 HC-SR04</td><td><code>trigger_pin</code>, <code>echo_pin</code></td><td><code>max_distance_cm</code></td><td>sensor</td></tr>
@@ -694,6 +694,8 @@ sensor_01의 푸시버튼을 정전식 터치센서 모듈(TTP223)로 바꿨어.
       <tr><td><code>백엔드에 연결할 수 없습니다 (http://…)</code></td><td>PC 백엔드 켜짐? <code>--host 0.0.0.0</code>? <code>BACKEND_URL</code>이 PC IP? 같은 공유기? → 파이에서 <code>curl --max-time 5 http://PC_IP:8000/health</code></td></tr>
       <tr><td><code>DEVICE_MODE=hardware인데 GPIO를 열지 못했습니다</code></td><td><code>source venv/bin/activate</code>를 했나? 계속되면 선생님께 (venv 재생성)</td></tr>
       <tr><td><code>GPIO 부품 AngularServo(32,)를 만들지 못해 흉내내기로 대체합니다: 32 is not a valid pin name</code></td><td><strong>물리 번호를 적었습니다.</strong> 6번 슬라이드에서 GPIO 번호로 (2~27). 이 경고가 나오면 카드는 '동작 중'이어도 부품은 안 움직입니다</td></tr>
+      <tr><td><code>[sensor_02] 초음파 반사 신호(ECHO)가 없습니다</code></td><td>HC-SR04의 VCC(5V)·GND, TRIG/ECHO 핀 번호(바꿔 꽂지 않았나), ECHO 분압저항(1kΩ·2kΩ)을 확인</td></tr>
+      <tr><td><code>PWMSoftwareFallback … use the pigpio pin factory</code></td><td>초음파 센서를 쓰면 나오는 안내입니다. 파이 5는 pigpio를 지원하지 않으니 <strong>무시</strong>해도 됩니다</td></tr>
       <tr><td><code>… GPIO busy</code></td><td>데몬이 두 개 돌고 있음 → 다른 창 Ctrl+C 또는 <code>sudo systemctl stop iot-daemon</code></td></tr>
       <tr><td><code>백엔드 DB가 꺼져 있어 이 등록은 저장되지 않았습니다</code></td><td>PC의 XAMPP MySQL을 켭니다 (동작은 계속됨)</td></tr>
       <tr><td><code>error: externally-managed-environment</code></td><td>가상환경을 안 켰습니다: <code>source venv/bin/activate</code></td></tr>
@@ -717,6 +719,7 @@ sensor_01의 푸시버튼을 정전식 터치센서 모듈(TTP223)로 바꿨어.
       <tr><td>SG90에 180°를 보내도 <strong>절반 정도만</strong> 돈다</td><td>키트 서보 드라이버가 SG90보다 좁은 신호 범위를 씁니다. 배치표로는 못 고칩니다 → 실제로 도는 각도를 재서 <strong>선생님께</strong> 알립니다</td></tr>
       <tr><td>센서 카드에 <strong>차트가 없음</strong></td><td><code>unit</code>을 적었나</td></tr>
       <tr><td>고쳤는데 <strong>반영이 안 됨</strong></td><td>파이에서 <code>git pull</code> 했나? 데몬을 다시 켰나?</td></tr>
+      <tr><td><code>pulse</code> 경고등이 깜빡이지 않고 <strong>계속 켜져 있음</strong> · 초음파 센서를 단 뒤 <strong>데몬이 로그 없이 멈춤</strong></td><td>예전 키트의 드라이버 문제입니다 (10월 27일 수정). 팀 브랜치에 <strong>키트 업데이트 받기</strong>: PC에서 <code>git fetch origin</code> → <code>git merge origin/platform</code> → <code>git push</code> → 파이에서 <code>git pull</code></td></tr>
       <tr><td>어제 됐는데 <strong>오늘 연결 안 됨</strong></td><td>PC IP가 바뀜 → PC <code>ipconfig</code> → 파이 <code>nano .env</code>의 <code>BACKEND_URL</code> 수정 → 데몬 재시작</td></tr>
       <tr><td>SSH 창을 닫았더니 <strong>부품이 멈춤</strong></td><td>정상. 계속 돌게 하려면 16번 슬라이드의 자동 실행</td></tr>
       <tr><td><code>git pull</code>이 <code>Your local changes … would be overwritten</code></td><td>파이에서 직접 고친 파일이 있음 → 같은 내용을 PC에도 반영했는지 확인 → <code>git checkout -- pi/slot_map.py</code> → 다시 <code>git pull</code></td></tr>
