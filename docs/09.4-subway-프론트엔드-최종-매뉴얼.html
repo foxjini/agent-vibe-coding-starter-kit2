@@ -857,6 +857,7 @@ cd frontend
 npx eslint .
 npm run build
 cd ..</pre></div>
+      <p class="small">미리 보기에 <code>⚠ 한 번에 N개 파일이 바뀝니다</code>가 나와도, 위에서 말한 파일만 바뀌면 이 예시에서는 <strong>정상</strong>입니다. 파일마다 바뀌는 곳을 읽고 적용합니다.</p>
     </div>
     <div>
       <h3>6. 파이 없이 시험 (13번 슬라이드의 1) 준비를 먼저)</h3>
@@ -865,7 +866,7 @@ cd ..</pre></div>
 Invoke-RestMethod -Method Post -Uri $url -Headers $h -ContentType "application/json" -Body '{"states":[{"slot_id":"sensor_02","value":{"value":21.9}}]}'
 Invoke-RestMethod -Method Post -Uri $url -Headers $h -ContentType "application/json" -Body '{"states":[{"slot_id":"sensor_02","value":{"value":21.9}}]}'</pre></div>
       <div class="box ok"><b class="k">이렇게 되면 성공</b><ul class="small"><li><code>{"value":83}</code> → 카드 <strong>83 cm</strong> (흰 카드)</li><li><code>{"value":21.9}</code> → 빨간 카드 · 경고 알림 · 경고음 명령 → 2초 뒤 끄기</li><li><code>{"value":21.9}</code> → 다시 울리지 <strong>않음</strong></li></ul><p class="small">새로고침(<kbd>F5</kbd>)해도 카드에 21.9가 그대로 보이면 성공.</p></div>
-      <div class="box warn"><b class="k">모의 작업에서 막혔던 곳</b><ul class="small"><li>모의 작업에서 거리를 <code>onSensor</code>로 모아 표시했더니 <strong>새로고침하면 "—"</strong>로 비었습니다 → 지금 값은 <strong><code>slotOf</code></strong>에서 읽습니다.</li><li>가까운 동안 0.5초마다 울리지 않도록 '가까워진 순간'만 판정합니다(<code>shouldBeep</code>).</li><li>컨텍스트 팩에 study 팀 파일이 들어 있습니다 → [바꾸지 말 것]에 "study 파일은 고치지 마".</li><li>파이가 켜져 있으면 실제 거리가 0.5초 안에 가짜 값을 덮어씁니다 — 가짜 입력은 데몬을 끄고.</li></ul></div>
+      <div class="box warn"><b class="k">모의 작업에서 막혔던 곳</b><ul class="small"><li>모의 작업에서 거리를 <code>onSensor</code>로 모아 표시했더니 <strong>새로고침하면 "—"</strong>로 비었습니다 → 지금 값은 <strong><code>slotOf</code></strong>에서 읽습니다. 최종 디버깅에서도 AI 첫 답이 이렇게 나왔고, 완료 기준(새로고침)으로 잡았습니다 → 같은 대화에 "새로고침하면 거리가 —가 돼. 지금 거리는 slotOf(…).current_value에서 읽어 줘".</li><li>가까운 동안 0.5초마다 울리지 않도록 '가까워진 순간'만 판정합니다(<code>shouldBeep</code>).</li><li>컨텍스트 팩에 study 팀 파일이 들어 있습니다 → [바꾸지 말 것]에 "study 파일은 고치지 마".</li><li>파이가 켜져 있으면 실제 거리가 0.5초 안에 가짜 값을 덮어씁니다 — 가짜 입력은 데몬을 끄고.</li></ul></div>
       <div class="cmd"><div class="cmd-h"><span class="where">7. 통과하면 팀 PC에 커밋</span><button class="copy" type="button">복사</button></div>
 <pre>git add frontend
 git commit -m "[frontend] 초음파 거리 센서 + 경고음 부저 화면·동작 추가"</pre></div>

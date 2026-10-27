@@ -856,6 +856,7 @@ npx eslint .
 node --experimental-strip-types scenarios/classroomEngine.test.ts   # 3건 통과
 npm run build
 cd ..</pre></div>
+      <p class="small">미리 보기에 <code>⚠ 한 번에 N개 파일이 바뀝니다</code>가 나와도, 위에서 말한 파일만 바뀌면 이 예시에서는 <strong>정상</strong>입니다. 파일마다 바뀌는 곳을 읽고 적용합니다.</p>
     </div>
     <div>
       <h3>6. 파이 없이 시험 (13번 슬라이드의 1) 준비를 먼저)</h3>
@@ -863,7 +864,7 @@ cd ..</pre></div>
 <pre>Invoke-RestMethod -Method Post -Uri $url -Headers $h -ContentType "application/json" -Body '{"states":[{"slot_id":"sensor_01","value":{"pressed":true}}]}'
 Invoke-RestMethod -Method Post -Uri $url -Headers $h -ContentType "application/json" -Body '{"states":[{"slot_id":"sensor_01","value":{"pressed":false}}]}'</pre></div>
       <div class="box ok"><b class="k">이렇게 되면 성공</b><ul class="small"><li><code>{"pressed":true}</code> → 출입 <strong>1명</strong> · 알림 · 경고등 pulse 명령</li><li><code>{"pressed":false}</code> → (뗌) — 5초 뒤 경고등 끄기 명령</li></ul><p class="small">3초 안에 <code>true</code>를 한 번 더 보내면 그대로 1명, 3초 뒤에 보내면 2명.</p></div>
-      <div class="box warn"><b class="k">모의 작업에서 막혔던 곳</b><ul class="small"><li><strong>모의 작업 처음 실패 원인</strong>: 예전 문서대로 <code>e.detected</code>를 썼더니 PIR을 무시했습니다. PIR은 버튼과 같은 <strong><code>e.pressed</code></strong>입니다 (지금 문서는 고쳐짐).</li><li>컨텍스트 팩에 study 팀 파일이 "고치는 파일"로 들어 있습니다 → [바꾸지 말 것]에 "study 파일은 고치지 마".</li><li>출입 횟수는 화면 안에서 세므로 <strong>새로고침하면 0</strong>부터 다시 셉니다. 전시 중에는 탭을 닫지 않습니다.</li></ul></div>
+      <div class="box warn"><b class="k">모의 작업에서 막혔던 곳</b><ul class="small"><li><strong>모의 작업 처음 실패 원인</strong>: 예전 문서대로 <code>e.detected</code>를 썼더니 PIR을 무시했습니다. PIR은 버튼과 같은 <strong><code>e.pressed</code></strong>입니다 (지금 문서는 고쳐짐). AI 답에 <code>e.detected</code>가 보이면 그 줄을 <code>e.pressed</code>로 고치거나, 같은 대화에 "PIR은 button_in이라 e.pressed로 와. 고친 파일 전체를 다시 줘"라고 보냅니다.</li><li>컨텍스트 팩에 study 팀 파일이 "고치는 파일"로 들어 있습니다 → [바꾸지 말 것]에 "study 파일은 고치지 마".</li><li>출입 횟수는 화면 안에서 세므로 <strong>새로고침하면 0</strong>부터 다시 셉니다. 전시 중에는 탭을 닫지 않습니다.</li></ul></div>
       <div class="cmd"><div class="cmd-h"><span class="where">7. 통과하면 팀 PC에 커밋</span><button class="copy" type="button">복사</button></div>
 <pre>git add frontend
 git commit -m "[frontend] PIR 인체감지 + 점멸 경고등 화면·동작 추가"</pre></div>

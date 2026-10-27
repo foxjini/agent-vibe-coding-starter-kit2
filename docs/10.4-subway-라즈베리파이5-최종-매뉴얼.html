@@ -923,7 +923,7 @@ slot_map.py 파일 전체를 생략 없이 다시 줘.</pre></div>
 source venv/bin/activate
 python daemon.py --check
 python daemon.py</pre></div>
-      <div class="box ok"><b class="k">이렇게 되면 성공</b><ul class="small"><li><code>--check</code> 목록에 <code>actuator_03 출입문 경고음 tonal_buzzer GPIO 18</code>, <code>sensor_02 출입문 거리 distance_in</code></li><li><code>/kit</code> 대시보드: 경고음 켜기 → 소리가 난다</li><li>출입문 거리 카드: 손을 가까이 → 숫자가 <strong>줄어든다</strong>, 멀리 → 늘어난다</li></ul></div>
+      <div class="box ok"><b class="k">이렇게 되면 성공</b><ul class="small"><li><code>--check</code> 목록에 <code>actuator_03 출입문 경고음 tonal_buzzer GPIO 18</code>, <code>sensor_02 출입문 거리 distance_in -</code> (초음파는 핀이 2개라 GPIO 칸이 <code>-</code> — 정상)</li><li><code>/kit</code> 대시보드: 경고음 켜기 → 소리가 난다</li><li>출입문 거리 카드: 손을 가까이 → 숫자가 <strong>줄어든다</strong>, 멀리 → 늘어난다</li></ul></div>
       <div class="box"><b class="k">프론트 담당에게 알릴 것</b><p>경고음은 <code>control_type tonal</code> → <code>"on"</code> + <code>{ frequency, volume }</code>. 거리는 숫자 센서 → <code>e.number</code>, 0.5초마다 / 지금 값은 <code>slotOf</code>.</p></div>
     </div>
     <div>
