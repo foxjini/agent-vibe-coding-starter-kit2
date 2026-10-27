@@ -261,8 +261,16 @@ body.all .deck-foot,body.all .more{display:none!important}
 <!-- 2 ─────────────────────────────────────────── -->
 <section class="slide" data-title="전체 순서">
   <p class="tag">OVERVIEW</p>
-  <h2>전체 순서 — 7단계</h2>
-  <p class="lead">부품 <strong>하나</strong>를 바꿀 때마다 3~6단계를 한 바퀴 돕니다. 한 번에 여러 개를 바꾸면 안 될 때 원인을 찾을 수 없습니다.</p>
+  <h2>전체 순서 — 팀 4단계 · 내 작업 7단계</h2>
+  <p class="lead">부품 <strong>하나</strong>를 바꿀 때마다 내 작업 3~6단계를 한 바퀴 돕니다. 한 번에 여러 개를 바꾸면 안 될 때 원인을 찾을 수 없습니다.</p>
+  <h3>팀 전체 4단계 — 파란 칸이 내 일</h3>
+  <div class="grid g4">
+    <div class="card blue"><h3>① 배치표 고치기</h3><p class="small"><b>파이 담당</b> · 두 사람이 <strong>슬롯 약속표</strong>를 먼저 정함 → 파이 담당이 <code>slot_map.py</code> 수정 (AI는 선택) → WinSCP로 파이에 → <strong>데몬 다시 켜기</strong></p></div>
+    <div class="card soft"><h3>② 화면이 자동으로 바뀜</h3><p class="small"><b>자동 (+프론트 담당)</b> · 슬롯 카드·<code>/kit</code> 하드웨어 구성은 새로 고침 없이 바뀜. 단, 슬롯 번호·종류가 바뀌면 프론트 담당이 시나리오의 슬롯 이름을 고침</p></div>
+    <div class="card soft"><h3>③ 팀 동작 + 디자인</h3><p class="small"><b>프론트 담당</b> · 팀 동작은 <strong>필수</strong> — <code>/kit</code> 자동화 규칙 또는 시나리오(<code>useScenario</code>). 디자인 다듬기는 바이브 코딩으로 <strong>선택</strong></p></div>
+    <div class="card blue"><h3>④ 연동 테스트 · 커밋</h3><p class="small"><b>둘이 함께</b> · 화면 → 부품 · 부품 → 화면 · 처음부터 끝까지 → 팀 PC에서 <code>frontend</code>·<code>pi/slot_map.py</code> 커밋 · 백업</p></div>
+  </div>
+  <h3>내 작업 7단계 (라즈베리파이) — 괄호 안은 슬라이드 번호</h3>
   <ol class="flow">
     <li><b>매일 루틴</b><span>고치기 · WinSCP · 커밋 (3)</span></li>
     <li><b>슬롯 약속</b><span>프론트 담당과 (5)</span></li>
