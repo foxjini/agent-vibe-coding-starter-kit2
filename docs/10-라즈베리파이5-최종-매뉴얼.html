@@ -264,7 +264,7 @@ body.all .deck-foot,body.all .more{display:none!important}
   <h2>전체 순서 — 7단계</h2>
   <p class="lead">부품 <strong>하나</strong>를 바꿀 때마다 3~6단계를 한 바퀴 돕니다. 한 번에 여러 개를 바꾸면 안 될 때 원인을 찾을 수 없습니다.</p>
   <ol class="flow">
-    <li><b>매일 루틴</b><span>pull · 데몬 (3)</span></li>
+    <li><b>매일 루틴</b><span>커밋 · 복사 · 데몬 (3)</span></li>
     <li><b>슬롯 약속</b><span>프론트 담당과 (5)</span></li>
     <li><b>배선</b><span>전원 끄고 · 핀 확인 (6~7)</span></li>
     <li><b>배치표 한 줄</b><span>slot_map.py (8~11)</span></li>
@@ -282,30 +282,28 @@ body.all .deck-foot,body.all .more{display:none!important}
 <!-- 3 ─────────────────────────────────────────── -->
 <section class="slide" data-title="매일 루틴">
   <p class="tag">STEP 1 · 매일</p>
-  <h2>매일 시작할 때 — PC에서 고치고, 파이에서 받습니다</h2>
+  <h2>매일 — PC에서 고치고 커밋, 파이로 복사합니다</h2>
+  <p class="lead">버전 관리는 <strong>팀 PC 안에서만</strong> 합니다. GitHub에 올리지(push) 않습니다 — 막혀 있습니다.</p>
   <div class="grid g2">
     <div>
       <h3>PC (배치표를 고치는 곳)</h3>
       <div class="cmd"><div class="cmd-h"><span class="where">PC · PowerShell · 저장소 맨 위</span><button class="copy" type="button">복사</button></div>
-<pre>git pull                       <span class="c"># 프론트 담당이 올린 것 받기</span>
-cd pi
+<pre>cd pi
 python daemon.py --check       <span class="c"># 배치표 오타·핀 중복 확인 (파이 없이 됨)</span>
 cd ..</pre></div>
-      <div class="cmd"><div class="cmd-h"><span class="where">PC · 배치표를 고친 뒤 올리기</span><button class="copy" type="button">복사</button></div>
+      <div class="cmd"><div class="cmd-h"><span class="where">PC · 고친 뒤 커밋하고 파이로 보내기</span><button class="copy" type="button">복사</button></div>
 <pre>git status
 git add pi/slot_map.py
 git commit -m "[hardware] 경보 LED 추가 (GPIO 23)"
-git push</pre></div>
-      <p class="small"><code>rejected</code>가 나오면 <code>git pull</code> 후 다시 <code>git push</code>. PC에서 <code>--check</code>가 안 되면 처음 한 번 <code>cd pi; pip install -r requirements.txt</code>.</p>
+scp pi\slot_map.py 사용자이름@우리팀파이.local:iot-kit/pi/slot_map.py</pre></div>
+      <p class="small">팀 PC 준비(<code>git config</code> 4줄)는 <strong>09 프론트엔드 매뉴얼 3번</strong> — 팀 PC에서 한 번만. 파이에서 <code>nano</code>로 직접 고쳤다면 반대로 받아 와서 PC에서 커밋: <code>scp 사용자이름@우리팀파이.local:iot-kit/pi/slot_map.py pi\slot_map.py</code>. PC에서 <code>--check</code>가 안 되면 처음 한 번 <code>cd pi; pip install -r requirements.txt</code>.</p>
     </div>
     <div>
       <h3>라즈베리파이 (실행하는 곳)</h3>
       <div class="cmd"><div class="cmd-h"><span class="where">PC · PowerShell → 파이 접속</span><button class="copy" type="button">복사</button></div>
 <pre>ssh 사용자이름@우리팀파이.local</pre></div>
       <div class="cmd"><div class="cmd-h"><span class="where pi">파이 터미널 (폴더 이름은 우리 팀 것으로)</span><button class="copy" type="button">복사</button></div>
-<pre>cd ~/iot-kit
-git pull
-cd pi
+<pre>cd ~/iot-kit/pi               <span class="c"># git pull 하지 않음 — 배치표는 PC에서 scp로 옴</span>
 source venv/bin/activate      <span class="c"># 줄 앞에 (venv)가 붙으면 OK</span>
 python daemon.py --check
 python daemon.py               <span class="c"># 끄기: Ctrl+C</span></pre></div>
@@ -364,8 +362,8 @@ python daemon.py               <span class="c"># 끄기: Ctrl+C</span></pre></di
     <div>
       <ol class="small">
         <li>바꾸기 <strong>전에</strong> 프론트 담당에게 말하고 약속표를 고칩니다</li>
-        <li>배치표 고치기 → <code>--check</code> → 커밋·푸시 → "올렸어"</li>
-        <li>파이에서 <code>git pull</code> → 데몬 다시 켜기 (<strong>한 번은 꼭 켜서 등록</strong> — 그래야 프론트 담당이 파이 없이도 시험 가능)</li>
+        <li>배치표 고치기 → <code>--check</code> → 팀 PC에 커밋 → "고쳤어"</li>
+        <li>파이로 <code>scp</code> → 데몬 다시 켜기 (<strong>한 번은 꼭 켜서 등록</strong> — 그래야 프론트 담당이 파이 없이도 시험 가능)</li>
         <li>하루 끝에 둘이 <strong>통합 시험</strong>: 화면 켜기 → 부품이 움직이나 / 실제 버튼 → 화면이 반응하나</li>
       </ol>
     </div>
@@ -455,8 +453,8 @@ python daemon.py               <span class="c"># 끄기: Ctrl+C</span></pre></di
     <li><b>PC에서 <code>pi/slot_map.py</code>에 한 줄 추가</b>빈 슬롯 번호를 골라 10번 슬라이드의 예시 줄을 붙여넣고 <code>label</code>·<code>pin</code>을 바꿉니다. <code>SLOTS = {</code>와 마지막 <code>}</code> 사이에 넣습니다.
       <div class="box no" style="margin-top:8px"><b class="k">같은 슬롯 이름이 두 번 있으면 앞의 것이 조용히 사라집니다</b><p>붙여넣기 전에 <kbd>Ctrl</kbd>+<kbd>F</kbd>로 그 슬롯 이름(예: <code>actuator_02</code>)을 찾아봅니다. 파일 아래쪽 <code>#</code> 예시에 같은 번호가 있으면 그 예시를 지웁니다. 오류도 경고도 나오지 않으니 <code>--check</code> 목록에 내 부품이 다 있는지 꼭 봅니다.</p></div></li>
     <li><b>PC에서 확인</b><div class="cmd"><div class="cmd-h"><span class="where">PC · PowerShell</span><button class="copy" type="button">복사</button></div><pre>cd pi; python daemon.py --check; cd ..</pre></div>"고쳐야 할 것"이 없고 새 부품이 목록에 나오면 다음으로.</li>
-    <li><b>커밋 · 푸시 · 프론트 담당에게 알리기</b><code>git add pi/slot_map.py</code> → <code>git commit -m "[hardware] …"</code> → <code>git push</code></li>
-    <li><b>파이에서 받고 다시 켜기</b><div class="cmd"><div class="cmd-h"><span class="where pi">파이 터미널 (돌던 데몬은 먼저 Ctrl+C)</span><button class="copy" type="button">복사</button></div><pre>cd ~/iot-kit &amp;&amp; git pull &amp;&amp; cd pi
+    <li><b>커밋 · 파이로 보내기 · 프론트 담당에게 알리기</b><code>git add pi/slot_map.py</code> → <code>git commit -m "[hardware] …"</code> → <code>scp pi\slot_map.py 사용자이름@우리팀파이.local:iot-kit/pi/slot_map.py</code></li>
+    <li><b>파이에서 다시 켜기</b><div class="cmd"><div class="cmd-h"><span class="where pi">파이 터미널 (돌던 데몬은 먼저 Ctrl+C)</span><button class="copy" type="button">복사</button></div><pre>cd ~/iot-kit/pi
 source venv/bin/activate
 python daemon.py --check
 python daemon.py</pre></div></li>
@@ -589,7 +587,7 @@ python daemon.py</pre></div></li>
           <tr><td>슬롯 번호 옮기기</td><td>되도록 하지 않음 — 기록이 끊기고 화면이 깨짐 <strong>(프론트에 알림)</strong></td></tr>
         </tbody>
       </table></div>
-      <div class="box"><b class="k">되돌리기</b><p>PC에서 고친 것이 꼬이면 <code>git checkout -- pi/slot_map.py</code></p></div>
+      <div class="box"><b class="k">되돌리기</b><p>커밋 전에 꼬이면 PC에서 <code>git checkout -- pi/slot_map.py</code> (마지막 커밋으로) → 파이로 다시 <code>scp</code></p></div>
     </div>
   </div>
 </section>
@@ -719,11 +717,12 @@ sensor_01의 푸시버튼을 정전식 터치센서 모듈(TTP223)로 바꿨어.
       <tr><td>서보가 떨리거나 <strong>파이가 재부팅</strong></td><td>전원 부족 → 서보 별도 5V, GND 공통</td></tr>
       <tr><td>SG90에 180°를 보내도 <strong>절반 정도만</strong> 돈다</td><td>배치표 서보 줄에 <code>"min_pulse_ms": 0.5, "max_pulse_ms": 2.4</code> 추가 → 데몬 재시작. 0°·180° 끝에서 <strong>드르륵 떨거나 뜨거우면</strong> 0.6 / 2.3처럼 조금 좁힙니다. (옵션이 안 먹으면 키트 업데이트 받기 — 아래 줄)</td></tr>
       <tr><td>센서 카드에 <strong>차트가 없음</strong></td><td><code>unit</code>을 적었나</td></tr>
-      <tr><td>고쳤는데 <strong>반영이 안 됨</strong></td><td>파이에서 <code>git pull</code> 했나? 데몬을 다시 켰나?</td></tr>
-      <tr><td><code>pulse</code> 경고등이 깜빡이지 않고 <strong>계속 켜져 있음</strong> · 초음파 센서를 단 뒤 <strong>데몬이 로그 없이 멈춤</strong> · 서보 펄스 옵션이 안 먹음</td><td>예전 키트의 드라이버 문제입니다 (10월 27일 수정). 팀 브랜치에 <strong>키트 업데이트 받기</strong>: PC에서 <code>git fetch origin</code> → <code>git merge origin/platform</code> → <code>git push</code> → 파이에서 <code>git pull</code></td></tr>
+      <tr><td>고쳤는데 <strong>반영이 안 됨</strong></td><td>PC에서 파이로 <code>scp</code> 했나? 데몬을 다시 켰나? 파이에서 <code>cat ~/iot-kit/pi/slot_map.py</code>로 확인</td></tr>
+      <tr><td><code>pulse</code> 경고등이 깜빡이지 않고 <strong>계속 켜져 있음</strong> · 초음파 센서를 단 뒤 <strong>데몬이 로그 없이 멈춤</strong> · 서보 펄스 옵션이 안 먹음</td><td>예전 키트의 드라이버 문제입니다 (10월 27일 수정). 선생님 업데이트를 받습니다 — 아래 "키트 업데이트" 줄</td></tr>
+      <tr><td><strong>키트 업데이트</strong>를 받으라고 함</td><td><b>선생님이 키트 업데이트를 알렸을 때만</b> — PC: 먼저 커밋 → <code>git pull --no-edit</code> (<code>CONFLICT</code>면 <code>git merge --abort</code> 후 선생님께) · 파이: <code>cd ~/iot-kit</code> → <code>git checkout -- pi/slot_map.py</code> → <code>git pull</code> → PC에서 배치표를 다시 <code>scp</code> → 데몬 다시 켜기</td></tr>
       <tr><td>어제 됐는데 <strong>오늘 연결 안 됨</strong></td><td>PC IP가 바뀜 → PC <code>ipconfig</code> → 파이 <code>nano .env</code>의 <code>BACKEND_URL</code> 수정 → 데몬 재시작</td></tr>
       <tr><td>SSH 창을 닫았더니 <strong>부품이 멈춤</strong></td><td>정상. 계속 돌게 하려면 16번 슬라이드의 자동 실행</td></tr>
-      <tr><td><code>git pull</code>이 <code>Your local changes … would be overwritten</code></td><td>파이에서 직접 고친 파일이 있음 → 같은 내용을 PC에도 반영했는지 확인 → <code>git checkout -- pi/slot_map.py</code> → 다시 <code>git pull</code></td></tr>
+      <tr><td><code>git pull</code>이 <code>Your local changes … would be overwritten</code></td><td>정상 — scp로 덮어쓴 배치표 때문입니다. 파이에서 직접 고친 내용이 있으면 먼저 PC로 받아 커밋 → <code>git checkout -- pi/slot_map.py</code> → 다시 <code>git pull</code> → PC에서 다시 <code>scp</code></td></tr>
     </tbody>
   </table></div>
   <p class="small">막혔을 때 순서: ① <code>--check</code>·로그 다시 읽기 → ② 14·15번 슬라이드 → ③ AI에게(13번) → ④ 선생님. 자세한 설명은 <strong>07 하드웨어 매뉴얼</strong>.</p>
@@ -788,7 +787,7 @@ sudo systemctl enable --now iot-daemon</pre></div>
         <li><input type="checkbox" id="b4"><label for="b4"><code>--check</code>에 "고쳐야 할 것"이 없다</label></li>
         <li><input type="checkbox" id="b5"><label for="b5">실행 로그에 <code>[ERROR]</code>가 없다</label></li>
         <li><input type="checkbox" id="b6"><label for="b6">대시보드에서 조작하면 실제 부품이 움직인다</label></li>
-        <li><input type="checkbox" id="b7"><label for="b7"><code>slot_map.py</code>를 커밋·푸시했고 파이에도 <code>git pull</code> 했다</label></li>
+        <li><input type="checkbox" id="b7"><label for="b7"><code>slot_map.py</code>를 팀 PC에 커밋했고 같은 파일을 파이로 <code>scp</code> 했다</label></li>
       </ul>
     </div>
     <div>

@@ -256,7 +256,7 @@ body.all .deck-foot,body.all .more{display:none!important}
   <h2>전체 순서 — 7단계</h2>
   <p class="lead">한 단계를 끝내고 <strong>눈으로 확인한 다음</strong> 넘어갑니다. 4~6단계는 기능 하나마다 반복합니다.</p>
   <ol class="flow">
-    <li><b>매일 루틴</b><span>pull · 서버 켜기 (3)</span></li>
+    <li><b>매일 루틴</b><span>서버 켜기 · 커밋 (3)</span></li>
     <li><b>슬롯 약속</b><span>파이 담당과 (4)</span></li>
     <li><b>팀 기본 설정</b><span>.env.local (5)</span></li>
     <li><b>컨텍스트 팩</b><span>묶어서 AI에 (6~7)</span></li>
@@ -275,12 +275,15 @@ body.all .deck-foot,body.all .more{display:none!important}
 <section class="slide" data-title="매일 루틴">
   <p class="tag">STEP 1 · 매일</p>
   <h2>매일 시작할 때 · 끝낼 때</h2>
-  <p class="lead">명령은 모두 <strong>저장소 맨 위 폴더</strong>의 PowerShell에서 시작합니다. 창 3개를 띄워 둡니다.</p>
+  <p class="lead">명령은 모두 <strong>저장소 맨 위 폴더</strong>의 PowerShell에서 시작합니다. 버전 관리는 <strong>팀 PC 안에서만</strong> 합니다 — GitHub에 올리지(push) 않습니다.</p>
   <div class="grid g2">
     <div>
       <h3>시작</h3>
-      <div class="cmd"><div class="cmd-h"><span class="where">창 ① · 받아오기</span><button class="copy" type="button">복사</button></div>
-<pre>git pull</pre></div>
+      <div class="cmd"><div class="cmd-h"><span class="where">창 ① · 팀 PC에서 처음 한 번만</span><button class="copy" type="button">복사</button></div>
+<pre>git config user.name "우리팀"
+git config user.email "team@school.local"
+git config pull.rebase false
+git remote set-url --push origin no-push   <span class="c"># 실수로 push해도 막힘</span></pre></div>
       <div class="cmd"><div class="cmd-h"><span class="where">창 ② · 백엔드 (이미 켜져 있으면 생략)</span><button class="copy" type="button">복사</button></div>
 <pre>cd backend; .\venv\Scripts\Activate.ps1; uvicorn main:app --reload --host 0.0.0.0 --port 8000</pre></div>
       <div class="cmd"><div class="cmd-h"><span class="where">창 ③ · 화면 개발 서버</span><button class="copy" type="button">복사</button></div>
@@ -289,13 +292,13 @@ body.all .deck-foot,body.all .more{display:none!important}
     </div>
     <div>
       <h3>끝</h3>
-      <div class="cmd"><div class="cmd-h"><span class="where">창 ① · 내 폴더만 올리기</span><button class="copy" type="button">복사</button></div>
+      <div class="cmd"><div class="cmd-h"><span class="where">창 ① · 팀 PC에 저장(커밋)</span><button class="copy" type="button">복사</button></div>
 <pre>git status
 git add frontend
 git commit -m "[frontend] 오늘 한 일 한 줄"
-git push</pre></div>
-      <div class="box warn"><b class="k">PUSH가 거부되면</b><p><code>rejected</code> → 파이 담당이 먼저 올린 것입니다. <code>git pull</code> 후 다시 <code>git push</code>.<br>
-        <code>CONFLICT</code> → <code>git merge --abort</code> 후 선생님께.</p></div>
+git bundle create ..\우리팀-백업.bundle --all   <span class="c"># 백업 → USB에 복사</span></pre></div>
+      <div class="box warn"><b class="k">git push는 하지 않습니다</b><p>4팀이 같은 <code>platform</code> 브랜치를 받으므로 막아 두었습니다. <code>'no-push' does not appear to be a git repository</code>가 나오면 정상입니다.<br>
+        <b>선생님이 "업데이트했다"고 할 때만</b>: 먼저 커밋 → <code>git pull --no-edit</code>. <code>CONFLICT</code> → <code>git merge --abort</code> 후 선생님께.</p></div>
       <div class="box no"><b class="k">올리지 않는 것</b><p><code>git status</code> 목록에 <code>.env</code>나 <code>.env.local</code>이 보이면 멈춥니다. 비밀값입니다.</p></div>
     </div>
   </div>
@@ -336,7 +339,7 @@ git push</pre></div>
       <h3>지금 배치표 확인하기</h3>
       <ul class="small">
         <li><code>http://localhost:3000/kit</code> → <strong>하드웨어 구성</strong> 탭</li>
-        <li>저장소의 <code>pi/slot_map.py</code> (파이 담당이 푸시한 최신본은 <code>git pull</code> 후)</li>
+        <li>저장소의 <code>pi/slot_map.py</code> (같은 팀 PC 저장소라 파이 담당이 고치면 바로 보입니다)</li>
       </ul>
       <h3>코드에서는 한 곳에 모으기</h3>
       <div class="cmd"><div class="cmd-h"><span class="where">scenarios/use우리팀.ts 맨 위</span><button class="copy" type="button">복사</button></div>
@@ -646,14 +649,14 @@ Invoke-RestMethod -Method Post -Uri $url -Headers $h -ContentType "application/j
   <p class="tag">INTEGRATION</p>
   <h2>파이 담당과 통합 시험 — 하루 작업이 끝날 때</h2>
   <ol class="steps">
-    <li><b>둘 다 최신으로</b>각자 커밋·푸시 → 둘 다 <code>git pull</code>. 파이 담당은 파이에서도 <code>git pull</code> 후 데몬을 다시 켭니다.</li>
+    <li><b>둘 다 최신으로</b>팀 PC에서 각자 커밋 (<code>git add frontend</code> / <code>git add pi/slot_map.py</code>). 파이 담당은 고친 배치표를 파이로 복사한 뒤 데몬을 다시 켭니다.</li>
     <li><b>화면 → 부품</b>우리 팀 화면에서 켜기·미션 시작 → 실제 부저·LED·서보가 움직이는지.</li>
     <li><b>부품 → 화면</b>실제 버튼·센서를 건드려 → 화면과 시나리오가 반응하는지.</li>
     <li><b>처음부터 끝까지</b>전시에서 보여 줄 시나리오를 실제 부품으로 한 번 끝까지 돌립니다.</li>
   </ol>
   <div class="grid g2">
     <div class="box"><b class="k">어느 쪽 문제인지 가리기</b><p>카드가 <strong>반영 대기</strong>에 머묾 → 파이 쪽 · <strong>동작 중</strong>인데 시나리오가 안 넘어감 → 화면 쪽</p></div>
-    <div class="box warn"><b class="k">파이 담당이 슬롯을 바꾸면</b><p>약속표 고치기 → <code>git pull</code> → <code>OUR_SLOTS</code> 한 줄 고치기 → 다시 통합 시험</p></div>
+    <div class="box warn"><b class="k">파이 담당이 슬롯을 바꾸면</b><p>약속표 고치기 → 팀 PC의 <code>pi/slot_map.py</code> 확인 → <code>OUR_SLOTS</code> 한 줄 고치기 → 다시 통합 시험</p></div>
   </div>
 </section>
 
@@ -682,7 +685,7 @@ Invoke-RestMethod -Method Post -Uri $url -Headers $h -ContentType "application/j
     <div>
       <h3>제출 · 당일</h3>
       <ul class="check">
-        <li><input type="checkbox" id="e9"><label for="e9">마지막 버전을 팀 브랜치에 커밋·푸시했다 (<code>.env.local</code>은 제외)</label></li>
+        <li><input type="checkbox" id="e9"><label for="e9">마지막 버전을 팀 PC에 커밋하고 <code>git bundle</code> 백업을 USB에 복사했다 (<code>.env.local</code>은 커밋 제외)</label></li>
         <li><input type="checkbox" id="e10"><label for="e10">AI가 만든 코드 중 내가 설명할 수 있는 부분을 표시해 두었다</label></li>
         <li><input type="checkbox" id="e11"><label for="e11">당일 켜는 순서를 적어 두었다: 공유기 → MySQL(XAMPP) → 백엔드 → 화면 → 파이</label></li>
         <li><input type="checkbox" id="e12"><label for="e12">전시용 브라우저 탭을 하나만 열어 둔다 (탭을 닫으면 시나리오가 멈춤)</label></li>
