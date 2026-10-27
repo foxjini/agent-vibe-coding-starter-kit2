@@ -263,7 +263,7 @@ body.all .deck-foot,body.all .more{display:none!important}
   <p class="tag">OVERVIEW</p>
   <h2>전체 순서 — 팀 4단계 · 내 작업 7단계</h2>
   <p class="lead">부품 <strong>하나</strong>를 바꿀 때마다 내 작업 3~6단계를 한 바퀴 돕니다. 한 번에 여러 개를 바꾸면 안 될 때 원인을 찾을 수 없습니다.</p>
-  <h3>팀 전체 4단계 — 파란 칸이 내 일</h3>
+  <h3>팀 전체 4단계 — 파란 칸이 내 일 <span class="small" style="font-weight:400">· 자세한 설명 <a href="#s18">②는 18번</a></span></h3>
   <div class="grid g4">
     <div class="card blue"><h3>① 배치표 고치기</h3><p class="small"><b>파이 담당</b> · 두 사람이 <strong>슬롯 약속표</strong>를 먼저 정함 → 파이 담당이 <code>slot_map.py</code> 수정 (AI는 선택) → WinSCP로 파이에 → <strong>데몬 다시 켜기</strong></p></div>
     <div class="card soft"><h3>② 화면이 자동으로 바뀜</h3><p class="small"><b>자동 (+프론트 담당)</b> · 슬롯 카드·<code>/kit</code> 하드웨어 구성은 새로 고침 없이 바뀜. 단, 슬롯 번호·종류가 바뀌면 프론트 담당이 시나리오의 슬롯 이름을 고침</p></div>
@@ -818,6 +818,42 @@ sudo systemctl enable --now iot-daemon</pre></div>
         <li><input type="checkbox" id="c5"><label for="c5">당일 켜는 순서: 공유기 → PC(MySQL → 백엔드 → 화면) → 파이</label></li>
         <li><input type="checkbox" id="c6"><label for="c6">끌 때는 <code>sudo poweroff</code>를 팀원 모두 안다</label></li>
       </ul>
+    </div>
+  </div>
+</section>
+
+<!-- 18 ─────────────────────────────────────────── -->
+<section class="slide" data-title="더 알기 · 자동 vs 직접">
+  <p class="tag">더 알기 · 팀 4단계의 ②</p>
+  <h2>배치표가 바뀌면 — 저절로 바뀌는 것, 사람이 고칠 것</h2>
+  <p class="lead">화면은 두 부분입니다. <strong>키트가 만드는 부분</strong>(부품 카드 · <code>/kit</code> 하드웨어 구성)은 배치표를 따라 저절로 바뀝니다. <strong>팀이 만든 부분</strong>(미션·타이머·팝업 코드와 자동화 규칙)은 부품을 <strong>자리 이름</strong>으로 부르므로 경우에 따라 사람이 고칩니다.</p>
+  <div class="grid g2">
+    <div>
+      <h3>자리 이름 = 슬롯 이름</h3>
+      <p class="small">배치표의 부품마다 붙은 이름입니다. 화면 코드는 "<code>actuator_01</code>을 켜라", "<code>sensor_01</code>이 눌리면 알람 끄기"처럼 이 이름으로 명령합니다.</p>
+      <div class="cmd"><div class="cmd-h"><span class="where">frontend/scenarios/useWakeup.ts (본보기)</span><button class="copy" type="button">복사</button></div>
+<pre>export const WAKEUP_SLOTS = {
+  buzzer: "actuator_01",   <span class="c">// 부저는 1번 자리</span>
+  button: "sensor_01",     <span class="c">// 확인 버튼은 1번 센서 자리</span>
+};</pre></div>
+      <div class="box ok"><b class="k">저절로 됨 — 프론트 담당은 할 일 없음</b>
+        <ul class="small">
+          <li>부저를 GPIO 18 → 13으로 옮김 (자리 이름은 그대로 <code>actuator_01</code>)</li>
+          <li>부품 이름을 "알람 부저" → "침대 옆 부저"로 바꿈 → 카드 제목이 바뀜</li>
+          <li>빈 자리 <code>actuator_02</code>에 LED를 새로 닮 → 카드가 하나 생김</li>
+        </ul></div>
+    </div>
+    <div>
+      <div class="box no"><b class="k">사람이 고쳐야 함 — 바꾸기 전에 먼저 말하기</b>
+        <div class="tw"><table>
+          <thead><tr><th>바뀐 것</th><th>고치지 않으면</th><th>프론트 담당이 고칠 것</th></tr></thead>
+          <tbody>
+            <tr><td><strong>자리 번호</strong><br><code>actuator_01</code> → <code>actuator_03</code></td><td>카드는 03에 생기지만 코드는 빈 01에 명령 → <strong>알람이 울리지 않음</strong></td><td><code>buzzer: "actuator_03"</code> 한 줄</td></tr>
+            <tr><td><strong>부품 종류</strong><br>버튼 → 거리 센서</td><td>버튼은 <code>e.pressed</code>(눌림), 거리 센서는 <code>e.number</code>(예: 35cm) → <strong>손을 대도 반응 없음</strong></td><td>"눌렸나?" → "30cm보다 가까운가?" 판정 줄</td></tr>
+            <tr><td><strong>자동화 규칙</strong>에 쓴 자리</td><td>규칙이 빈 자리를 지켜봄 → <strong>발동 안 함</strong></td><td><code>/kit</code> 규칙 화면에서 자리 다시 고르기</td></tr>
+          </tbody>
+        </table></div></div>
+      <div class="box warn"><b class="k">약속</b><p>핀 번호·부품 이름만 바꿀 때 → 말 안 해도 됨.<br><strong>자리 번호·종류를 바꿀 때 → 바꾸기 전에</strong> 프론트 담당에게 말하고 슬롯 약속표를 함께 고칩니다.</p></div>
     </div>
   </div>
 </section>
