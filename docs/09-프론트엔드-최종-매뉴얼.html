@@ -290,7 +290,6 @@ body.all .deck-foot,body.all .more{display:none!important}
       <div class="cmd"><div class="cmd-h"><span class="where">창 ① · 팀 PC에서 처음 한 번만</span><button class="copy" type="button">복사</button></div>
 <pre>git config user.name "우리팀"
 git config user.email "team@school.local"
-git config pull.rebase false
 git remote set-url --push origin no-push   <span class="c"># 실수로 push해도 막힘</span></pre></div>
       <div class="cmd"><div class="cmd-h"><span class="where">창 ② · 백엔드 (이미 켜져 있으면 생략)</span><button class="copy" type="button">복사</button></div>
 <pre>cd backend; .\venv\Scripts\Activate.ps1; uvicorn main:app --reload --host 0.0.0.0 --port 8000</pre></div>
@@ -305,8 +304,7 @@ git remote set-url --push origin no-push   <span class="c"># 실수로 push해�
 git add frontend
 git commit -m "[frontend] 오늘 한 일 한 줄"
 git bundle create ..\우리팀-백업.bundle --all   <span class="c"># 백업 → USB에 복사</span></pre></div>
-      <div class="box warn"><b class="k">git push는 하지 않습니다</b><p>4팀이 같은 <code>platform</code> 브랜치를 받으므로 막아 두었습니다. <code>'no-push' does not appear to be a git repository</code>가 나오면 정상입니다.<br>
-        <b>선생님이 "업데이트했다"고 할 때만</b>: 먼저 커밋 → <code>git pull --no-edit</code>. <code>CONFLICT</code> → <code>git merge --abort</code> 후 선생님께.</p></div>
+      <div class="box warn"><b class="k">git push는 하지 않습니다</b><p>4팀이 같은 <code>platform</code> 브랜치를 받으므로 막아 두었습니다. <code>'no-push' does not appear to be a git repository</code>가 나오면 정상입니다.</p></div>
       <div class="box no"><b class="k">올리지 않는 것</b><p><code>git status</code> 목록에 <code>.env</code>나 <code>.env.local</code>이 보이면 멈춥니다. 비밀값입니다.</p></div>
     </div>
   </div>

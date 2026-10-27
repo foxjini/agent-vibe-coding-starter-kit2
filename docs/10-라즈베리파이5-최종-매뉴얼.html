@@ -326,7 +326,7 @@ python daemon.py               <span class="c"># 끄기: Ctrl+C</span></pre></di
 <pre>git status                    <span class="c"># pi/slot_map.py 하나만 바뀌었나</span>
 git add pi/slot_map.py
 git commit -m "[hardware] 경보 LED 추가 (GPIO 23)"</pre></div>
-      <p class="small">팀 PC 준비(<code>git config</code> 4줄)는 <strong>09 프론트엔드 매뉴얼 3번</strong>. 파이에서 <code>nano</code>로 직접 고쳤다면 WinSCP로 <strong>오른쪽 → 왼쪽</strong>으로 받아 와서 같은 순서로.</p>
+      <p class="small">팀 PC 준비(<code>git config</code> 3줄)는 <strong>09 프론트엔드 매뉴얼 3번</strong>. 파이에서 <code>nano</code>로 직접 고쳤다면 WinSCP로 <strong>오른쪽 → 왼쪽</strong>으로 받아 와서 같은 순서로.</p>
     </div>
   </div>
 </section>
@@ -734,11 +734,9 @@ sensor_01의 푸시버튼을 정전식 터치센서 모듈(TTP223)로 바꿨어.
       <tr><td>버튼을 <strong>안 눌렀는데 눌림</strong></td><td><code>pull_up</code> 뒤집기 (버튼 True · 터치/PIR False)</td></tr>
       <tr><td>버튼이 카드에 <strong>가끔만</strong> 보임</td><td>1~2초 꾹 누르기. 로그의 <code>눌림 감지</code>로 확인</td></tr>
       <tr><td>서보가 떨리거나 <strong>파이가 재부팅</strong></td><td>전원 부족 → 서보 별도 5V, GND 공통</td></tr>
-      <tr><td>SG90에 180°를 보내도 <strong>절반 정도만</strong> 돈다</td><td>배치표 서보 줄에 <code>"min_pulse_ms": 0.5, "max_pulse_ms": 2.4</code> 추가 → 데몬 재시작. 0°·180° 끝에서 <strong>드르륵 떨거나 뜨거우면</strong> 0.6 / 2.3처럼 조금 좁힙니다. (옵션이 안 먹으면 키트 업데이트 받기 — 아래 줄)</td></tr>
+      <tr><td>SG90에 180°를 보내도 <strong>절반 정도만</strong> 돈다</td><td>배치표 서보 줄에 <code>"min_pulse_ms": 0.5, "max_pulse_ms": 2.4</code> 추가 → 데몬 재시작. 0°·180° 끝에서 <strong>드르륵 떨거나 뜨거우면</strong> 0.6 / 2.3처럼 조금 좁힙니다.</td></tr>
       <tr><td>센서 카드에 <strong>차트가 없음</strong></td><td><code>unit</code>을 적었나</td></tr>
       <tr><td>고쳤는데 <strong>반영이 안 됨</strong></td><td>WinSCP로 <strong>파이의 그 폴더</strong>에 덮어썼나? 데몬을 다시 켰나? 파이에서 <code>cat ~/iot-kit/pi/slot_map.py</code>로 확인</td></tr>
-      <tr><td><code>pulse</code> 경고등이 깜빡이지 않고 <strong>계속 켜져 있음</strong> · 초음파 센서를 단 뒤 <strong>데몬이 로그 없이 멈춤</strong> · 서보 펄스 옵션이 안 먹음</td><td>예전 키트의 드라이버 문제입니다 (10월 27일 수정). 선생님 업데이트를 받습니다 — 아래 "키트 업데이트" 줄</td></tr>
-      <tr><td><strong>키트 업데이트</strong>를 받으라고 함</td><td><b>선생님이 키트 업데이트를 알렸을 때만</b> — 팀 PC: 먼저 커밋 → <code>git pull --no-edit</code> (<code>CONFLICT</code>면 <code>git merge --abort</code> 후 선생님께) · 내 PC: 팀 PC의 <code>pi</code>·<code>tools</code>를 <code>C:\pi-work</code>에 다시 복사 (<code>slot_map.py</code>·<code>.env</code>·<code>venv</code>는 <strong>빼고</strong>) → WinSCP로 바뀐 파일(<code>daemon.py</code>, <code>drivers</code> 폴더 등)을 파이에 덮어쓰기 → 데몬 다시 켜기</td></tr>
       <tr><td>어제 됐는데 <strong>오늘 연결 안 됨</strong></td><td>팀 PC IP가 바뀜 → 팀 PC <code>ipconfig</code> → 파이 <code>nano .env</code>의 <code>BACKEND_URL</code> 수정 → 데몬 재시작</td></tr>
       <tr><td>SSH 창을 닫았더니 <strong>부품이 멈춤</strong></td><td>정상. 계속 돌게 하려면 16번 슬라이드의 자동 실행</td></tr>
     </tbody>
