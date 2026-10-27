@@ -35,7 +35,7 @@ class Driver(ActuatorDriver):
         if self.pulse:
             self.control_type = "pulse"
         self.device, self.simulated = make_device(
-            "OutputDevice",
+            "DigitalOutputDevice",
             config["pin"],
             active_high=bool(config.get("active_high", True)),
             initial_value=False,

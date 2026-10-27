@@ -33,10 +33,14 @@ class Driver(SensorDriver):
             echo=config.get("echo_pin", config.get("echo")),
             trigger=config.get("trigger_pin", config.get("trigger")),
             max_distance=self.max_cm / 100.0,
+            # 반사 신호(ECHO)가 하나도 안 오면 gpiozero는 값이 모일 때까지 끝없이 기다립니다.
+            # 그러면 데몬 전체(다른 부품 제어까지)가 멈추므로, 모인 만큼만 바로 읽습니다.
+            partial=True,
         )
         self._born = time.time()
         self._phase = random.random() * math.tau
         self._last: Optional[float] = None
+        self._no_echo_warned = False
 
     def read(self) -> Optional[Any]:
         if self.simulated:
@@ -44,10 +48,21 @@ class Driver(SensorDriver):
             measured = round(self.max_cm * (0.5 + 0.4 * wave), self.decimals)
         else:
             try:
-                measured = round(float(self.device.distance) * 100.0, self.decimals)
+                meters = float(self.device.distance)
             except Exception as exc:
                 logger.warning(f"[{self.slot_id}] 거리를 읽지 못했습니다: {exc}")
                 return None
+            if meters <= 0:
+                # HC-SR04는 2cm보다 가까이 잴 수 없습니다 — 0이면 에코를 한 번도 못 받은 것입니다.
+                if not self._no_echo_warned:
+                    logger.warning(
+                        f"[{self.slot_id}] 초음파 반사 신호(ECHO)가 없습니다. VCC(5V)·GND, "
+                        "TRIG/ECHO 핀 번호, ECHO 분압저항 배선을 확인하세요."
+                    )
+                    self._no_echo_warned = True
+                return None
+            self._no_echo_warned = False
+            measured = round(meters * 100.0, self.decimals)
 
         if self._last is not None and abs(measured - self._last) < self.deadband:
             return None
