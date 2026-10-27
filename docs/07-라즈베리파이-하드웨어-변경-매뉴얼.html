@@ -1624,7 +1624,7 @@ python daemon.py</pre>
       <p class="drv-use">각도를 지정하는 부품 — 서보모터(SG90 등). 자동문, 차단기.</p>
       <dl>
         <dt>필수</dt><dd class="req"><code>pin</code></dd>
-        <dt>선택</dt><dd><code>min_angle</code> 기본 <code>0</code> · <code>max_angle</code> 기본 <code>180</code> · <code>rest_angle</code>(끄면 돌아갈 각도) · <code>value_schema</code></dd>
+        <dt>선택</dt><dd><code>min_angle</code> 기본 <code>0</code> · <code>max_angle</code> 기본 <code>180</code> · <code>rest_angle</code>(끄면 돌아갈 각도) · <code>value_schema</code> · <code>min_pulse_ms</code>·<code>max_pulse_ms</code>·<code>full_range</code>(아래)</dd>
         <dt>배선</dt><dd class="wire">선 3가닥: 갈색(검정) → GND, 빨강 → 5V, 주황(노랑) → GPIO.
           작은 서보 1개는 파이의 5V로도 돌지만, <strong>2개 이상이거나 파이가 재부팅되면</strong> 별도 5V 전원을 쓰고 GND를 파이와 이어 줍니다.</dd>
       </dl>
@@ -1638,6 +1638,13 @@ python daemon.py</pre>
       <div class="note warn" style="margin-bottom:0">
         <span class="tag">서보만 다릅니다</span>
         <p>서보는 켤 때 상태가 <code>"on"</code>이 아니라 <code>"move"</code>이고, 대시보드 버튼도 "켜기"가 아니라 "이동"입니다. 화면이나 규칙에서 서보를 다룰 때 기억하세요.</p>
+      </div>
+      <div class="note" style="margin:12px 0 0">
+        <span class="tag">SG90이 180°를 다 못 돌 때 — 펄스 폭</span>
+        <p>키트 기본 신호(1.0~2.0ms)로는 SG90이 절반 정도만 돕니다. 서보 줄에 아래를 더하면 <strong>보낸 각도 = 실제 각도</strong>가 되고,
+           <code>value_schema</code>는 움직일 수 있는 범위만 정합니다(예: 0~120이면 120°에서 멈춤).</p>
+        <p style="margin-top:6px"><code>"min_pulse_ms": 0.5, "max_pulse_ms": 2.4</code> — 서보 설명서의 값. 끝에서 드르륵 떨거나 뜨거우면 0.6 / 2.3처럼 조금 좁힙니다.
+           <code>"full_range"</code>(기본 180)는 그 펄스 범위가 덮는 실제 각도입니다. 적지 않으면 예전과 똑같이 동작합니다.</p>
       </div>
     </article>
 
