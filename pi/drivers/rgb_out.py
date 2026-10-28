@@ -5,7 +5,7 @@ rgb_out — 3핀 RGB LED (R·G·B 각각 PWM 핀 하나씩).
     핀이 3개(+공통) → 이 드라이버 (rgb_out)
     핀이 1개(데이터선 하나로 여러 알 제어) → neopixel_out
 
-네오픽셀과 달리 추가 라이브러리도 sudo 권한도 필요 없습니다.
+네오픽셀과 달리 추가 라이브러리가 필요 없습니다.
 
 slot_map.py 예시:
     "actuator_01": {

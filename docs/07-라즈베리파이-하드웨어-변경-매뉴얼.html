@@ -1668,7 +1668,8 @@ python daemon.py</pre>
     },</pre></figure>
       <div class="note warn" style="margin-bottom:0">
         <span class="tag">추가 준비가 필요합니다</span>
-        <p>네오픽셀은 별도 라이브러리가 필요하고, 파이에서 <kbd>sudo</kbd> 권한을 요구하는 경우가 많습니다.
+        <p>네오픽셀은 라즈베리파이 5 전용 라이브러리가 필요합니다 (venv에서 <code>pip install adafruit-blinka adafruit-circuitpython-neopixel</code>,
+           <code>pip install --pre adafruit-blinka-raspberry-pi5-neopixel</code> — <code>/dev/pio0</code>이 있어야 하고 sudo는 필요 없습니다).
            준비가 안 되어 있으면 색만 로그로 보여 주고 넘어갑니다 — 프로그램은 죽지 않습니다.</p>
       </div>
     </article>
@@ -2469,7 +2470,7 @@ sudo journalctl -u iot-daemon -f       <span class="c"># 데몬 로그 보기. C
       </tbody>
     </table>
   </div>
-  <p class="small">네오픽셀은 sudo 권한이 필요해 이 설정으로는 색이 나오지 않을 수 있습니다. 네오픽셀을 쓰는 팀은 선생님과 상의하세요.</p>
+  <p class="small">네오픽셀은 파이 5 전용 라이브러리(PIO 방식)를 venv에 설치했다면 이 설정 그대로 동작합니다(sudo 불필요). 로그에 <code>로그로만 표시</code>가 나오면 라이브러리 설치를 확인하세요.</p>
 
   <h3>④ 전시장에서</h3>
   <ul>

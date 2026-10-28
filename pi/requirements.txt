@@ -20,8 +20,12 @@ python-dotenv>=1.0.1
 #   온습도 센서 (drivers/dht_in.py)
 #     pip install adafruit-circuitpython-dht
 #
-#   네오픽셀 RGB 스트립 (drivers/neopixel_out.py) — sudo 권한으로 실행해야 합니다
-#     sudo pip install adafruit-circuitpython-neopixel --break-system-packages
+#   네오픽셀 RGB 스트립 (drivers/neopixel_out.py) — 라즈베리파이 5 전용 방법 (sudo 불필요)
+#     ls -l /dev/pio0      # 없으면: sudo apt update && sudo apt full-upgrade -y
+#                          #         sudo rpi-eeprom-update -a && sudo reboot
+#     pip install adafruit-blinka adafruit-circuitpython-neopixel
+#     pip install --pre adafruit-blinka-raspberry-pi5-neopixel
+#     (파이 4까지 쓰던 rpi_ws281x / sudo 방식은 파이 5에서 동작하지 않습니다)
 #
 #   아날로그 센서용 ADC (drivers/analog_in.py) — gpiozero에 MCP3008이 포함되어
 #   있으므로 추가 설치가 필요 없습니다. SPI를 켜 주세요: sudo raspi-config
