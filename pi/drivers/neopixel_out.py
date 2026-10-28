@@ -9,8 +9,11 @@ slot_map.py 예시:
 백엔드에서 내려오는 값: {"color": "#ff3355"}  또는  {"r":255,"g":51,"b":85}
                         {"brightness": 60}  (0~100)
 
-라이브러리가 없거나 PC에서 실행하면 색만 로그로 보여 주고 넘어갑니다
-(네오픽셀은 `sudo` 권한과 rpi_ws281x/adafruit 라이브러리가 필요합니다).
+라이브러리가 없거나 PC에서 실행하면 색만 로그로 보여 주고 넘어갑니다.
+라즈베리파이 5에서는 RP1 PIO를 쓰는 전용 라이브러리가 필요합니다 (sudo 불필요, requirements.txt 참고):
+    pip install adafruit-blinka adafruit-circuitpython-neopixel
+    pip install --pre adafruit-blinka-raspberry-pi5-neopixel
+파이 4까지 쓰던 rpi_ws281x 방식은 파이 5에서 동작하지 않습니다.
 """
 import logging
 from typing import Any, Dict, Optional, Tuple
@@ -66,8 +69,9 @@ class Driver(ActuatorDriver):
         except Exception as exc:
             logger.info(
                 f"[{slot_id}] 네오픽셀 라이브러리를 쓸 수 없어 색을 로그로만 표시합니다 "
-                f"({type(exc).__name__}). 실기기에서는 "
-                "`sudo pip install adafruit-circuitpython-neopixel` 후 sudo로 실행하세요."
+                f"({type(exc).__name__}). 라즈베리파이 5에서는 venv에서 `pip install adafruit-blinka adafruit-circuitpython-neopixel` 과 "
+                "`pip install --pre adafruit-blinka-raspberry-pi5-neopixel` 을 설치하세요 "
+                "(/dev/pio0 이 있어야 합니다 — pi/requirements.txt 참고)."
             )
         self._state = "off"
 

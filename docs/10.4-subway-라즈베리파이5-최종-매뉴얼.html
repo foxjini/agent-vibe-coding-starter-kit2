@@ -458,7 +458,7 @@ git commit -m "[hardware] 경보 LED 추가 (GPIO 23)"</pre></div>
       <tr><td>서보 (SG90 등)</td><td>갈색 → GND, 빨강 → 5V, 주황 → GPIO</td><td>2개 이상이면 별도 5V</td></tr>
       <tr><td>진동·DC 모터</td><td>모터 드라이버/트랜지스터 모듈의 IN → GPIO</td><td><strong>모터를 GPIO에 직접 연결 금지</strong></td></tr>
       <tr><td>3색 LED (4다리)</td><td>R·G·B 각각 저항 → GPIO, 공통 → GND(캐소드) / 3V3(애노드)</td><td>애노드면 <code>"common_anode": True</code></td></tr>
-      <tr><td>네오픽셀</td><td>DIN → GPIO, 5V, GND</td><td>추가 라이브러리·sudo 필요 → 선생님과</td></tr>
+      <tr><td>네오픽셀 (WS2812)</td><td>DIN → <strong>330Ω</strong> → GPIO, 5V, GND (8알 넘거나 밝게 쓰면 별도 5V, GND 공통)</td><td>파이 5 전용 라이브러리를 venv에 설치: <code>pip install adafruit-blinka adafruit-circuitpython-neopixel</code> · <code>pip install --pre adafruit-blinka-raspberry-pi5-neopixel</code> (<code>ls /dev/pio0</code>이 있어야 함, sudo 불필요). 로그에 <code>로그로만 표시</code>가 나오면 설치 안 된 것</td></tr>
       <tr><td>온습도 DHT22 (3핀)</td><td>+ → 3V3, OUT → GPIO, − → GND</td><td><code>pip install adafruit-circuitpython-dht</code> · <code>interval</code> 5초 이상</td></tr>
       <tr><td>초음파 HC-SR04</td><td>VCC → 5V, GND, TRIG → GPIO, ECHO → <strong>1kΩ</strong> → GPIO (+ 그 GPIO에서 <strong>2kΩ</strong> → GND)</td><td><strong>ECHO 분압 필수</strong> (5V 신호)</td></tr>
       <tr><td>MCP3008 (아날로그 → 숫자 칩)</td><td>VDD·VREF → 3V3, AGND·DGND → GND, CLK → 물리 23, DOUT → 물리 21, DIN → 물리 19, CS → 물리 24</td><td><code>sudo raspi-config</code>에서 SPI 켜기 · 선생님과</td></tr>
