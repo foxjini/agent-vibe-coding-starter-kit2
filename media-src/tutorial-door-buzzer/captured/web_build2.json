@@ -1,0 +1,127 @@
+{
+ "id": "web_build2",
+ "kind": "run",
+ "cwd": "frontend",
+ "command": "npm run build",
+ "exit": 0,
+ "stopped_by_ctrl_c": false,
+ "started_at": 1793423834.4878983,
+ "lines": [
+  {
+   "t": 0.15,
+   "text": ""
+  },
+  {
+   "t": 0.15,
+   "text": "> frontend-temp@0.1.0 build"
+  },
+  {
+   "t": 0.15,
+   "text": "> next build"
+  },
+  {
+   "t": 0.15,
+   "text": ""
+  },
+  {
+   "t": 0.54,
+   "text": "▲ Next.js 16.3.4 (Turbopack)"
+  },
+  {
+   "t": 0.57,
+   "text": "✓ Running next.config.ts took 25ms"
+  },
+  {
+   "t": 0.63,
+   "text": ""
+  },
+  {
+   "t": 0.65,
+   "text": "  Creating an optimized production build ..."
+  },
+  {
+   "t": 1.41,
+   "text": "✓ Compiled successfully in 501ms"
+  },
+  {
+   "t": 1.41,
+   "text": "  Running TypeScript ..."
+  },
+  {
+   "t": 4.2,
+   "text": "  Finished TypeScript in 2.8s ..."
+  },
+  {
+   "t": 4.21,
+   "text": "  Collecting page data using 3 workers ..."
+  },
+  {
+   "t": 4.73,
+   "text": "  Generating static pages using 3 workers (0/7) ..."
+  },
+  {
+   "t": 4.98,
+   "text": "  Generating static pages using 3 workers (1/7) "
+  },
+  {
+   "t": 5.05,
+   "text": "  Generating static pages using 3 workers (3/7) "
+  },
+  {
+   "t": 5.05,
+   "text": "  Generating static pages using 3 workers (5/7) "
+  },
+  {
+   "t": 5.05,
+   "text": "✓ Generating static pages using 3 workers (7/7) in 316ms"
+  },
+  {
+   "t": 5.05,
+   "text": "  Finalizing page optimization ..."
+  },
+  {
+   "t": 5.06,
+   "text": ""
+  },
+  {
+   "t": 5.07,
+   "text": "Route (app)"
+  },
+  {
+   "t": 5.07,
+   "text": "┌ ○ /"
+  },
+  {
+   "t": 5.07,
+   "text": "├ ○ /_not-found"
+  },
+  {
+   "t": 5.07,
+   "text": "├ ○ /admin"
+  },
+  {
+   "t": 5.07,
+   "text": "├ ○ /booth"
+  },
+  {
+   "t": 5.07,
+   "text": "└ ○ /try"
+  },
+  {
+   "t": 5.07,
+   "text": ""
+  },
+  {
+   "t": 5.07,
+   "text": ""
+  },
+  {
+   "t": 5.07,
+   "text": "○  (Static)  prerendered as static content"
+  },
+  {
+   "t": 5.07,
+   "text": ""
+  }
+ ]
+}

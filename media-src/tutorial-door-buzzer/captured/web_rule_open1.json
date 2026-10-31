@@ -1,0 +1,14 @@
+{
+ "id": "web_rule_open1",
+ "kind": "run",
+ "cwd": "backend",
+ "command": "curl -s -X POST localhost:8000/api/v1/devices/door_sensor_1/state -H \"X-Device-Api-Key: booth-demo-key-2026\" -H \"Content-Type: application/json\" -d '{\"value\":1,\"unit\":\"door_open\"}'",
+ "exit": 0,
+ "stopped_by_ctrl_c": false,
+ "lines": [
+  {
+   "t": 0.06,
+   "text": "{\"data\":{\"device_id\":\"door_sensor_1\",\"recorded\":true}}"
+  }
+ ]
+}

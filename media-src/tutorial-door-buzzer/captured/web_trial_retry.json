@@ -1,0 +1,14 @@
+{
+ "id": "web_trial_retry",
+ "kind": "run",
+ "cwd": "backend",
+ "command": "curl -s -X POST localhost:8000/api/devices/buzzer_1/control -H \"X-Admin-Token: PEFS8tMvdrZrTlrBhtKpUY2PavDNeUFQDgmvIY7Bf9w\" -H \"Content-Type: application/json\" -d '{\"desired_state\":\"on\"}'",
+ "exit": 0,
+ "stopped_by_ctrl_c": false,
+ "lines": [
+  {
+   "t": 0.02,
+   "text": "{\"data\":{\"id\":\"buzzer_1\",\"name\":\"경고 부저\",\"kind\":\"buzzer\",\"desired_state\":\"on\",\"current_state\":null,\"desired_value\":null,\"current_value\":null,\"updated_at\":\"2026-10-31T05:10:07.043739Z\",\"created_at\":\"2026-10-31T05:09:15.306064Z\"}}"
+  }
+ ]
+}

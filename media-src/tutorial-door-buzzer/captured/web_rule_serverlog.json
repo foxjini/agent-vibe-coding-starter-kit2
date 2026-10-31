@@ -1,0 +1,77 @@
+{
+ "id": "web_rule_serverlog",
+ "kind": "run",
+ "cwd": "backend",
+ "command": "uvicorn main:app --port 8000",
+ "exit": null,
+ "lines": [
+  {
+   "t": 0.0,
+   "text": "INFO:     Started server process [1258]"
+  },
+  {
+   "t": 0.05,
+   "text": "INFO:     Waiting for application startup."
+  },
+  {
+   "t": 0.1,
+   "text": "INFO:backend.db:PostgreSQL(Supabase) 모드 — DDL은 건너뛰고 시드만 확인합니다."
+  },
+  {
+   "t": 0.15000000000000002,
+   "text": "INFO:backend.db:Supabase seed data verified."
+  },
+  {
+   "t": 0.2,
+   "text": "INFO:backend.main:Database and seed data successfully initialized at startup."
+  },
+  {
+   "t": 0.25,
+   "text": "INFO:backend.services.scheduler:예약 자동 운영 엔진 시작 — 20초 주기, 종료 10분 전 알림, 노쇼 유예 15분"
+  },
+  {
+   "t": 0.30000000000000004,
+   "text": "INFO:     Application startup complete."
+  },
+  {
+   "t": 0.35000000000000003,
+   "text": "INFO:     Uvicorn running on http://127.0.0.1:8000 (Press CTRL+C to quit)"
+  },
+  {
+   "t": 0.4,
+   "text": "INFO:     127.0.0.1:53096 - \"GET /health HTTP/1.1\" 200 OK"
+  },
+  {
+   "t": 0.45,
+   "text": "INFO:backend.iot.hardware:HardwareDeviceProvider 활성화 — current_state는 라즈베리파이의 POST /api/v1/devices/{id}/state 보고로만 갱신됩니다."
+  },
+  {
+   "t": 0.5,
+   "text": "INFO:backend.iot.factory:DEVICE_MODE=hardware — 실기기 연동 모드로 기동합니다."
+  },
+  {
+   "t": 0.55,
+   "text": "INFO:backend.services.booth:[문 열림 경고] 부저 on (도어락=locked, 문=열림)"
+  },
+  {
+   "t": 0.6000000000000001,
+   "text": "INFO:     127.0.0.1:53104 - \"POST /api/v1/devices/door_sensor_1/state HTTP/1.1\" 200 OK"
+  },
+  {
+   "t": 0.65,
+   "text": "INFO:     127.0.0.1:53116 - \"GET /api/v1/devices/buzzer_1/desired-state HTTP/1.1\" 200 OK"
+  },
+  {
+   "t": 0.7000000000000001,
+   "text": "INFO:backend.services.booth:[문 열림 경고] 부저 off (도어락=locked, 문=닫힘)"
+  },
+  {
+   "t": 0.75,
+   "text": "INFO:     127.0.0.1:53118 - \"POST /api/v1/devices/door_sensor_1/state HTTP/1.1\" 200 OK"
+  },
+  {
+   "t": 0.8,
+   "text": "INFO:     127.0.0.1:53132 - \"GET /api/v1/devices/buzzer_1/desired-state HTTP/1.1\" 200 OK"
+  }
+ ]
+}

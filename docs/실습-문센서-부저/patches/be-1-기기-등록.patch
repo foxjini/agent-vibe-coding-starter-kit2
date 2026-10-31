@@ -1,0 +1,96 @@
+diff --git a/backend/db/database.py b/backend/db/database.py
+index 7b679cd..1a57d55 100644
+--- a/backend/db/database.py
++++ b/backend/db/database.py
+@@ -160,6 +160,8 @@ def _seed_initial_rows() -> None:
+         ("speaker_1", "스피커/오디오 모듈", "speaker"),
+         ("keypad_1", "4x4 비밀번호 키패드", "keypad"),
+         ("pir_1", "입장 감지 센서", "pir"),
++        ("door_sensor_1", "문 열림 센서", "reed"),
++        ("buzzer_1", "경고 부저", "buzzer"),
+     ]
+     device_query = """
+         INSERT INTO devices (id, name, kind)
+diff --git a/backend/db/init.sql b/backend/db/init.sql
+index a5476c7..721b4d7 100644
+--- a/backend/db/init.sql
++++ b/backend/db/init.sql
+@@ -161,9 +161,11 @@ INSERT INTO devices (id, name, kind) VALUES
+   ('relay_1', '기기 전원 릴레이', 'relay'),
+   ('led_1', '부스 조명 LED', 'led'),
+   ('speaker_1', '스피커/오디오 모듈', 'speaker'),
++  ('buzzer_1', '경고 부저', 'buzzer'),
+   -- 센서 목록
+   ('keypad_1', '4x4 비밀번호 키패드', 'keypad'),
+-  ('pir_1', '입장 감지 센서', 'pir')
++  ('pir_1', '입장 감지 센서', 'pir'),
++  ('door_sensor_1', '문 열림 센서', 'reed')
+ ON DUPLICATE KEY UPDATE
+   name = VALUES(name),
+   kind = VALUES(kind);
+diff --git a/backend/db/init_supabase.sql b/backend/db/init_supabase.sql
+index 6392c58..195da95 100644
+--- a/backend/db/init_supabase.sql
++++ b/backend/db/init_supabase.sql
+@@ -171,7 +171,9 @@ INSERT INTO devices (id, name, kind) VALUES
+   ('led_1',       '부스 조명 LED',        'led'),
+   ('speaker_1',   '스피커/오디오 모듈',   'speaker'),
+   ('keypad_1',    '4x4 비밀번호 키패드',  'keypad'),
+-  ('pir_1',       '입장 감지 센서',       'pir')
++  ('pir_1',       '입장 감지 센서',       'pir'),
++  ('door_sensor_1', '문 열림 센서',       'reed'),
++  ('buzzer_1',    '경고 부저',            'buzzer')
+ ON CONFLICT (id) DO UPDATE SET
+   name = EXCLUDED.name,
+   kind = EXCLUDED.kind;
+diff --git a/backend/iot/mock_provider.py b/backend/iot/mock_provider.py
+index 3a7f5bc..5f6d9a8 100644
+--- a/backend/iot/mock_provider.py
++++ b/backend/iot/mock_provider.py
+@@ -67,6 +67,16 @@ class MockDeviceProvider(DeviceProvider):
+                 "current_value": {"track": None, "volume": 70},
+                 "updated_at": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
+             },
++            "buzzer_1": {
++                "id": "buzzer_1",
++                "name": "경고 부저",
++                "kind": "buzzer",
++                "desired_state": "off",
++                "current_state": "off",
++                "desired_value": None,
++                "current_value": None,
++                "updated_at": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
++            },
+             # 센서 목록
+             "keypad_1": {
+                 "id": "keypad_1",
+@@ -88,6 +98,16 @@ class MockDeviceProvider(DeviceProvider):
+                 "current_value": {"detected": False},
+                 "updated_at": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
+             },
++            "door_sensor_1": {
++                "id": "door_sensor_1",
++                "name": "문 열림 센서",
++                "kind": "reed",
++                "desired_state": None,
++                "current_state": "reported",
++                "desired_value": None,
++                "current_value": 0,  # 1 = 열림, 0 = 닫힘
++                "updated_at": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
++            },
+         }
+ 
+     async def get_device_status(self, device_id: str) -> Optional[Dict[str, Any]]:
+diff --git a/backend/routers/devices.py b/backend/routers/devices.py
+index 8c03f1f..139a79c 100644
+--- a/backend/routers/devices.py
++++ b/backend/routers/devices.py
+@@ -118,7 +118,7 @@ async def get_device_history(
+ 
+     kind = device.get("kind", "")
+     history: list = []
+-    if kind in ("keypad", "pir"):
++    if kind in ("keypad", "pir", "reed"):
+         history = db.get_sensor_history(device_id=device_id, limit=limit)
+     else:
+         history = db.get_control_history(device_id=device_id, limit=limit)

@@ -1,0 +1,110 @@
+diff --git a/pi/02_karaoke_daemon_mock.py b/pi/02_karaoke_daemon_mock.py
+index 72a1e1d..763071e 100644
+--- a/pi/02_karaoke_daemon_mock.py
++++ b/pi/02_karaoke_daemon_mock.py
+@@ -43,12 +43,13 @@ HEADERS = {
+     "Content-Type": "application/json",
+ }
+ 
+-# 우리가 감시하고 제어할 부스 액추에이터 4종 목록
++# 우리가 감시하고 제어할 부스 액추에이터 5종 목록
+ ACTUATORS = [
+     {"id": "door_lock_1", "name": "솔레노이드 도어락", "emoji": "🚪"},
+     {"id": "relay_1",     "name": "기기 전원 릴레이", "emoji": "⚡"},
+     {"id": "led_1",       "name": "부스 조명 LED",   "emoji": "💡"},
+     {"id": "speaker_1",   "name": "스피커 모듈",      "emoji": "🔊"},
++    {"id": "buzzer_1",    "name": "경고 부저",        "emoji": "🔔"},
+ ]
+ 
+ # 현재 내가 기억하고 있는 각 부품의 실제 상태 (초기값)
+@@ -57,6 +58,7 @@ my_current_states = {
+     "relay_1": "off",
+     "led_1": "off",
+     "speaker_1": "idle",
++    "buzzer_1": "off",
+ }
+ 
+ # 보고(POST state)가 실패한 부품을 담아 두고 다음 루프에서 다시 보낸다.
+@@ -150,6 +152,12 @@ def poll_and_execute(actuator):
+ 
+             elif device_id == "speaker_1":
+                 print(f"   🔊 [모의 동작] 스피커에서 오디오가 출력됩니다: '{desired_state}' (설정값: {desired_value})")
++
++            elif device_id == "buzzer_1":
++                if desired_state == "on":
++                    print("   🔔 [모의 동작] 삐- 삐- 경고 부저가 울립니다! (잠긴 문이 열려 있음)")
++                else:
++                    print("   🔕 [모의 동작] 경고 부저가 꺼졌습니다.")
+             # --------------------------------------
+ 
+             # 3. 내 로컬 상태 갱신
+diff --git a/pi/mock_door.py b/pi/mock_door.py
+new file mode 100644
+index 0000000..ca195e7
+--- /dev/null
++++ b/pi/mock_door.py
+@@ -0,0 +1,64 @@
++"""
++mock_door.py
++--------------------------------------------------------------------------------
++[부품 없이 문 열림 센서 흉내 내기]
++
++리드 스위치가 아직 없거나 노트북에서 연습할 때 쓴다. main.py 를 그대로 돌리되
++GPIO 만 가짜(gpiozero MockFactory)로 바꾸고, 키보드로 문 센서 핀의 전압을 바꾼다.
++
++    o + Enter  → 문 열기 (자석이 떨어짐)
++    c + Enter  → 문 닫기 (자석이 붙음)
++    q + Enter  → 끝내기
++
++* 실행 방법:
++    cd pi
++    python mock_door.py
++
++main.py 의 코드(폴링·보고·부저)는 진짜로 실행된다. 바뀌는 것은 GPIO 뿐이다.
++--------------------------------------------------------------------------------
++"""
++
++import _thread
++import os
++import threading
++import time
++
++os.environ["GPIOZERO_PIN_FACTORY"] = "mock"  # main.py 보다 먼저 정해야 한다
++
++from gpiozero import Device  # noqa: E402
++from gpiozero.pins.mock import MockFactory  # noqa: E402
++
++import booth_pins as pins  # noqa: E402
++import main as daemon  # noqa: E402
++
++Device.pin_factory = MockFactory()
++
++
++def door_pin():
++    return Device.pin_factory.pin(pins.DOOR_SENSOR_PIN)
++
++
++def keyboard():
++    # main.py 가 문 센서를 만들 때까지 기다렸다가 '닫힌 문'에서 시작한다
++    while door_pin().pull != "up":
++        time.sleep(0.005)
++    door_pin().drive_low()
++
++    print("\n⌨️  [모의 문] o=문 열기, c=문 닫기, q=끝내기\n")
++    while True:
++        try:
++            cmd = input().strip().lower()
++        except EOFError:
++            break
++        if cmd == "o":
++            door_pin().drive_high()  # 스위치가 열리면 풀업 때문에 HIGH
++        elif cmd == "c":
++            door_pin().drive_low()   # 스위치가 닫히면 GND 와 붙어 LOW
++        elif cmd == "q":
++            break
++    _thread.interrupt_main()  # Ctrl+C 와 같다 — main.py 가 안전 상태로 정리하고 끝난다
++
++
++if __name__ == "__main__":
++    threading.Thread(target=keyboard, daemon=True).start()
++    daemon.main()

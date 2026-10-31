@@ -1,0 +1,62 @@
+{
+ "id": "web_be_start",
+ "kind": "run",
+ "cwd": "backend",
+ "command": "uvicorn main:app --port 8000",
+ "exit": 0,
+ "stopped_by_ctrl_c": true,
+ "lines": [
+  {
+   "t": 0.4,
+   "text": "INFO:     Started server process [1057]"
+  },
+  {
+   "t": 0.4,
+   "text": "INFO:     Waiting for application startup."
+  },
+  {
+   "t": 0.4,
+   "text": "INFO:backend.db:PostgreSQL(Supabase) 모드 — DDL은 건너뛰고 시드만 확인합니다."
+  },
+  {
+   "t": 0.47,
+   "text": "INFO:backend.db:Supabase seed data verified."
+  },
+  {
+   "t": 0.47,
+   "text": "INFO:backend.main:Database and seed data successfully initialized at startup."
+  },
+  {
+   "t": 0.47,
+   "text": "INFO:backend.services.scheduler:예약 자동 운영 엔진 시작 — 60초 주기, 종료 10분 전 알림, 노쇼 유예 15분"
+  },
+  {
+   "t": 0.5,
+   "text": "INFO:     Application startup complete."
+  },
+  {
+   "t": 0.5,
+   "text": "INFO:     Uvicorn running on http://127.0.0.1:8000 (Press CTRL+C to quit)"
+  },
+  {
+   "t": 6.04,
+   "text": "INFO:     Shutting down"
+  },
+  {
+   "t": 6.14,
+   "text": "INFO:     Waiting for application shutdown."
+  },
+  {
+   "t": 6.14,
+   "text": "INFO:backend.main:Backend server shutting down."
+  },
+  {
+   "t": 6.14,
+   "text": "INFO:     Application shutdown complete."
+  },
+  {
+   "t": 6.14,
+   "text": "INFO:     Finished server process [1057]"
+  }
+ ]
+}

@@ -1,0 +1,477 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>tutorial player</title>
+<style>
+  /* 1920x1080 한 장면을 시각 t 로 그리는 무대. build_video.py 가 timeline.js 를 만들어 준다. */
+  @font-face { font-family: "Pretendard"; font-weight: 400; src: url("fonts/Pretendard-Regular.otf"); }
+  @font-face { font-family: "Pretendard"; font-weight: 600; src: url("fonts/Pretendard-SemiBold.otf"); }
+  @font-face { font-family: "Pretendard"; font-weight: 700; src: url("fonts/Pretendard-Bold.otf"); }
+  @font-face { font-family: "Pretendard"; font-weight: 800; src: url("fonts/Pretendard-ExtraBold.otf"); }
+  @font-face { font-family: "D2Coding"; font-weight: 400; src: url("fonts/D2Coding.ttf"); }
+  @font-face { font-family: "D2Coding"; font-weight: 700; src: url("fonts/D2Coding-Bold.ttf"); }
+  :root {
+    --bg: #0E0F13; --panel: #15171C; --panel2: #1A1D23; --line: #2A2E36; --line2: #353A44;
+    --ink: #ECEAE6; --ink2: #AEB2BA; --ink3: #6E747E;
+    --brass: #E9BC5E; --brass-soft: #2E2715; --blue: #79B8FF; --green: #7EE787; --red: #FF7B72; --yellow: #F2CC60;
+    --add-bg: rgba(46,160,67,.17); --del-bg: rgba(248,81,73,.14); --term: #0A0B0E;
+    --ui: "Pretendard", "Noto Color Emoji", sans-serif;
+    --mono: "D2Coding", "Noto Color Emoji", monospace;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; width: 1920px; height: 1080px; overflow: hidden; background: var(--bg); color: var(--ink); font-family: var(--ui); }
+  #root { position: relative; width: 1920px; height: 1080px; }
+
+  /* 머리띠 */
+  #head { position: absolute; left: 0; top: 0; width: 1920px; height: 64px; display: flex; align-items: center; gap: 18px; padding: 0 36px; background: #0B0C10; border-bottom: 1px solid var(--line); }
+  #ep { font-weight: 800; font-size: 20px; color: #17130A; background: var(--brass); padding: 5px 14px; border-radius: 8px; }
+  #eptitle { font-weight: 700; font-size: 21px; color: var(--ink); }
+  #chapters { margin-left: auto; display: flex; gap: 6px; }
+  .chip { font-size: 15px; font-weight: 600; color: var(--ink3); border: 1px solid var(--line2); border-radius: 999px; padding: 4px 12px; }
+  .chip.on { color: #17130A; background: var(--brass); border-color: var(--brass); }
+  .chip.done { color: var(--ink2); }
+
+  /* 무대 */
+  #stage { position: absolute; left: 0; top: 64px; width: 1920px; height: 896px; }
+  .scene { position: absolute; inset: 0; display: none; }
+  .scene.on { display: block; }
+
+  /* 자막 */
+  #capband { position: absolute; left: 0; top: 960px; width: 1920px; height: 120px; background: #07080A; border-top: 1px solid var(--line); display: flex; align-items: center; justify-content: center; }
+  #prog { position: absolute; left: 0; top: -1px; height: 3px; background: var(--brass); }
+  #cap { max-width: 1680px; text-align: center; font-weight: 700; font-size: 33px; line-height: 1.38; letter-spacing: -0.01em; color: #FFFFFF; text-wrap: balance; }
+  #cap code { font-family: var(--mono); font-weight: 700; color: var(--brass); font-size: .92em; }
+
+  /* ── 제목 · 장 카드 ── */
+  #title { background: radial-gradient(1200px 600px at 75% 30%, #2A2312 0%, var(--bg) 60%); }
+  #title .wrap { position: absolute; left: 140px; top: 170px; right: 140px; display: flex; flex-direction: column; gap: 26px; }
+  #title .kicker { font-family: var(--mono); font-size: 24px; color: var(--brass); letter-spacing: .08em; }
+  #title h1 { margin: 0; font-size: 92px; font-weight: 800; line-height: 1.08; letter-spacing: -0.02em; }
+  #title .sub { font-size: 34px; color: var(--ink2); font-weight: 600; }
+  #title .parts { display: flex; gap: 14px; margin-top: 26px; flex-wrap: wrap; }
+  #title .parts span { font-size: 22px; font-weight: 600; color: var(--ink2); border: 1px solid var(--line2); border-radius: 12px; padding: 10px 18px; background: var(--panel); }
+  #chapter { display: none; align-items: center; justify-content: center; }
+  #chapter.on { display: flex; }
+  #chapter .no { font-family: var(--mono); font-size: 150px; font-weight: 700; color: var(--brass); line-height: 1; }
+  #chapter .t { font-size: 70px; font-weight: 800; margin-top: 18px; text-align: center; }
+  #chapter .s { font-size: 30px; color: var(--ink2); margin-top: 18px; text-align: center; }
+  #chapter .box { display: flex; flex-direction: column; align-items: center; }
+
+  /* ── 카드 (목록) ── */
+  #card .wrap { position: absolute; left: 160px; right: 160px; top: 90px; display: flex; flex-direction: column; gap: 22px; }
+  #card h2 { margin: 0 0 12px; font-size: 54px; font-weight: 800; }
+  #card .item { display: flex; gap: 22px; align-items: flex-start; font-size: 34px; line-height: 1.45; font-weight: 600; color: var(--ink); padding: 20px 26px; border-radius: 16px; background: var(--panel); border: 1px solid var(--line); }
+  #card .item .b { flex: none; width: 46px; height: 46px; border-radius: 12px; display: grid; place-items: center; background: var(--brass-soft); color: var(--brass); font-family: var(--mono); font-weight: 700; font-size: 26px; margin-top: 2px; }
+  #card .item.dim { opacity: .28; }
+  #card .item code { font-family: var(--mono); color: var(--brass); font-size: .9em; }
+  #card .item.warn { border-color: rgba(255,123,114,.45); background: #22130F; }
+  #card .item.warn .b { background: #3A1612; color: var(--red); }
+
+  /* ── IDE ── */
+  #ide .ex { position: absolute; left: 0; top: 0; width: 270px; height: 896px; background: var(--panel); border-right: 1px solid var(--line); padding: 14px 0; }
+  #ide .ex h4 { margin: 0 18px 10px; font-size: 14px; letter-spacing: .1em; color: var(--ink3); font-weight: 700; }
+  .tree div { font-size: 17px; line-height: 30px; padding-left: calc(18px + var(--d) * 16px); color: var(--ink2); white-space: nowrap; display: flex; gap: 8px; align-items: center; }
+  .tree div.dir { color: var(--ink3); }
+  .tree div.active { background: #23272F; color: var(--ink); box-shadow: inset 3px 0 0 var(--brass); }
+  .tree .badge { margin-left: auto; margin-right: 16px; font-family: var(--mono); font-size: 15px; font-weight: 700; }
+  .tree .badge.M { color: var(--yellow); } .tree .badge.U { color: var(--green); }
+  #ide .center { position: absolute; left: 270px; top: 0; width: 1110px; height: 896px; display: flex; flex-direction: column; background: var(--panel2); }
+  #ide .tabs { height: 44px; flex: none; display: flex; align-items: flex-end; background: var(--panel); border-bottom: 1px solid var(--line); padding-left: 8px; }
+  #ide .tab { height: 38px; padding: 0 18px; display: flex; align-items: center; gap: 10px; font-size: 16px; color: var(--ink); background: var(--panel2); border: 1px solid var(--line); border-bottom: none; border-radius: 8px 8px 0 0; }
+  #ide .tab .path { color: var(--ink3); font-size: 14px; }
+  #ide .editor { position: relative; flex: 1; overflow: hidden; }
+  #ide .code { position: absolute; left: 0; right: 0; top: 0; font-family: var(--mono); font-size: 19px; line-height: 28px; }
+  .ln { display: flex; white-space: pre; }
+  .ln .no { flex: none; width: 64px; padding-right: 14px; text-align: right; color: #4B515B; user-select: none; }
+  .ln .sg { flex: none; width: 22px; color: var(--ink3); }
+  .ln .tx { flex: 1; overflow: hidden; text-overflow: clip; }
+  .ln.add { background: var(--add-bg); } .ln.add .sg { color: var(--green); } .ln.add .no { color: #3F8C4B; }
+  .ln.del { background: var(--del-bg); } .ln.del .sg { color: var(--red); } .ln.del .tx { opacity: .75; }
+  .ln.sep { color: var(--ink3); background: #14161B; font-size: 15px; }
+  .ln.sep .tx { padding-left: 4px; }
+  .ln.focus { box-shadow: inset 4px 0 0 var(--brass); }
+  .cursor { display: inline-block; width: 2px; height: 22px; background: var(--brass); vertical-align: -4px; }
+  .k { color: #FF7B72; } .s { color: #A5D6FF; } .c { color: #8B949E; } .n { color: #79C0FF; }
+  .f { color: #D2A8FF; } .cl { color: #FFA657; } .o { color: #FF7B72; } .b { color: #79C0FF; } .tg { color: #7EE787; } .at { color: #79C0FF; }
+
+  #ide .term { flex: none; background: var(--term); border-top: 1px solid var(--line); display: flex; flex-direction: column; }
+  #ide .term .bar { height: 34px; flex: none; display: flex; align-items: center; gap: 14px; padding: 0 16px; font-size: 14px; color: var(--ink3); border-bottom: 1px solid var(--line); }
+  #ide .term .bar b { color: var(--ink); font-weight: 600; }
+  #ide .term .body { position: relative; flex: 1; overflow: hidden; }
+  .tlines { position: absolute; left: 0; right: 0; bottom: 0; padding: 10px 18px; font-family: var(--mono); font-size: 18px; line-height: 26px; }
+  .tl { white-space: pre-wrap; word-break: break-all; color: #D6D9DE; }
+  .tl.cmd { color: var(--ink); } .tl.cmd .pr { color: var(--green); font-weight: 700; } .tl.cmd .pr2 { color: var(--blue); font-weight: 700; }
+  .tl.err { color: var(--red); } .tl.ok { color: var(--green); } .tl.warn { color: var(--yellow); } .tl.dim { color: #7D838D; }
+  .tl.in { color: var(--brass); font-weight: 700; } .tl.hl { background: rgba(233,188,94,.13); }
+
+  #ide .chat { position: absolute; left: 1380px; top: 0; width: 540px; height: 896px; background: var(--panel); border-left: 1px solid var(--line); display: flex; flex-direction: column; }
+  #ide .chat .hd { height: 52px; flex: none; display: flex; align-items: center; gap: 10px; padding: 0 20px; border-bottom: 1px solid var(--line); font-weight: 700; font-size: 18px; }
+  #ide .chat .hd .dot { width: 10px; height: 10px; border-radius: 50%; background: var(--brass); }
+  #ide .chat .hd .role { margin-left: auto; font-size: 14px; font-weight: 600; color: var(--ink3); }
+  #ide .msgs { position: relative; flex: 1; overflow: hidden; }
+  #ide .msgs .in { position: absolute; left: 0; right: 0; bottom: 0; padding: 16px 18px; display: flex; flex-direction: column; gap: 14px; }
+  .msg { border-radius: 14px; padding: 13px 16px; font-size: 17px; line-height: 1.55; white-space: pre-wrap; word-break: keep-all; overflow-wrap: anywhere; }
+  .msg .who { display: block; font-size: 13px; font-weight: 700; letter-spacing: .04em; margin-bottom: 4px; }
+  .msg.me { background: var(--brass-soft); border: 1px solid rgba(233,188,94,.35); color: var(--ink); align-self: flex-end; max-width: 94%; }
+  .msg.me .who { color: var(--brass); }
+  .msg.ai { background: #1E2128; border: 1px solid var(--line2); color: var(--ink); max-width: 98%; }
+  .msg.ai .who { color: var(--blue); }
+  .msg code { font-family: var(--mono); color: #FFD58A; font-size: .95em; }
+  .files { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+  .files span { font-family: var(--mono); font-size: 14px; background: #262A32; border: 1px solid var(--line2); border-radius: 6px; padding: 2px 8px; color: var(--ink2); }
+  #ide .inbox { flex: none; margin: 12px 16px 16px; min-height: 64px; border: 1px solid var(--line2); border-radius: 12px; background: #101216; padding: 12px 14px; font-size: 16.5px; line-height: 1.5; color: var(--ink); white-space: pre-wrap; word-break: keep-all; overflow-wrap: anywhere; }
+  #ide .inbox.empty { color: var(--ink3); }
+  #ide .inbox.active { border-color: var(--brass); }
+
+  /* ── 브라우저 화면 ── */
+  #browser .win { position: absolute; border-radius: 14px; overflow: hidden; border: 1px solid var(--line2); background: #fff; box-shadow: 0 30px 80px rgba(0,0,0,.5); }
+  #browser .chrome { height: 44px; background: #20232A; display: flex; align-items: center; gap: 8px; padding: 0 14px; }
+  #browser .chrome i { width: 12px; height: 12px; border-radius: 50%; background: #3A3F49; display: block; }
+  #browser .url { margin-left: 14px; flex: 1; height: 28px; border-radius: 8px; background: #121418; color: var(--ink2); font-size: 15px; display: flex; align-items: center; padding: 0 12px; font-family: var(--mono); }
+  #browser .view { position: relative; overflow: hidden; background: #F1F3F1; }
+  #browser .view img { position: absolute; left: 0; top: 0; transform-origin: 0 0; }
+  #browser .bterm { position: absolute; left: 24px; top: 24px; width: 700px; height: 848px; border-radius: 14px; overflow: hidden; background: var(--term); border: 1px solid var(--line2); }
+  #browser .bterm .bar { height: 44px; display: flex; align-items: center; padding: 0 16px; gap: 10px; color: var(--ink2); font-size: 16px; border-bottom: 1px solid var(--line); background: #15171C; }
+  #browser .bterm .body { position: absolute; top: 44px; left: 0; right: 0; bottom: 0; overflow: hidden; }
+  #browser .bterm .tlines { font-size: 17px; line-height: 25px; }
+  #browser .callout { position: absolute; border: 4px solid var(--brass); border-radius: 12px; box-shadow: 0 0 0 9999px rgba(0,0,0,.28); display: none; }
+  #browser .tagline { position: absolute; padding: 8px 14px; border-radius: 10px; background: var(--brass); color: #17130A; font-weight: 800; font-size: 22px; display: none; }
+
+  /* ── 도해 ── */
+  #diagram svg { position: absolute; left: 0; top: 0; width: 1920px; height: 896px; }
+  .dg text { font-family: var(--ui); fill: var(--ink); }
+  .dg .node rect { fill: var(--panel); stroke: var(--line2); stroke-width: 2; }
+  .dg .node.on rect { stroke: var(--brass); stroke-width: 4; fill: #211D12; }
+  .dg .node .t { font-size: 30px; font-weight: 800; }
+  .dg .node .s { font-size: 21px; fill: var(--ink2); font-weight: 500; }
+  .dg .node .m { font-family: var(--mono); font-size: 20px; fill: var(--brass); }
+  .dg .edge { fill: none; stroke: #4A505B; stroke-width: 3; }
+  .dg .edge.on { stroke: var(--brass); stroke-width: 5; }
+  .dg .elbl { font-size: 21px; fill: var(--ink3); font-weight: 600; paint-order: stroke; stroke: var(--bg); stroke-width: 10px; stroke-linejoin: round; }
+  .dg .elbl.on { fill: var(--brass); }
+  .dg .pulse { fill: var(--brass); }
+  .dg .pin { fill: #2B2F37; stroke: #4A505B; stroke-width: 1.5; }
+  .dg .pin.gnd { fill: #1E1F22; }
+  .dg .pin.v33 { fill: #5A2A22; } .dg .pin.v5 { fill: #6E2B22; } .dg .pin.gpio { fill: #22414F; }
+  .dg .pin.on { stroke: var(--brass); stroke-width: 4; }
+  .dg .wire { fill: none; stroke-width: 6; stroke-linecap: round; }
+  .dg .wire.off { opacity: .12; }
+  .dg .plbl { font-family: var(--mono); font-size: 17px; fill: var(--ink2); }
+  .dg .board { fill: #133B26; stroke: #2F6B47; stroke-width: 3; }
+  .dg .part { fill: var(--panel); stroke: var(--line2); stroke-width: 2; }
+  .dg .part.on { stroke: var(--brass); stroke-width: 4; }
+  .dg .note { font-size: 24px; fill: var(--ink2); font-weight: 600; }
+  .dg .dim { opacity: .25; }
+</style>
+</head>
+<body>
+<div id="root">
+  <div id="head"><span id="ep"></span><span id="eptitle"></span><div id="chapters"></div></div>
+  <div id="stage">
+    <div class="scene" id="title"><div class="wrap"><div class="kicker"></div><h1></h1><div class="sub"></div><div class="parts"></div></div></div>
+    <div class="scene" id="chapter"><div class="box"><div class="no"></div><div class="t"></div><div class="s"></div></div></div>
+    <div class="scene" id="card"><div class="wrap"></div></div>
+    <div class="scene" id="ide">
+      <div class="ex"><h4>탐색기</h4><div class="tree"></div></div>
+      <div class="center">
+        <div class="tabs"><div class="tab"><span class="name"></span><span class="path"></span></div></div>
+        <div class="editor"><div class="code"></div></div>
+        <div class="term"><div class="bar"><b>터미널</b><span class="tcwd"></span></div><div class="body"><div class="tlines"></div></div></div>
+      </div>
+      <div class="chat">
+        <div class="hd"><span class="dot"></span>AI 코딩 도우미<span class="role"></span></div>
+        <div class="msgs"><div class="in"></div></div>
+        <div class="inbox empty">AI에게 할 일을 적어 보세요…</div>
+      </div>
+    </div>
+    <div class="scene" id="browser">
+      <div class="win"><div class="chrome"><i></i><i></i><i></i><div class="url"></div></div><div class="view"><img alt=""></div></div>
+      <div class="bterm"><div class="bar">🍓 라즈베리파이 터미널 <span class="bcmd" style="margin-left:auto;font-family:var(--mono);font-size:14px;color:var(--ink3)"></span></div><div class="body"><div class="tlines"></div></div></div>
+      <div class="callout"></div><div class="tagline"></div>
+    </div>
+    <div class="scene" id="diagram"></div>
+  </div>
+  <div id="capband"><div id="prog"></div><div id="cap"></div></div>
+</div>
+
+<script src="diagrams.js"></script>
+<script src="timeline.js"></script>
+<script>
+"use strict";
+const TL = window.TL;
+const $ = (s, el = document) => el.querySelector(s);
+const esc = (s) => String(s).replace(/[&<>]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c]));
+// `코드` 표기만 지원하는 작은 마크업
+const inline = (s) => esc(s).replace(/`([^`]+)`/g, "<code>$1</code>");
+const clamp = (x, a, b) => Math.max(a, Math.min(b, x));
+
+// 머리띠: 장 목록
+$("#ep").textContent = TL.ep_label;
+$("#eptitle").textContent = TL.title;
+$("#chapters").innerHTML = TL.chapters.map((c, i) => `<span class="chip" data-i="${i}">${c.no} ${esc(c.short)}</span>`).join("");
+
+function sceneAt(t) {
+  for (const s of TL.scenes) if (t >= s.start && t < s.end) return s;
+  return TL.scenes[TL.scenes.length - 1];
+}
+function show(id) {
+  for (const el of document.querySelectorAll(".scene")) el.classList.toggle("on", el.id === id);
+}
+
+// ── 토큰 줄을 n 글자까지만 그린다 ──
+function tokHtml(toks, n) {
+  let out = "", left = n === undefined ? Infinity : n;
+  for (const [cls, text] of toks) {
+    if (left <= 0) break;
+    const part = text.length <= left ? text : text.slice(0, left);
+    left -= part.length;
+    out += cls ? `<span class="${cls}">${esc(part)}</span>` : esc(part);
+  }
+  return out;
+}
+const tokLen = (toks) => toks.reduce((a, [, x]) => a + x.length, 0);
+
+// ── 터미널 줄 그리기 ──
+function termHtml(lines) {
+  return lines.map((l) => {
+    if (l.cmd !== undefined) {
+      return `<div class="tl cmd"><span class="pr">${esc(l.prompt)}</span> ${esc(l.cmd)}${l.typing ? '<span class="cursor"></span>' : ""}</div>`;
+    }
+    return `<div class="tl ${l.cls || ""}">${esc(l.text) || "&nbsp;"}</div>`;
+  }).join("");
+}
+
+// 터미널 이벤트 하나가 t 에 보여 줄 줄들
+function termEventLines(ev, t) {
+  const out = [];
+  const dt = t - ev.start;
+  if (ev.cmd) {
+    const n = Math.floor(dt * ev.cps);
+    const typing = n < ev.cmd.length;
+    out.push({ prompt: ev.prompt, cmd: ev.cmd.slice(0, Math.min(n, ev.cmd.length)), typing });
+    if (typing) return out;
+  }
+  const t0 = ev.cmd ? ev.cmd.length / ev.cps + 0.35 : 0;
+  for (const l of ev.lines) if (dt >= t0 + l.at) out.push(l);
+  return out;
+}
+
+// ── IDE ──
+let lastTree = "";
+function renderIde(s, t) {
+  const evs = s.events.filter((e) => t >= e.start);
+  // 탐색기
+  const active = [...evs].reverse().find((e) => e.kind === "edit");
+  const touched = {};
+  for (const e of evs) if (e.kind === "edit") touched[e.file] = e.isNew ? "U" : "M";
+  const treeHtml = s.tree.map((n) => {
+    const on = active && n.path === active.file;
+    const badge = touched[n.path] ? `<span class="badge ${touched[n.path]}">${touched[n.path]}</span>` : "";
+    return `<div class="${n.dir ? "dir" : ""}${on ? " active" : ""}" style="--d:${n.depth}">${n.dir ? "▾ " : ""}${esc(n.name)}${badge}</div>`;
+  }).join("");
+  if (treeHtml !== lastTree) { $("#ide .tree").innerHTML = treeHtml; lastTree = treeHtml; }
+  $("#ide .chat .role").textContent = s.role || "";
+
+  // 편집기
+  let sig = "";
+  const code = $("#ide .code");
+  if (active) {
+    $("#ide .tab .name").textContent = active.file.split("/").pop();
+    $("#ide .tab .path").textContent = active.file;
+    $("#ide .tab").style.visibility = "visible";
+    const dt = t - active.start;
+    const total = active.addChars;
+    const shown = Math.floor(clamp(dt / active.reveal, 0, 1) * total);
+    let left = shown, html = "", focusRow = 0, row = 0, typingRow = -1;
+    for (const ln of active.lines) {
+      if (ln.type === "add") {
+        const L = tokLen(ln.toks) || 1;
+        if (left <= 0) { row++; continue; }
+        const part = Math.min(left, L);
+        left -= L;
+        const typing = part < L || (left <= 0 && shown < total);
+        if (typing) typingRow = row;
+        html += `<div class="ln add${ln.focus && dt > active.reveal ? " focus" : ""}"><span class="no">${ln.no ?? ""}</span><span class="sg">+</span><span class="tx">${tokHtml(ln.toks, part)}${typing ? '<span class="cursor"></span>' : ""}</span></div>`;
+        focusRow = row;
+      } else if (ln.type === "sep") {
+        html += `<div class="ln sep"><span class="no"></span><span class="sg"></span><span class="tx">${esc(ln.text)}</span></div>`;
+      } else {
+        const cls = ln.type === "del" ? "del" : "";
+        html += `<div class="ln ${cls}"><span class="no">${ln.no ?? ""}</span><span class="sg">${ln.type === "del" ? "-" : " "}</span><span class="tx">${tokHtml(ln.toks)}</span></div>`;
+      }
+      row++;
+    }
+    code.innerHTML = html;
+    // 보이는 줄 수에 맞춰 스크롤: 타이핑 중인 줄을 화면 2/3 지점에 둔다
+    const vis = Math.floor($("#ide .editor").clientHeight / 28);
+    const target = typingRow >= 0 ? typingRow : (dt > active.reveal ? 0 : focusRow);
+    const rows = code.children.length;
+    let top = 0;
+    if (rows > vis) top = clamp(target - Math.floor(vis * 0.62), 0, rows - vis);
+    if (dt > active.reveal && active.scrollTo !== undefined) top = clamp(active.scrollTo, 0, Math.max(0, rows - vis));
+    code.style.top = `${-top * 28}px`;
+    sig += `E${active.id}:${shown}:${top}`;
+  } else {
+    code.innerHTML = "";
+    $("#ide .tab").style.visibility = "hidden";
+  }
+
+  // 터미널 (장면 안의 모든 터미널 이벤트를 이어서 보여 준다)
+  const termEvs = evs.filter((e) => e.kind === "term");
+  const curTerm = termEvs[termEvs.length - 1];
+  const big = curTerm && (!active || curTerm.start > active.start);
+  $("#ide .term").style.height = big ? "600px" : "250px";
+  let tl = [];
+  for (const e of termEvs) tl = tl.concat(termEventLines(e, t));
+  $("#ide .tlines").innerHTML = termHtml(tl.slice(-60));
+  $("#ide .tcwd").textContent = curTerm ? curTerm.cwdLabel : "";
+  sig += `T${tl.length}:${tl.length ? (tl[tl.length - 1].cmd || "").length : 0}:${big}`;
+
+  // AI 대화
+  const msgs = [];
+  let inbox = "", inboxActive = false;
+  for (const e of evs) {
+    const dt = t - e.start;
+    if (e.kind === "prompt") {
+      const n = Math.floor(dt * e.cps);
+      if (n < e.text.length + 6) { inbox = e.text.slice(0, n); inboxActive = true; }
+      else msgs.push(`<div class="msg me"><span class="who">나</span>${inline(e.text)}</div>`);
+    } else if (e.kind === "reply") {
+      const n = Math.floor(dt * e.cps);
+      const done = n >= e.text.length;
+      const files = done && e.files ? `<div class="files">${e.files.map((f) => `<span>${esc(f)}</span>`).join("")}</div>` : "";
+      msgs.push(`<div class="msg ai"><span class="who">AI</span>${inline(e.text.slice(0, n))}${done ? "" : '<span class="cursor"></span>'}${files}</div>`);
+    }
+  }
+  $("#ide .msgs .in").innerHTML = msgs.join("");
+  const ib = $("#ide .inbox");
+  ib.classList.toggle("empty", !inboxActive);
+  ib.classList.toggle("active", inboxActive);
+  ib.innerHTML = inboxActive ? `${esc(inbox)}<span class="cursor"></span>` : "AI에게 할 일을 적어 보세요…";
+  sig += `C${msgs.length}:${inbox.length}:${$("#ide .msgs .in").textContent.length}`;
+  return sig;
+}
+
+// ── 브라우저 장면 ──
+function renderBrowser(s, t) {
+  const d = s.data;
+  const rt = d.from + (t - s.start) * d.speed;           // 녹화 속 시각
+  let fr = d.frames[0];
+  for (const f of d.frames) { if (f.t <= rt) fr = f; else break; }
+  const win = $("#browser .win"), view = $("#browser .view"), img = $("#browser .view img");
+  const split = !!d.term;
+  const W = split ? 1150 : 1840, H = 848;
+  win.style.left = (split ? 746 : 40) + "px"; win.style.top = "24px";
+  win.style.width = W + "px"; win.style.height = H + "px";
+  view.style.width = W + "px"; view.style.height = (H - 44) + "px";
+  $("#browser .url").textContent = d.url;
+  const [cx, cy, cw, ch] = d.crop;
+  const sc = Math.min(W / cw, (H - 44) / ch);
+  img.style.transform = `translate(${-cx * sc}px, ${-cy * sc}px) scale(${sc})`;
+  const src = d.dir + "/" + fr.file;
+  if (img.getAttribute("src") !== src) img.setAttribute("src", src);
+  const bt = $("#browser .bterm");
+  bt.style.display = split ? "block" : "none";
+  let n = 0;
+  if (split) {
+    const lines = d.term.lines.filter((l) => l.t <= rt);
+    n = lines.length;
+    $("#browser .bterm .tlines").innerHTML = termHtml([{ prompt: "pi $", cmd: d.term.command }].concat(lines).slice(-40));
+    $("#browser .bcmd").textContent = "";
+  }
+  // 강조 상자: 녹화 좌표 → 화면 좌표
+  const co = $("#browser .callout"), tg = $("#browser .tagline");
+  const hl = (d.highlights || []).find((h) => rt >= h.from && rt < h.to);
+  if (hl) {
+    const x = (split ? 746 : 40) + (hl.box[0] - cx) * sc, y = 24 + 44 + (hl.box[1] - cy) * sc;
+    co.style.display = "block";
+    Object.assign(co.style, { left: x + "px", top: y + "px", width: hl.box[2] * sc + "px", height: hl.box[3] * sc + "px" });
+    if (hl.label) { tg.style.display = "block"; tg.textContent = hl.label; tg.style.left = x + "px"; tg.style.top = (y - 52) + "px"; }
+    else tg.style.display = "none";
+  } else { co.style.display = "none"; tg.style.display = "none"; }
+  return `B${fr.file}:${n}:${hl ? hl.from : "-"}`;
+}
+
+// ── 카드 ──
+function renderCard(s, t) {
+  const d = s.data;
+  const k = s.events.filter((e) => t >= e.start).length;   // 지금까지 나온 항목 수
+  const items = d.items.map((it, i) => {
+    const vis = d.reveal === false || i < Math.max(1, k);
+    return `<div class="item${vis ? "" : " dim"}${it.warn ? " warn" : ""}"><span class="b">${esc(it.b ?? i + 1)}</span><span>${inline(it.text)}</span></div>`;
+  }).join("");
+  $("#card .wrap").innerHTML = `<h2>${esc(d.title)}</h2>${items}`;
+  return `K${s.id}:${k}`;
+}
+
+// ── 도해 ──
+function renderDiagram(s, t) {
+  const d = s.data;
+  const host = $("#diagram");
+  if (host.dataset.name !== d.name) { host.innerHTML = window.DIAGRAMS[d.name]; host.dataset.name = d.name; }
+  const evs = s.events.filter((e) => t >= e.start);
+  const cur = evs[evs.length - 1];
+  const on = new Set(cur ? cur.on || [] : []);
+  const dim = new Set(cur ? cur.dim || [] : []);
+  for (const el of host.querySelectorAll("[data-k]")) {
+    const keys = el.dataset.k.split(" ");
+    const isOn = keys.some((k) => on.has(k));
+    el.classList.toggle("on", isOn);
+    el.classList.toggle("dim", keys.some((k) => dim.has(k)) && !isOn);
+  }
+  // 흐름 점: 켜진 선 위를 움직인다
+  let sig = `D${d.name}:${cur ? cur.id : "-"}`;
+  const dots = host.querySelectorAll(".pulse");
+  for (const dot of dots) {
+    const path = host.querySelector(`#${dot.dataset.path}`);
+    const run = path && on.has(path.dataset.k.split(" ")[0]);
+    dot.style.display = run ? "block" : "none";
+    if (run) {
+      const L = path.getTotalLength();
+      const p = path.getPointAtLength(((t * 260) % L));
+      dot.setAttribute("cx", p.x); dot.setAttribute("cy", p.y);
+      sig += `:${Math.round(p.x)},${Math.round(p.y)}`;
+    }
+  }
+  return sig;
+}
+
+window.renderAt = async function (t) {
+  const s = sceneAt(t);
+  show(s.type === "chapter" ? "chapter" : s.type);
+  let sig = `${s.id}|`;
+  if (s.type === "title") {
+    $("#title .kicker").textContent = s.data.kicker;
+    $("#title h1").innerHTML = s.data.title.map(esc).join("<br>");
+    $("#title .sub").textContent = s.data.sub;
+    $("#title .parts").innerHTML = s.data.parts.map((p) => `<span>${esc(p)}</span>`).join("");
+  } else if (s.type === "chapter") {
+    $("#chapter .no").textContent = s.data.no;
+    $("#chapter .t").textContent = s.data.title;
+    $("#chapter .s").textContent = s.data.sub || "";
+  } else if (s.type === "ide") sig += renderIde(s, t);
+  else if (s.type === "browser") sig += renderBrowser(s, t);
+  else if (s.type === "card") sig += renderCard(s, t);
+  else if (s.type === "diagram") sig += renderDiagram(s, t);
+
+  // 장 표시
+  const ci = s.chapter ?? -1;
+  for (const chip of document.querySelectorAll(".chip")) {
+    const i = Number(chip.dataset.i);
+    chip.classList.toggle("on", i === ci);
+    chip.classList.toggle("done", i < ci);
+  }
+  // 자막
+  const c = TL.captions.find((x) => t >= x.start && t < x.end);
+  $("#cap").innerHTML = c ? inline(c.text) : "";
+  $("#prog").style.width = `${(t / TL.duration) * 1920}px`;
+  sig += `|${c ? c.start : "-"}|${Math.floor((t / TL.duration) * 1920)}`;
+
+  const img = $("#browser .view img");
+  if (s.type === "browser" && img.getAttribute("src")) { try { await img.decode(); } catch (e) { /* 다음 프레임에서 다시 */ } }
+  return sig;
+};
+</script>
+</body>
+</html>

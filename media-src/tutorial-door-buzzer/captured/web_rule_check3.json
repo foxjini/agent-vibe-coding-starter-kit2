@@ -1,0 +1,14 @@
+{
+ "id": "web_rule_check3",
+ "kind": "run",
+ "cwd": "backend",
+ "command": "curl -s localhost:8000/api/v1/devices/buzzer_1/desired-state -H \"X-Device-Api-Key: booth-demo-key-2026\"",
+ "exit": 0,
+ "stopped_by_ctrl_c": false,
+ "lines": [
+  {
+   "t": 0.02,
+   "text": "{\"data\":{\"device_id\":\"buzzer_1\",\"kind\":\"buzzer\",\"desired_state\":\"off\",\"value\":null,\"updated_at\":\"2026-10-31T05:11:58.479754Z\"}}"
+  }
+ ]
+}
