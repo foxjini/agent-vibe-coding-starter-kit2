@@ -1,0 +1,4 @@
+out/
+__pycache__/
+captured/screens/
+node_modules/

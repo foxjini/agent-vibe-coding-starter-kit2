@@ -1,0 +1,126 @@
+{
+ "id": "web_build1",
+ "kind": "run",
+ "cwd": "frontend",
+ "command": "npm run build",
+ "exit": 0,
+ "stopped_by_ctrl_c": false,
+ "lines": [
+  {
+   "t": 0.17,
+   "text": ""
+  },
+  {
+   "t": 0.17,
+   "text": "> frontend-temp@0.1.0 build"
+  },
+  {
+   "t": 0.17,
+   "text": "> next build"
+  },
+  {
+   "t": 0.17,
+   "text": ""
+  },
+  {
+   "t": 0.78,
+   "text": "▲ Next.js 16.3.4 (Turbopack)"
+  },
+  {
+   "t": 0.83,
+   "text": "✓ Running next.config.ts took 54ms"
+  },
+  {
+   "t": 0.85,
+   "text": ""
+  },
+  {
+   "t": 0.87,
+   "text": "  Creating an optimized production build ..."
+  },
+  {
+   "t": 7.63,
+   "text": "✓ Compiled successfully in 6.4s"
+  },
+  {
+   "t": 7.65,
+   "text": "  Running TypeScript ..."
+  },
+  {
+   "t": 11.2,
+   "text": "  Finished TypeScript in 3.6s ..."
+  },
+  {
+   "t": 11.2,
+   "text": "  Collecting page data using 3 workers ..."
+  },
+  {
+   "t": 11.69,
+   "text": "  Generating static pages using 3 workers (0/7) ..."
+  },
+  {
+   "t": 11.95,
+   "text": "  Generating static pages using 3 workers (1/7) "
+  },
+  {
+   "t": 12.02,
+   "text": "  Generating static pages using 3 workers (3/7) "
+  },
+  {
+   "t": 12.02,
+   "text": "  Generating static pages using 3 workers (5/7) "
+  },
+  {
+   "t": 12.02,
+   "text": "✓ Generating static pages using 3 workers (7/7) in 331ms"
+  },
+  {
+   "t": 12.02,
+   "text": "  Finalizing page optimization ..."
+  },
+  {
+   "t": 12.03,
+   "text": ""
+  },
+  {
+   "t": 12.03,
+   "text": "Route (app)"
+  },
+  {
+   "t": 12.03,
+   "text": "┌ ○ /"
+  },
+  {
+   "t": 12.03,
+   "text": "├ ○ /_not-found"
+  },
+  {
+   "t": 12.03,
+   "text": "├ ○ /admin"
+  },
+  {
+   "t": 12.03,
+   "text": "├ ○ /booth"
+  },
+  {
+   "t": 12.03,
+   "text": "└ ○ /try"
+  },
+  {
+   "t": 12.03,
+   "text": ""
+  },
+  {
+   "t": 12.03,
+   "text": ""
+  },
+  {
+   "t": 12.03,
+   "text": "○  (Static)  prerendered as static content"
+  },
+  {
+   "t": 12.03,
+   "text": ""
+  }
+ ]
+}

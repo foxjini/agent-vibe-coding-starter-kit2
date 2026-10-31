@@ -1,0 +1,198 @@
+{
+ "id": "pi_trial_pin17",
+ "kind": "run",
+ "cwd": "pi",
+ "command": "GPIOZERO_PIN_FACTORY=mock python main.py",
+ "exit": 1,
+ "stopped_by_ctrl_c": false,
+ "lines": [
+  {
+   "t": 0.12,
+   "text": "========================================================================"
+  },
+  {
+   "t": 0.12,
+   "text": "🎤 [라즈베리파이 5] 학교 노래방 부스 제어 데몬 — 실기기 모드"
+  },
+  {
+   "t": 0.12,
+   "text": "========================================================================"
+  },
+  {
+   "t": 0.12,
+   "text": "📍 백엔드 주소   : http://127.0.0.1:8000"
+  },
+  {
+   "t": 0.12,
+   "text": "🔑 출입증(API키) : booth-********"
+  },
+  {
+   "t": 0.12,
+   "text": "⏱️ 폴링 주기     : 2.0초"
+  },
+  {
+   "t": 0.12,
+   "text": "🔊 스피커        : browser  (부스 웹 화면이 소리를 냅니다)"
+  },
+  {
+   "t": 0.12,
+   "text": "🔌 GPIO 배치"
+  },
+  {
+   "t": 0.12,
+   "text": "  🚪 도어락        GPIO 17"
+  },
+  {
+   "t": 0.12,
+   "text": "  ⚡ 전원 릴레이    GPIO 27  (220V — 취급 주의)"
+  },
+  {
+   "t": 0.12,
+   "text": "  💡 조명 LED      GPIO 22"
+  },
+  {
+   "t": 0.12,
+   "text": "  🔔 경고 부저      GPIO 25"
+  },
+  {
+   "t": 0.12,
+   "text": "  👀 PIR 센서      GPIO 24"
+  },
+  {
+   "t": 0.12,
+   "text": "  🧲 문 열림 센서   GPIO 17"
+  },
+  {
+   "t": 0.12,
+   "text": "  🔢 키패드 행      GPIO [5, 6, 13, 19]"
+  },
+  {
+   "t": 0.12,
+   "text": "  🔢 키패드 열      GPIO [26, 16, 20, 21]"
+  },
+  {
+   "t": 0.12,
+   "text": "  🔌 릴레이 극성    RELAY_ACTIVE_HIGH=True"
+  },
+  {
+   "t": 0.12,
+   "text": "------------------------------------------------------------------------"
+  },
+  {
+   "t": 0.12,
+   "text": "종료하려면 Ctrl + C 를 누르세요."
+  },
+  {
+   "t": 0.12,
+   "text": "========================================================================"
+  },
+  {
+   "t": 0.13,
+   "text": "Traceback (most recent call last):"
+  },
+  {
+   "t": 0.13,
+   "text": "  File \"/tmp/claude-0/-home-user-agent-vibe-coding-starter-kit2/c56a821b-45bb-5bf9-af4c-bd47978a01ee/scratchpad/tut/pi/main.py\", line 564, in <module>"
+  },
+  {
+   "t": 0.13,
+   "text": "    main()"
+  },
+  {
+   "t": 0.13,
+   "text": "  File \"/tmp/claude-0/-home-user-agent-vibe-coding-starter-kit2/c56a821b-45bb-5bf9-af4c-bd47978a01ee/scratchpad/tut/pi/main.py\", line 441, in main"
+  },
+  {
+   "t": 0.13,
+   "text": "    hw = BoothHardware()"
+  },
+  {
+   "t": 0.13,
+   "text": "         ^^^^^^^^^^^^^^^"
+  },
+  {
+   "t": 0.13,
+   "text": "  File \"/tmp/claude-0/-home-user-agent-vibe-coding-starter-kit2/c56a821b-45bb-5bf9-af4c-bd47978a01ee/scratchpad/tut/pi/main.py\", line 132, in __init__"
+  },
+  {
+   "t": 0.13,
+   "text": "    self.door_sensor = Button(pins.DOOR_SENSOR_PIN, pull_up=True, bounce_time=0.1)"
+  },
+  {
+   "t": 0.13,
+   "text": "                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^"
+  },
+  {
+   "t": 0.13,
+   "text": "  File \"/tmp/claude-0/-home-user-agent-vibe-coding-starter-kit2/c56a821b-45bb-5bf9-af4c-bd47978a01ee/scratchpad/pivenv/lib/python3.11/site-packages/gpiozero/devices.py\", line 108, in __call__"
+  },
+  {
+   "t": 0.13,
+   "text": "    self = super().__call__(*args, **kwargs)"
+  },
+  {
+   "t": 0.13,
+   "text": "           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^"
+  },
+  {
+   "t": 0.13,
+   "text": "  File \"/tmp/claude-0/-home-user-agent-vibe-coding-starter-kit2/c56a821b-45bb-5bf9-af4c-bd47978a01ee/scratchpad/pivenv/lib/python3.11/site-packages/gpiozero/input_devices.py\", line 412, in __init__"
+  },
+  {
+   "t": 0.13,
+   "text": "    super().__init__("
+  },
+  {
+   "t": 0.13,
+   "text": "  File \"/tmp/claude-0/-home-user-agent-vibe-coding-starter-kit2/c56a821b-45bb-5bf9-af4c-bd47978a01ee/scratchpad/pivenv/lib/python3.11/site-packages/gpiozero/mixins.py\", line 417, in __init__"
+  },
+  {
+   "t": 0.13,
+   "text": "    super().__init__(*args, **kwargs)"
+  },
+  {
+   "t": 0.13,
+   "text": "  File \"/tmp/claude-0/-home-user-agent-vibe-coding-starter-kit2/c56a821b-45bb-5bf9-af4c-bd47978a01ee/scratchpad/pivenv/lib/python3.11/site-packages/gpiozero/input_devices.py\", line 162, in __init__"
+  },
+  {
+   "t": 0.13,
+   "text": "    super().__init__("
+  },
+  {
+   "t": 0.13,
+   "text": "  File \"/tmp/claude-0/-home-user-agent-vibe-coding-starter-kit2/c56a821b-45bb-5bf9-af4c-bd47978a01ee/scratchpad/pivenv/lib/python3.11/site-packages/gpiozero/mixins.py\", line 243, in __init__"
+  },
+  {
+   "t": 0.13,
+   "text": "    super().__init__(*args, **kwargs)"
+  },
+  {
+   "t": 0.13,
+   "text": "  File \"/tmp/claude-0/-home-user-agent-vibe-coding-starter-kit2/c56a821b-45bb-5bf9-af4c-bd47978a01ee/scratchpad/pivenv/lib/python3.11/site-packages/gpiozero/input_devices.py\", line 79, in __init__"
+  },
+  {
+   "t": 0.13,
+   "text": "    super().__init__(pin, pin_factory=pin_factory)"
+  },
+  {
+   "t": 0.13,
+   "text": "  File \"/tmp/claude-0/-home-user-agent-vibe-coding-starter-kit2/c56a821b-45bb-5bf9-af4c-bd47978a01ee/scratchpad/pivenv/lib/python3.11/site-packages/gpiozero/devices.py\", line 552, in __init__"
+  },
+  {
+   "t": 0.13,
+   "text": "    self.pin_factory.reserve_pins(self, pin)"
+  },
+  {
+   "t": 0.13,
+   "text": "  File \"/tmp/claude-0/-home-user-agent-vibe-coding-starter-kit2/c56a821b-45bb-5bf9-af4c-bd47978a01ee/scratchpad/pivenv/lib/python3.11/site-packages/gpiozero/pins/__init__.py\", line 88, in reserve_pins"
+  },
+  {
+   "t": 0.13,
+   "text": "    raise GPIOPinInUse("
+  },
+  {
+   "t": 0.13,
+   "text": "gpiozero.exc.GPIOPinInUse: pin GPIO17 is already in use by <gpiozero.OutputDevice object on pin GPIO17, active_high=True, is_active=False>"
+  }
+ ]
+}

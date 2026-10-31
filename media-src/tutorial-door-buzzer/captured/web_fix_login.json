@@ -1,0 +1,14 @@
+{
+ "id": "web_fix_login",
+ "kind": "run",
+ "cwd": "backend",
+ "command": "curl -s -X POST localhost:8000/api/admin/login -H \"Content-Type: application/json\" -d '{\"pin\":\"9179\"}'",
+ "exit": 0,
+ "stopped_by_ctrl_c": false,
+ "lines": [
+  {
+   "t": 0.01,
+   "text": "{\"data\":{\"token\":\"b2POlsFybp9f-Ae9-hrI7ZviSiX5jTGv2kUHslhlZZA\",\"expires_in\":3600}}"
+  }
+ ]
+}

@@ -1,0 +1,5 @@
+{
+ "id": "web_diff_f2",
+ "kind": "diff",
+ "patch": "diff --git a/frontend/hooks/useBoothData.ts b/frontend/hooks/useBoothData.ts\nindex 18748ea..b9bbbdf 100644\n--- a/frontend/hooks/useBoothData.ts\n+++ b/frontend/hooks/useBoothData.ts\n@@ -192,6 +192,13 @@ export function useBoothData() {\n               : d\n           )\n         );\n+      } else if (msg.type === \"sensor_reading\" && msg.device_id) {\n+        // 파이가 올린 센서 값(문 열림 센서 등)을 새로고침 없이 바로 반영한다\n+        setDevices((prev) =>\n+          prev.map((d) =>\n+            d.id === msg.device_id ? { ...d, current_state: \"reported\", current_value: msg.value } : d\n+          )\n+        );\n       } else if (msg.type === \"booth_auth\") {\n         const text = msg.message || (msg.success ? \"인증 성공!\" : \"인증 실패!\");\n         setLastEventMsg(text);\n"
+}

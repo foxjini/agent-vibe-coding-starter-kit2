@@ -1,0 +1,103 @@
+diff --git a/frontend/components/booth/VirtualBoothSimulator.tsx b/frontend/components/booth/VirtualBoothSimulator.tsx
+index cf51bdb..d3f49ba 100644
+--- a/frontend/components/booth/VirtualBoothSimulator.tsx
++++ b/frontend/components/booth/VirtualBoothSimulator.tsx
+@@ -17,6 +17,10 @@ import {
+   Play,
+   Pause,
+   SlidersHorizontal,
++  DoorOpen,
++  DoorClosed,
++  BellRing,
++  BellOff,
+ } from "lucide-react";
+ import { Device } from "@/types";
+ 
+@@ -61,6 +65,8 @@ export function VirtualBoothSimulator({
+   const led = devMap["led_1"] || { current_state: "off" };
+   const speaker = devMap["speaker_1"] || { current_state: "idle" };
+   const pir = devMap["pir_1"] || { current_state: "standby" };
++  const doorSensor = devMap["door_sensor_1"] || { current_value: 0 };
++  const buzzer = devMap["buzzer_1"] || { current_state: "off" };
+ 
+   const isDoorUnlocked = doorLock.current_state === "unlocked" || doorLock.current_state === "open";
+   const isPowerOn = relay.current_state === "on";
+@@ -68,6 +74,8 @@ export function VirtualBoothSimulator({
+   const isLedBlink = led.current_state === "blink";
+   const isSpeakerPlaying = speaker.current_state === "playing";
+   const isPersonDetected = pir.current_state === "detected";
++  const isDoorOpen = Number(doorSensor.current_value) === 1; // 파이가 1 = 열림, 0 = 닫힘으로 보고한다
++  const isBuzzerOn = buzzer.current_state === "on";
+ 
+   // 퇴실곡 미리 듣기 — 선생님이 음원 파일이 제대로 있는지 확인하는 용도다.
+   // 실제 이용 종료 때는 부스 화면이 튼다.
+@@ -119,7 +127,7 @@ export function VirtualBoothSimulator({
+                 가상 노래방 부스 실시간 물리 상태
+               </h3>
+               <p className="text-xs text-ink-3 mt-0.5">
+-                액추에이터 4종과 센서의 현재 상태입니다. Mock 모드에서는 누르는 대로 바로 바뀌고,
++                액추에이터 5종과 센서의 현재 상태입니다. Mock 모드에서는 누르는 대로 바로 바뀌고,
+                 라즈베리파이를 붙이면 파이가 보고한 실제 상태가 보입니다.
+               </p>
+             </div>
+@@ -128,7 +136,7 @@ export function VirtualBoothSimulator({
+ 
+           {/* Booth Visual Room Simulator */}
+           <div
+-            className={`relative w-full h-64 rounded-xl border-2 transition-all duration-500 flex flex-col justify-between p-6 overflow-hidden ${
++            className={`relative w-full h-72 rounded-xl border-2 transition-all duration-500 flex flex-col justify-between p-6 overflow-hidden ${
+               isPowerOn
+                 ? "bg-canvas border-free/50 shadow-2xl"
+                 : "bg-canvas/60 border-line"
+@@ -239,6 +247,31 @@ export function VirtualBoothSimulator({
+                 입장 감지 테스트
+               </button>
+             </div>
++
++            {/* 문 열림 센서 · 경고 부저 (실습으로 추가) */}
++            <div className="flex items-center justify-between text-xs">
++              <span className="flex items-center gap-2 text-ink-3">
++                {isDoorOpen ? (
++                  <DoorOpen className="w-4 h-4 text-live" />
++                ) : (
++                  <DoorClosed className="w-4 h-4 text-ink-3" />
++                )}
++                문 열림 센서:{" "}
++                <strong className={isDoorOpen ? "text-live" : "text-ink-3"}>
++                  {isDoorOpen ? "열림" : "닫힘"}
++                </strong>
++              </span>
++              <span
++                className={`flex items-center gap-1.5 px-2 py-0.5 rounded-full border ${
++                  isBuzzerOn
++                    ? "bg-live-soft border-live/50 text-live animate-pulse"
++                    : "bg-raised border-line text-ink-3"
++                }`}
++              >
++                {isBuzzerOn ? <BellRing className="w-3.5 h-3.5" /> : <BellOff className="w-3.5 h-3.5" />}
++                경고 부저 {isBuzzerOn ? "울림" : "꺼짐"}
++              </span>
++            </div>
+           </div>
+ 
+         </div>
+@@ -373,6 +406,19 @@ export function VirtualBoothSimulator({
+               <Volume2 className="w-4 h-4" />
+               스피커 테스트
+             </button>
++
++            <button
++              onClick={() => onDeviceControl("buzzer_1", isBuzzerOn ? "off" : "on")}
++              disabled={!isAdmin}
++              className={`col-span-2 p-3 rounded-xl border text-xs font-medium flex flex-col items-center gap-1.5 transition-all cursor-pointer ${
++                isBuzzerOn
++                  ? "bg-live-soft/40 border-live/50 text-live"
++                  : "bg-raised/50 border-line-strong text-ink-3 hover:text-ink"
++              }`}
++            >
++              {isBuzzerOn ? <BellOff className="w-4 h-4" /> : <BellRing className="w-4 h-4" />}
++              경고 부저 {isBuzzerOn ? "끄기" : "울리기"}
++            </button>
+           </div>
+ 
+           <p className="text-[11px] text-ink-3 leading-relaxed border-t border-line/80 pt-3">

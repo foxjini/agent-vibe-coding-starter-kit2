@@ -1,0 +1,14 @@
+{
+ "id": "web_trial_unknown",
+ "kind": "run",
+ "cwd": "backend",
+ "command": "curl -s -X POST localhost:8000/api/devices/buzzer_1/control -H \"X-Admin-Token: PEFS8tMvdrZrTlrBhtKpUY2PavDNeUFQDgmvIY7Bf9w\" -H \"Content-Type: application/json\" -d '{\"desired_state\":\"on\"}'",
+ "exit": 0,
+ "stopped_by_ctrl_c": false,
+ "lines": [
+  {
+   "t": 0.02,
+   "text": "{\"error\":{\"code\":\"DEVICE_NOT_FOUND\",\"message\":\"Unknown device_id: buzzer_1\"}}"
+  }
+ ]
+}

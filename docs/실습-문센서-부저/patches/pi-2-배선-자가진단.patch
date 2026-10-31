@@ -1,0 +1,106 @@
+diff --git a/pi/test_hardware_gpio.py b/pi/test_hardware_gpio.py
+index edb674a..9be05c5 100644
+--- a/pi/test_hardware_gpio.py
++++ b/pi/test_hardware_gpio.py
+@@ -34,7 +34,7 @@ print("=" * 65)
+ 
+ # 1. gpiozero 및 lgpio 라이브러리 로드 검증
+ try:
+-    from gpiozero import OutputDevice, LED, DigitalInputDevice
++    from gpiozero import OutputDevice, LED, DigitalInputDevice, Button, Buzzer
+     from gpiozero.pins.lgpio import LGPIOFactory
+     print("✅ [패키지 확인] gpiozero 및 lgpio 모듈이 정상적으로 로드되었습니다.")
+ except ImportError as e:
+@@ -64,11 +64,13 @@ from booth_pins import (
+     KEYPAD_ROW_PINS,
+     KEYPAD_COL_PINS,
+     RELAY_ACTIVE_HIGH,
++    BUZZER_PIN,
++    DOOR_SENSOR_PIN,
+ )
+ 
+ 
+ def test_door_lock():
+-    print(f"\n[1/5] 솔레노이드 도어락 릴레이 테스트 (GPIO {DOOR_LOCK_PIN})...")
++    print(f"\n[1/7] 솔레노이드 도어락 릴레이 테스트 (GPIO {DOOR_LOCK_PIN})...")
+     try:
+         door = OutputDevice(DOOR_LOCK_PIN, active_high=RELAY_ACTIVE_HIGH, initial_value=False)
+         print("  🚪 철컥! 도어락 해제 (HIGH - 부스 문 열림, 1.5초간 유지)...")
+@@ -83,7 +85,7 @@ def test_door_lock():
+ 
+ 
+ def test_power_relay():
+-    print(f"\n[2/5] 반주기/앰프 기기 전원 릴레이 테스트 (GPIO {RELAY_POWER_PIN})...")
++    print(f"\n[2/7] 반주기/앰프 기기 전원 릴레이 테스트 (GPIO {RELAY_POWER_PIN})...")
+     try:
+         relay = OutputDevice(RELAY_POWER_PIN, active_high=RELAY_ACTIVE_HIGH, initial_value=False)
+         print("  ⚡ 릴레이 작동! 노래방 반주기 전원 공급 (HIGH - 1.5초간 유지)...")
+@@ -98,7 +100,7 @@ def test_power_relay():
+ 
+ 
+ def test_booth_led():
+-    print(f"\n[3/5] 부스 실내 조명 LED 테스트 (GPIO {LED_PIN})...")
++    print(f"\n[3/7] 부스 실내 조명 LED 테스트 (GPIO {LED_PIN})...")
+     try:
+         led = LED(LED_PIN)
+         print("  💡 LED 켜짐 (1초 유지)...")
+@@ -114,7 +116,7 @@ def test_booth_led():
+ 
+ 
+ def test_pir_sensor():
+-    print(f"\n[4/5] PIR 인체감지 센서 읽기 테스트 (GPIO {PIR_PIN})...")
++    print(f"\n[4/7] PIR 인체감지 센서 읽기 테스트 (GPIO {PIR_PIN})...")
+     try:
+         pir = DigitalInputDevice(PIR_PIN)
+         state_str = "감지됨 (사람 있음) 🚶" if pir.is_active else "미감지 (빈 부스) 🈳"
+@@ -127,7 +129,7 @@ def test_pir_sensor():
+ 
+ 
+ def test_keypad_pins():
+-    print(f"\n[5/5] 4x4 매트릭스 키패드 핀 배선 점검...")
++    print(f"\n[5/7] 4x4 매트릭스 키패드 핀 배선 점검...")
+     print(f"  🔢 행(Row) 핀: GPIO {KEYPAD_ROW_PINS}")
+     print(f"  🔢 열(Col) 핀: GPIO {KEYPAD_COL_PINS}")
+     try:
+@@ -143,6 +145,32 @@ def test_keypad_pins():
+         print(f"  ⚠️ 키패드 핀 점검 경고: {e}")
+ 
+ 
++def test_door_sensor():
++    print(f"\n[6/7] 문 열림 센서(리드 스위치) 읽기 테스트 (GPIO {DOOR_SENSOR_PIN})...")
++    try:
++        door = Button(DOOR_SENSOR_PIN, pull_up=True)
++        state_str = "닫힘 (자석 붙음) 🚪" if door.is_pressed else "열림 (자석 떨어짐) 🚪💨"
++        print(f"  🧲 현재 문 상태: {state_str} (디지털 값: {door.value})")
++        print("  💡 (문을 열었다 닫으면 값이 0 ↔ 1 로 바뀌어야 합니다. 안 바뀌면 GND 선을 확인하세요)")
++        door.close()
++        print("  ✅ 문 열림 센서 읽기 완료")
++    except Exception as e:
++        print(f"  ⚠️ 문 열림 센서 테스트 실패: {e}")
++
++
++def test_buzzer():
++    print(f"\n[7/7] 경고 부저 테스트 (GPIO {BUZZER_PIN})...")
++    try:
++        buzzer = Buzzer(BUZZER_PIN)
++        print("  🔔 삐- 삐- 삐- (0.2초 간격 3번)...")
++        buzzer.beep(on_time=0.2, off_time=0.2, n=3, background=False)
++        buzzer.off()
++        buzzer.close()
++        print("  ✅ 경고 부저 테스트 완료")
++    except Exception as e:
++        print(f"  ⚠️ 부저 테스트 실패: {e}")
++
++
+ if __name__ == "__main__":
+     print(f"[*] GPIOZERO_PIN_FACTORY = {os.environ.get('GPIOZERO_PIN_FACTORY')}")
+     print(f"[*] RELAY_ACTIVE_HIGH     = {RELAY_ACTIVE_HIGH}"
+@@ -153,6 +181,8 @@ if __name__ == "__main__":
+     test_booth_led()
+     test_pir_sensor()
+     test_keypad_pins()
++    test_door_sensor()
++    test_buzzer()
+     print("\n" + "=" * 65)
+     print("🎉 노래방 부스 하드웨어 자가진단 항목을 모두 실행했습니다.")
+     print("통신 점검을 위해 'python 01_ping_backend.py'를 실행해 보세요!\n")
