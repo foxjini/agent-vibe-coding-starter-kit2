@@ -35,7 +35,7 @@ const out = opt('--out', path.join(work, 'video.mp4'));
 const total = Math.ceil(dur * fps);
 const ff = spawn('ffmpeg', ['-y', '-loglevel', 'error', '-f', 'image2pipe', '-framerate', String(fps), '-c:v', 'mjpeg', '-i', 'pipe:0',
   '-vf', 'fps=30,format=yuv420p', '-c:v', 'libx264', '-preset', 'slow', '-crf', '26', '-tune', 'animation',
-  '-g', '60', out], { stdio: ['pipe', 'inherit', 'inherit'] });
+  '-g', '300', out], { stdio: ['pipe', 'inherit', 'inherit'] });
 const write = (buf) => new Promise((res) => (ff.stdin.write(buf) ? res() : ff.stdin.once('drain', res)));
 
 let prevSig = null, prevBuf = null, shots = 0;
