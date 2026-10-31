@@ -519,7 +519,7 @@ def main():
         "ffmpeg", "-y", "-loglevel", "error", "-i", str(silent), "-i", str(wav),
         "-map", "0:v", "-map", "1:a", "-c:v", "copy",
         # 효과음만 있는 소리라 약 -23 LUFS 로 올리고, 부저·오류음이 튀지 않게 -3 dBFS 로 막는다
-        "-af", "volume=17dB,alimiter=limit=0.7079:level=0", "-c:a", "aac", "-b:a", "160k",
+        "-af", "volume=17dB,alimiter=limit=0.7079:level=0", "-c:a", "aac", "-b:a", "96k",
         "-shortest", "-movflags", "+faststart", str(final)], check=True)
     write_srt(ep, OUT / f"{name}.srt")
     print(f"[{a.ep}] → {final}")
