@@ -780,23 +780,55 @@ if device_id == "warning_lamp_1":
 
     <h4>④ 언제 켤지 정한다 — <code>pi/atm_controller.py</code></h4>
     <p>
-      부저를 켜는 <code>_warn()</code>이 좋은 본보기입니다. 그 옆에 같은 방식으로 부르면 됩니다.
+      경고등처럼 <strong>상태를 따라가는 장치</strong>는, 상태가 바뀌는 곳(QR · 상담원 해제 ·
+      직원 해제 · 자동 초기화)마다 켜고 끄는 코드를 흩어 놓으면 끄는 곳을 하나는 꼭 빠뜨립니다.
+      대신 <strong>"지금 켜져 있어야 하나?"를 한 함수에서 계산해 맞추고</strong>, 데몬이 0.5초마다
+      그 함수를 부르게 합니다.
     </p>
-    <div class="term"><pre>await self._provider.set_actuator_state(
-    "warning_lamp_1", "ON", operator="device"
-)</pre></div>
+    <div class="term"><pre><span class="cm"># pi/atm_controller.py — __init__ 에 self._lamp_state = "OFF" 를 먼저 둔다</span>
+async def sync_outputs(self) -> None:
+    wanted = "ON" if self.restricted else "OFF"   <span class="cm"># 지금 켜져 있어야 하나?</span>
+    if wanted == self._lamp_state:
+        return
+    await self._provider.set_actuator_state(<span class="hi">"warning_lamp_1"</span>, wanted, operator="device")
+    self._lamp_state = wanted
+
+<span class="cm"># pi/main.py — 0.5초마다 맞춘다 (lifespan에서 다른 루프처럼 create_task로 띄우고, 끝날 때 cancel)</span>
+async def _sync_outputs() -> None:
+    while not _stop.is_set():
+        await controller.sync_outputs()
+        await asyncio.sleep(0.5)</pre></div>
     <div class="note danger">
       <span class="note-title">켰으면 반드시 끄세요</span>
       <p>
         실제로 겪은 일입니다. 부저를 켜는 코드만 있고 끄는 코드가 없어서,
         실기기에서는 위험 QR을 한 번 읽는 순간부터 <strong>데몬을 끌 때까지 계속 울렸습니다.</strong>
-        Mock에서는 글자만 바뀌니 아무도 몰랐습니다. 켜는 코드를 쓸 때 끄는 코드를 같이 쓰세요.
+        Mock에서는 글자만 바뀌니 아무도 몰랐습니다. 경고등을 추가하는 시연 영상에서도 처음에는
+        켜는 코드만 써서, <strong>"해제하면 꺼진다"는 테스트가 잡아냈습니다.</strong> 위처럼 상태에
+        맞추는 함수 하나로 두면 끄는 길이 따로 없으니 빠뜨릴 수도 없습니다.
+        테스트도 <strong>켜지는 경우와 꺼지는 경우를 둘 다</strong> 쓰세요.
       </p>
     </div>
+
+    <h4>배선 — 경고등 (전원을 끄고)</h4>
+    <div class="table-scroll">
+      <table>
+        <thead><tr><th>LED 쪽</th><th>파이 쪽</th><th>주의</th></tr></thead>
+        <tbody>
+          <tr><td>긴 다리(+)</td><td>330Ω 저항 → <code>GPIO23</code> (물리 핀 16)</td><td>저항 없이 꽂으면 LED와 핀이 상한다</td></tr>
+          <tr><td>짧은 다리(−)</td><td><code>GND</code> (물리 핀 14)</td><td></td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p><code>.env</code>에 <code>LAMP_PIN=23</code>. 비워 두면 경고등 없이 동작합니다.</p>
 
     <h4>확인</h4>
     <div class="term"><pre>$ pytest                          <span class="cm"># PC에서 먼저 (Mock 경로)</span>
 $ python check_hardware.py        <span class="cm"># 파이에서 GPIO가 열리는지</span></pre></div>
+    <p>
+      그다음 데몬을 켜고 위험 QR을 비춰 <strong>LED가 켜지는지</strong>, 직원 해제 뒤
+      <strong>꺼지는지</strong>를 눈으로 확인합니다. 둘 중 하나라도 안 되면 다음 단계로 넘어가지 않습니다.
+    </p>
   </div>
 
   <div class="level">
@@ -813,22 +845,63 @@ $ python check_hardware.py        <span class="cm"># 파이에서 GPIO가 열리
     <div class="term"><pre><span class="cm"># backend/iot/hardware_provider.py — 지금 상태</span>
 async def read_sensor_value(self, device_id):
     return {"device_id": device_id, "value": None, "unit": None}</pre></div>
-    <p>센서를 붙인다면 레벨 3과 같은 순서에, 읽는 코드를 채워 넣습니다.</p>
-    <div class="term"><pre>async def read_sensor_value(self, device_id):
+    <p>
+      센서를 붙인다면 <strong>레벨 3과 같은 순서</strong>(① DB 등록 ② 실기기 ③ Mock ④ 언제 쓰나)로
+      채워 넣습니다. 예: 배출구 지폐 감지 센서 <code>bill_sensor_1</code>.
+    </p>
+    <div class="term"><pre><span class="cm"># backend/iot/hardware_provider.py — __init__ 안</span>
+from gpiozero import DigitalInputDevice
+bill_pin = os.getenv("BILL_SENSOR_PIN", "").strip()
+self._bill_sensor = DigitalInputDevice(int(bill_pin), pull_up=True) if bill_pin else None
+self._bill_seen = False
+if self._bill_sensor is not None:
+    self._bill_sensor.when_activated = self._on_bill_passed   <span class="cm"># 가려진 순간 불린다</span>
+
+def _on_bill_passed(self):
+    self._bill_seen = True              <span class="cm"># 지나간 적이 있다고 기억해 둔다</span>
+
+<span class="cm"># _dispense_once() 맨 앞에서 self._bill_seen = False 로 지운다</span>
+
+async def read_sensor_value(self, device_id):
     if device_id == "bill_sensor_1" and self._bill_sensor is not None:
-        return {
-            "device_id": device_id,
-            "value": <span class="hi">int(self._bill_sensor.is_active)</span>,
-            "unit": "detected",
-        }
+        return {"device_id": device_id, "value": <span class="hi">int(self._bill_seen)</span>, "unit": "detected"}
     return {"device_id": device_id, "value": None, "unit": None}</pre></div>
+    <div class="note danger">
+      <span class="note-title">센서의 '지금 값'(is_active)을 읽으면 지폐를 놓칩니다</span>
+      <p>
+        이 매뉴얼의 예전 예시는 <code>int(self._bill_sensor.is_active)</code>였습니다.
+        그런데 지폐는 게이트가 열린 1초 사이에 센서 앞을 <strong>지나가 버립니다.</strong>
+        배출이 끝난 뒤 지금 값을 읽으면 이미 지나간 뒤라 <code>0</code>이 나와서, 잘 나온 지폐도
+        "안 나왔다"고 판단합니다. 시연 영상에서 gpiozero의 가짜 핀(<code>MockFactory</code>)으로
+        지폐가 지나가는 상황을 흉내 내 보니 실제로 그랬습니다. 그래서
+        <strong>지나간 적이 있는지를 기억</strong>하게 바꿨습니다.
+      </p>
+    </div>
+
+    <h4>배선 — 지폐 감지 센서 (전원을 끄고)</h4>
+    <div class="table-scroll">
+      <table>
+        <thead><tr><th>센서 쪽 (FC-51 등)</th><th>파이 쪽</th><th>주의</th></tr></thead>
+        <tbody>
+          <tr><td><code>VCC</code></td><td><strong><code>3.3V</code> (물리 핀 1)</strong></td><td>5V에 물리면 OUT 신호도 5V가 되어 GPIO가 상한다</td></tr>
+          <tr><td><code>GND</code></td><td><code>GND</code> (물리 핀 20)</td><td></td></tr>
+          <tr><td><code>OUT</code></td><td><code>GPIO24</code> (물리 핀 18)</td><td>감지하면 LOW를 내는 모듈 기준 (<code>pull_up=True</code>)</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p>
+      <code>.env</code>에 <code>BILL_SENSOR_PIN=24</code>. 비워 두면 센서 없이 지금처럼 동작하게 만듭니다.
+      이런 모듈은 대부분 감지하면 보드 위 작은 LED가 켜집니다. 손을 대도 안 켜지면 배선부터,
+      켜지는데 멀리서도 반응하면 감도 나사를 돌려 거리를 맞춥니다.
+    </p>
     <div class="note">
       <span class="note-title">센서를 붙인다면 여기가 가장 값어치 있는 자리입니다</span>
       <p>
         지금 ATM은 <strong>서보가 실제로 돌았는지 확인하지 않습니다.</strong> 서보가 걸리거나
         전압이 떨어져 움직이지 않아도 화면에는 "배출했습니다"라고 뜹니다.
         배출구에 적외선 센서를 달아 <strong>지폐가 실제로 나왔는지</strong> 확인하면,
-        그 거짓말이 사라집니다. 전시 설명거리로도 좋습니다.
+        그 거짓말이 사라집니다. 안 나왔을 때는 "배출했습니다" 대신 직원을 부르는 안내를 띄우고,
+        직원이 확인할 때까지 다시 배출하지 않게 하세요. 전시 설명거리로도 좋습니다.
       </p>
     </div>
   </div>

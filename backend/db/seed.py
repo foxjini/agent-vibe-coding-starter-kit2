@@ -134,7 +134,7 @@ def seed() -> None:
     print("시연 데이터 생성 완료")
     print(f"  사용자 계정   : halmeoni / {password}")
     print(f"  상담원 계정   : callcenter / {password}  (role=agent)")
-    print("  채팅방 3개(정상 문자 1, 보이스피싱 문자 2)와 장치 3개를 등록했습니다.")
+    print(f"  채팅방 3개(정상 문자 1, 보이스피싱 문자 2)와 장치 {len(DEMO_DEVICES)}개를 등록했습니다.")
     if password == DEFAULT_SEED_PASSWORD:
         print("  [주의] 기본 비밀번호를 쓰고 있습니다. .env의 SEED_DEFAULT_PASSWORD로 바꾸세요.")
 
