@@ -81,7 +81,7 @@ export default function WakeupPage() {
       {/* 가장 최근 알림 한 줄 (전체 기록은 기타 탭) */}
       {latest && (
         <div
-          className={`flex h-10 shrink-0 items-center gap-2 border-b pl-4 text-sm ${
+          className={`flex h-11 shrink-0 items-center gap-2 border-b pl-4 text-sm ${
             NOTICE_STYLES[latest.level] ?? NOTICE_STYLES.info
           }`}
         >
@@ -91,7 +91,7 @@ export default function WakeupPage() {
             type="button"
             onClick={() => dismissNotice(latest.id)}
             aria-label="알림 닫기"
-            className="flex h-10 w-12 shrink-0 items-center justify-center opacity-70 active:opacity-100"
+            className="flex h-11 w-12 shrink-0 items-center justify-center opacity-70 active:opacity-100"
           >
             <X className="h-5 w-5" />
           </button>

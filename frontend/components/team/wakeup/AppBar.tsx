@@ -3,6 +3,7 @@
  */
 "use client";
 
+import { AlarmClock } from "lucide-react";
 import React from "react";
 
 import OverflowMenu from "@/components/team/wakeup/OverflowMenu";
@@ -28,8 +29,9 @@ export default function AppBar({
         alarmMode ? "border-rose-200 bg-rose-50" : "border-slate-200 bg-white"
       }`}
     >
-      <h1 className="min-w-0 flex-1 truncate text-lg font-semibold text-slate-900">
-        {alarmMode ? "⏰ 기상 미션 중" : title}
+      <h1 className="flex min-w-0 flex-1 items-center gap-2 text-lg font-semibold text-slate-900">
+        {alarmMode && <AlarmClock className="h-5 w-5 shrink-0 text-rose-600" aria-hidden="true" />}
+        <span className="truncate">{alarmMode ? "기상 미션 중" : title}</span>
       </h1>
       <span className="text-lg font-semibold tabular-nums text-slate-700">{hhmm(now)}</span>
       <span
