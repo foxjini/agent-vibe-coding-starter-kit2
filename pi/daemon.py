@@ -49,6 +49,7 @@ from backend_client import BackendClient          # noqa: E402
 from drivers import create_driver                 # noqa: E402
 from drivers.base import DriverError, SensorDriver  # noqa: E402
 from drivers.gpio import gpio_available, gpio_unavailable_reason  # noqa: E402
+from drivers.libcheck import check_libraries, on_raspberry_pi  # noqa: E402
 from slot_config import load_slot_map             # noqa: E402
 
 BACKEND_URL = os.getenv("BACKEND_URL", "http://localhost:8000")
@@ -267,7 +268,12 @@ def print_startup_report(slots: Dict[str, Dict[str, Any]], problems: List[str]) 
         print(" 하드웨어    : 실기기 GPIO")
     else:
         print(f" 하드웨어    : 흉내내기 모드 — {gpio_unavailable_reason()}")
-        print("               (PC에서는 정상입니다. 파이에서 이 메시지가 보이면 배선·권한을 확인하세요)")
+        if on_raspberry_pi():
+            print("               ⚠ 라즈베리파이인데 GPIO 라이브러리를 못 찾았습니다. 부품이 움직이지 않습니다.")
+            print("                 → sudo apt install -y python3-gpiozero python3-lgpio")
+            print("                 → venv를 python3 -m venv --system-site-packages venv 로 만들었는지 확인")
+        else:
+            print("               (PC에서는 정상입니다)")
 
     print(f"\n 배치표 슬롯 {len(slots)}개")
     for slot_id, config in sorted(slots.items()):
@@ -290,6 +296,8 @@ def main() -> int:
     args = parser.parse_args()
 
     slots, problems = load_slot_map()
+    # 실제 파이에서 네오픽셀·온습도 라이브러리를 미리 확인합니다 (PC에서는 빈 목록)
+    problems = problems + check_libraries(slots)
     print_startup_report(slots, problems)
 
     if not slots:

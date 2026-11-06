@@ -17,15 +17,21 @@ python-dotenv>=1.0.1
 # 아래는 해당 부품을 실제로 달았을 때만 설치하세요 (없어도 데몬은 동작합니다 —
 # 라이브러리가 없으면 그 슬롯만 흉내내기로 대체되고 프로그램은 멈추지 않습니다).
 #
-#   온습도 센서 (drivers/dht_in.py)
-#     pip install adafruit-circuitpython-dht
+#   ★ 가장 확실한 방법: 배치표에 부품을 적은 뒤 파이에서 `python daemon.py --check`
+#     → 없는 라이브러리와 설치 명령을 "고쳐야 할 것"에 그대로 보여 줍니다 (drivers/libcheck.py).
+#
+#   온습도 센서 (drivers/dht_in.py) — venv가 켜진 파이 터미널에서
+#     pip install adafruit-circuitpython-dht "gpiod>=2.2.2,<3"
 #
 #   네오픽셀 RGB 스트립 (drivers/neopixel_out.py) — 라즈베리파이 5 전용 방법 (sudo 불필요)
 #     ls -l /dev/pio0      # 없으면: sudo apt update && sudo apt full-upgrade -y
 #                          #         sudo rpi-eeprom-update -a && sudo reboot
-#     pip install adafruit-blinka adafruit-circuitpython-neopixel
+#     pip install adafruit-circuitpython-neopixel "gpiod>=2.2.2,<3"
 #     pip install --pre adafruit-blinka-raspberry-pi5-neopixel
 #     (파이 4까지 쓰던 rpi_ws281x / sudo 방식은 파이 5에서 동작하지 않습니다)
+#
+#   gpiod 2.x는 Adafruit Blinka(10.x)가 파이에서 핀을 다룰 때 요구합니다. 없으면
+#   `The platform library 'gpiod' was not found`가 나오고 그 부품은 움직이지 않습니다.
 #
 #   아날로그 센서용 ADC (drivers/analog_in.py) — gpiozero에 MCP3008이 포함되어
 #   있으므로 추가 설치가 필요 없습니다. SPI를 켜 주세요: sudo raspi-config

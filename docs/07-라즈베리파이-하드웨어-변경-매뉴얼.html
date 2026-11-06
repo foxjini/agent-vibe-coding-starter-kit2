@@ -1668,9 +1668,10 @@ python daemon.py</pre>
     },</pre></figure>
       <div class="note warn" style="margin-bottom:0">
         <span class="tag">추가 준비가 필요합니다</span>
-        <p>네오픽셀은 라즈베리파이 5 전용 라이브러리가 필요합니다 (venv에서 <code>pip install adafruit-blinka adafruit-circuitpython-neopixel</code>,
-           <code>pip install --pre adafruit-blinka-raspberry-pi5-neopixel</code> — <code>/dev/pio0</code>이 있어야 하고 sudo는 필요 없습니다).
-           준비가 안 되어 있으면 색만 로그로 보여 주고 넘어갑니다 — 프로그램은 죽지 않습니다.</p>
+        <p>네오픽셀은 라즈베리파이 5 전용 라이브러리가 필요합니다 (venv에서 <code>pip install adafruit-circuitpython-neopixel &quot;gpiod&gt;=2.2.2,&lt;3&quot;</code>,
+           이어서 <code>pip install --pre adafruit-blinka-raspberry-pi5-neopixel</code> — <code>/dev/pio0</code>이 있어야 하고 sudo는 필요 없습니다).
+           준비가 안 되어 있으면 색만 로그로 보여 주고 넘어갑니다 — 프로그램은 죽지 않습니다.
+           파이에서 <code>python daemon.py --check</code>를 돌리면 빠진 라이브러리와 설치 명령을 그대로 알려 줍니다.</p>
       </div>
     </article>
 
@@ -1763,7 +1764,7 @@ python daemon.py</pre>
         <dt>선택</dt><dd><code>measure</code> 기본 <code>"temperature"</code> (<code>"humidity"</code> 가능) · <code>model</code> 기본 <code>"DHT22"</code> · <code>interval</code> 기본 <code>5.0</code> · <code>decimals</code> 기본 <code>1</code></dd>
         <dt>배선</dt><dd class="wire">3핀 모듈: <code>+</code> → 3V3, <code>OUT</code>(DATA) → GPIO, <code>−</code> → GND.
           다리 4개짜리 단품이면 DATA와 VCC 사이에 10kΩ 저항을 하나 넣습니다(모듈에는 들어 있습니다).</dd>
-        <dt>설치</dt><dd class="wire">가상환경을 켠 상태에서 <code>pip install adafruit-circuitpython-dht</code>. 안 깔려 있으면 흉내낸 값을 보고합니다.</dd>
+        <dt>설치</dt><dd class="wire">가상환경을 켠 상태에서 <code>pip install adafruit-circuitpython-dht &quot;gpiod&gt;=2.2.2,&lt;3&quot;</code>. 안 깔려 있으면 흉내낸 값을 보고합니다 — 파이에서 <code>python daemon.py --check</code>가 빠진 것을 알려 줍니다.</dd>
       </dl>
       <figure class="code"><button class="copy" type="button">복사</button>
 <pre>    <span class="s">"sensor_02"</span>: {

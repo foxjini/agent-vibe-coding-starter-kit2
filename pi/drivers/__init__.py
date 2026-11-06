@@ -9,12 +9,13 @@ import logging
 import pkgutil
 from typing import Any, Dict, List
 
+from drivers import libcheck  # noqa: F401  — Blinka의 [Y/n] 설치 질문을 끕니다 (board를 부르기 전에)
 from drivers.base import ActuatorDriver, DriverError, SensorDriver, SlotDriver
 
 logger = logging.getLogger("pi.drivers")
 
 #: 로더가 드라이버로 취급하지 않는 파일들
-_NOT_DRIVERS = {"base", "gpio"}
+_NOT_DRIVERS = {"base", "gpio", "libcheck"}
 
 
 def available_drivers() -> List[str]:

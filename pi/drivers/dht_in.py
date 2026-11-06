@@ -20,6 +20,7 @@ import time
 from typing import Any, Dict, Optional
 
 from drivers.base import SensorDriver
+from drivers.libcheck import first_line, on_raspberry_pi
 
 logger = logging.getLogger("pi.drivers.dht_in")
 
@@ -41,14 +42,20 @@ class Driver(SensorDriver):
 
             pin = getattr(board, f"D{config['pin']}")
             model = str(config.get("model", "DHT22")).strip().upper()
-            self.sensor = (adafruit_dht.DHT11 if model == "DHT11" else adafruit_dht.DHT22)(pin)
+            # 파이 5에서 값이 계속 안 읽히면 배치표에 "use_pulseio": False 를 넣어 볼 수 있습니다
+            options = {"use_pulseio": bool(config["use_pulseio"])} if "use_pulseio" in config else {}
+            self.sensor = (adafruit_dht.DHT11 if model == "DHT11" else adafruit_dht.DHT22)(pin, **options)
             self.simulated = False
         except Exception as exc:
-            logger.info(
-                f"[{slot_id}] 온습도 라이브러리를 쓸 수 없어 흉내낸 값을 보고합니다 "
-                f"({type(exc).__name__}). 실기기에서는 "
-                "`pip install adafruit-circuitpython-dht`를 설치하세요."
-            )
+            if on_raspberry_pi():
+                logger.warning(
+                    f"[{slot_id}] 온습도 라이브러리를 쓸 수 없어 실제 센서 대신 흉내낸 값을 보고합니다 "
+                    f"— {first_line(exc)}  → 원인·설치 명령 확인: python daemon.py --check"
+                )
+            else:
+                logger.info(
+                    f"[{slot_id}] 온습도 라이브러리가 없어 흉내낸 값을 보고합니다 (PC에서는 정상)."
+                )
 
     def read(self) -> Optional[Any]:
         if self.sensor is None:
