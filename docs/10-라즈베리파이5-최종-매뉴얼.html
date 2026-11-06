@@ -453,8 +453,8 @@ git commit -m "[hardware] 경보 LED 추가 (GPIO 23)"</pre></div>
       <tr><td>서보 (SG90 등)</td><td>갈색 → GND, 빨강 → 5V, 주황 → GPIO</td><td>2개 이상이면 별도 5V</td></tr>
       <tr><td>진동·DC 모터</td><td>모터 드라이버/트랜지스터 모듈의 IN → GPIO</td><td><strong>모터를 GPIO에 직접 연결 금지</strong></td></tr>
       <tr><td>3색 LED (4다리)</td><td>R·G·B 각각 저항 → GPIO, 공통 → GND(캐소드) / 3V3(애노드)</td><td>애노드면 <code>"common_anode": True</code></td></tr>
-      <tr><td>네오픽셀 (WS2812)</td><td>DIN → <strong>330Ω</strong> → GPIO, 5V, GND (8알 넘거나 밝게 쓰면 별도 5V, GND 공통)</td><td>파이 5 전용 라이브러리를 venv에 설치: <code>pip install adafruit-blinka adafruit-circuitpython-neopixel</code> · <code>pip install --pre adafruit-blinka-raspberry-pi5-neopixel</code> (<code>ls /dev/pio0</code>이 있어야 함, sudo 불필요). 로그에 <code>로그로만 표시</code>가 나오면 설치 안 된 것</td></tr>
-      <tr><td>온습도 DHT22 (3핀)</td><td>+ → 3V3, OUT → GPIO, − → GND</td><td><code>pip install adafruit-circuitpython-dht</code> · <code>interval</code> 5초 이상</td></tr>
+      <tr><td>네오픽셀 (WS2812)</td><td>DIN → <strong>330Ω</strong> → GPIO, 5V, GND (8알 넘거나 밝게 쓰면 별도 5V, GND 공통)</td><td>파이 5 전용 라이브러리를 venv에 설치: <code>pip install adafruit-circuitpython-neopixel &quot;gpiod&gt;=2.2.2,&lt;3&quot;</code> → <code>pip install --pre adafruit-blinka-raspberry-pi5-neopixel</code> (<code>ls /dev/pio0</code>이 있어야 함, sudo 불필요). <strong>설치 뒤 <code>python daemon.py --check</code>에 "고쳐야 할 것"이 없으면 끝</strong></td></tr>
+      <tr><td>온습도 DHT22 (3핀)</td><td>+ → 3V3, OUT → GPIO, − → GND</td><td><code>pip install adafruit-circuitpython-dht &quot;gpiod&gt;=2.2.2,&lt;3&quot;</code> · <code>interval</code> 5초 이상 · 설치 뒤 <code>--check</code> 확인</td></tr>
       <tr><td>초음파 HC-SR04</td><td>VCC → 5V, GND, TRIG → GPIO, ECHO → <strong>1kΩ</strong> → GPIO (+ 그 GPIO에서 <strong>2kΩ</strong> → GND)</td><td><strong>ECHO 분압 필수</strong> (5V 신호)</td></tr>
       <tr><td>MCP3008 (아날로그 → 숫자 칩)</td><td>VDD·VREF → 3V3, AGND·DGND → GND, CLK → 물리 23, DOUT → 물리 21, DIN → 물리 19, CS → 물리 24</td><td><code>sudo raspi-config</code>에서 SPI 켜기 · 선생님과</td></tr>
       <tr><td>조도 센서 (CDS)</td><td>한쪽 다리 → 3V3, 다른 다리 → MCP3008 <code>CH0</code>, 그리고 <code>CH0</code>에서 <strong>10kΩ</strong> → GND</td><td>저항이 없으면 값이 안 변함 · 배치표에는 <code>"channel": 0</code></td></tr>
@@ -700,6 +700,9 @@ sensor_01의 푸시버튼을 정전식 터치센서 모듈(TTP223)로 바꿨어.
   <div class="tw"><table>
     <thead><tr><th style="width:44%">화면에 나온 말</th><th>고치는 법</th></tr></thead>
     <tbody>
+      <tr><td><code>라이브러리를 쓸 수 없어 실제 부품 대신 흉내내기로 돕니다</code> (네오픽셀·온습도)</td><td>같은 <code>--check</code> 화면 아래의 <code>설치 — …: pip install …</code> 줄을 <strong>그대로</strong> 실행 → 다시 <code>--check</code> → 데몬 다시 켜기. 흔한 원인: <code>The platform library 'gpiod' was not found</code></td></tr>
+      <tr><td><code>라즈베리파이인데 GPIO 라이브러리를 못 찾았습니다</code></td><td><code>sudo apt install -y python3-gpiozero python3-lgpio</code> · venv를 <code>python3 -m venv --system-site-packages venv</code>로 만들었는지 확인</td></tr>
+      <tr><td><code>Install them into the current Python environment? [Y/n]</code>에서 멈춤</td><td>예전 키트의 데몬입니다. <kbd>n</kbd> → 최신 <code>pi/drivers</code>로 바꾼 뒤 <code>--check</code>의 설치 명령을 씁니다</td></tr>
       <tr><td><code>'actuator_1'는 슬롯 이름이 아닙니다</code></td><td>두 자리·소문자로: <code>actuator_01</code></td></tr>
       <tr><td><code>드라이버 'led_out'을(를) 찾을 수 없습니다</code></td><td>9번 슬라이드의 이름으로 (대소문자까지 똑같이)</td></tr>
       <tr><td><code>sensor_02는 sensor 슬롯인데 드라이버 '…'은(는) actuator용입니다</code></td><td>슬롯 번호를 <code>actuator_NN</code>으로</td></tr>

@@ -19,6 +19,7 @@ import logging
 from typing import Any, Dict, Optional, Tuple
 
 from drivers.base import ActuatorDriver
+from drivers.libcheck import first_line, on_raspberry_pi
 
 logger = logging.getLogger("pi.drivers.neopixel_out")
 
@@ -67,12 +68,15 @@ class Driver(ActuatorDriver):
             self.strip = neopixel.NeoPixel(pin, self.count, auto_write=False)
             self.simulated = False
         except Exception as exc:
-            logger.info(
-                f"[{slot_id}] 네오픽셀 라이브러리를 쓸 수 없어 색을 로그로만 표시합니다 "
-                f"({type(exc).__name__}). 라즈베리파이 5에서는 venv에서 `pip install adafruit-blinka adafruit-circuitpython-neopixel` 과 "
-                "`pip install --pre adafruit-blinka-raspberry-pi5-neopixel` 을 설치하세요 "
-                "(/dev/pio0 이 있어야 합니다 — pi/requirements.txt 참고)."
-            )
+            if on_raspberry_pi():
+                logger.warning(
+                    f"[{slot_id}] 네오픽셀 라이브러리를 쓸 수 없어 실제 LED 대신 색을 로그로만 표시합니다 "
+                    f"— {first_line(exc)}  → 원인·설치 명령 확인: python daemon.py --check"
+                )
+            else:
+                logger.info(
+                    f"[{slot_id}] 네오픽셀 라이브러리가 없어 색을 로그로만 표시합니다 (PC에서는 정상)."
+                )
         self._state = "off"
 
     def apply(self, state: Optional[str], value: Any = None) -> str:
