@@ -248,6 +248,7 @@ body.all .deck-foot,body.all .more{display:none!important}
       <span class="chip"><b>넘기기</b> <kbd>←</kbd> <kbd>→</kbd> · 목차</span>
     </div>
     <p class="small">짝 매뉴얼: 라즈베리파이 담당은 <strong>10.1 wakeup 라즈베리파이 5 최종 매뉴얼</strong>을 봅니다. 두 사람이 4번 슬라이드(슬롯 약속표)를 함께 채웁니다.</p>
+    <div class="box"><b class="k">7인치 터치 화면</b><p>화면은 팀 PC에서 켜고, 파이의 7인치 모니터는 브라우저로 PC에 접속합니다 — <a href="#s21">21번</a>(켜기) · <a href="#s22">22번</a>(화면 구성·시나리오).</p></div>
     <div class="box ok"><b class="k">우리 팀 예시부터 보기</b><p>조도 센서 + SG90 서보(커튼)를 추가한 모의 작업을 <a href="#s19">19번</a> · <a href="#s20">20번</a> 슬라이드에 그대로 정리했습니다. 처음이면 이 예시를 따라 한 바퀴 돌아 봅니다.</p></div>
   </div>
 </section>
@@ -315,15 +316,17 @@ git bundle create ..\우리팀-백업.bundle --all   <span class="c"># 백업 �
 <!-- 4 ─────────────────────────────────────────── -->
 <section class="slide" data-title="슬롯 약속표">
   <p class="tag">STEP 2 · 파이 담당과 함께</p>
-  <h2>슬롯 약속표 — wakeup 팀 (★ = 모의 작업에서 추가)</h2>
+  <h2>슬롯 약속표 — wakeup 팀 (★ = 7인치 화면 버전에서 추가)</h2>
   <p class="lead">화면은 부품을 <strong>슬롯 이름</strong>(<code>actuator_01</code>)으로 부릅니다. 파이 담당이 슬롯을 바꾸면 화면이 엉뚱한 부품을 켭니다. 표를 팀 노션에 두고, 바뀔 때마다 같이 고칩니다.</p>
   <div class="tw"><table>
     <thead><tr><th>슬롯</th><th>부품</th><th>control_type / 단위</th><th>화면에서 쓰는 코드</th></tr></thead>
     <tbody>
       <tr><td class="nw"><code>actuator_01</code></td><td>피에조 부저</td><td><code>tonal</code></td><td><code>setActuator("actuator_01", "on", { frequency: 1000, volume: 80 })</code></td></tr>
-      <tr><td class="nw"><code>actuator_02</code> <strong style="color:var(--blue)">★ 추가</strong></td><td>SG90 서보 (커튼)</td><td><code>servo</code></td><td><code>setActuator("actuator_02", "move", { angle: 180 })</code></td></tr>
+      <tr><td class="nw"><code>actuator_02</code> <strong style="color:var(--blue)">★ 추가</strong></td><td>SG90 서보 (커튼)</td><td><code>servo</code></td><td><code>setActuator("actuator_02", "move", { angle: 180 })</code> 열기 · 0 닫기</td></tr>
+      <tr><td class="nw"><code>actuator_03</code> <strong style="color:var(--blue)">★ 추가</strong></td><td>SG90 서보 (모션 베드)</td><td><code>servo</code></td><td><code>setActuator("actuator_03", "move", { angle: 60 })</code> ↔ 0 (2초마다 흔들기)</td></tr>
+      <tr><td class="nw"><code>actuator_04</code> <strong style="color:var(--blue)">★ 추가</strong></td><td>네오픽셀 (조명)</td><td><code>rgb</code></td><td><code>setActuator("actuator_04", "on", { color: "#ffb45a", brightness: 70 })</code></td></tr>
       <tr><td class="nw"><code>sensor_01</code></td><td>푸시 버튼</td><td>—</td><td><code>onSensor("sensor_01", e =&gt; { if (e.pressed) … })</code></td></tr>
-      <tr><td class="nw"><code>sensor_02</code> <strong style="color:var(--blue)">★ 추가</strong></td><td>CDS 조도 센서 (MCP3008)</td><td><code>%</code></td><td><code>지금 값: slotOf("sensor_02")?.current_value  →  { value: 0~100 }</code></td></tr>
+      <tr><td class="nw"><code>sensor_02</code> <strong style="color:var(--blue)">★ 추가</strong></td><td>침대 압력 센서 FSR (MCP3008)</td><td><code>%</code></td><td><code>지금 값: slotOf("sensor_02")?.current_value  →  { value: 0~100 }</code> · 30 이상 = 누워 있음</td></tr>
       <tr><td>&nbsp;</td><td></td><td></td><td></td></tr>
     </tbody>
   </table></div>
@@ -338,7 +341,7 @@ git bundle create ..\우리팀-백업.bundle --all   <span class="c"># 백업 �
           <tr><td><code>tonal</code></td><td>"on"</td><td><code>{ frequency, volume }</code></td></tr>
           <tr><td><code>pwm</code></td><td>"on"</td><td><code>{ duty: 0~100 }</code></td></tr>
           <tr><td><code>servo</code></td><td><strong>"move"</strong></td><td><code>{ angle: 0~180 }</code></td></tr>
-          <tr><td><code>rgb</code></td><td>"on"</td><td><code>{ r, g, b }</code> (0~255)</td></tr>
+          <tr><td><code>rgb</code></td><td>"on"</td><td><code>{ r, g, b }</code> (0~255) 또는 <code>{ color: "#rrggbb", brightness: 0~100 }</code></td></tr>
           <tr><td><code>level</code></td><td>"on"</td><td><code>{ level: 0~N }</code></td></tr>
         </tbody>
       </table></div>
@@ -357,7 +360,9 @@ git bundle create ..\우리팀-백업.bundle --all   <span class="c"># 백업 �
   buzzer: "actuator_01",
   button: "sensor_01",
   curtain: "actuator_02",   // ★ 커튼 서보
-  light: "sensor_02",       // ★ 방 밝기
+  bed: "actuator_03",       // ★ 모션 베드 서보
+  light: "actuator_04",     // ★ 네오픽셀 조명
+  pressure: "sensor_02",    // ★ 침대 압력 센서
 } as const;</pre></div>
       <p class="small">슬롯이 바뀌면 이 상수만 고칩니다. 표에 없는 부품을 달면 빈 줄에 적고 상수에도 한 줄 추가.</p>
     </div>
@@ -397,7 +402,7 @@ NEXT_PUBLIC_TEAM_TAGLINE=미션을 끝내야 알람이 꺼집니다</pre></div>
     <div class="box"><b class="k">바꾼 뒤</b><p><code>npm run dev</code> 창에서 <kbd>Ctrl</kbd>+<kbd>C</kbd> → 다시 <code>npm run dev</code>. <code>NEXT_PUBLIC_</code> 값은 개발 서버를 다시 켜야 반영됩니다.</p>
     <p class="small">wakeup 팀 미션 난이도(<code>NEXT_PUBLIC_MISSION_*</code>)도 같은 파일에서 바꿉니다.</p></div>
   </div>
-  <div class="box ok"><b class="k">wakeup 팀 화면은 두 곳</b><p>완성된 본보기 <code>/wakeup</code> (<code>frontend/app/wakeup/page.tsx</code>) — 모의 작업은 여기를 고쳤습니다. <code>/</code>를 우리 화면으로 쓰려면 <code>copy frontend\app\wakeup\page.tsx frontend\app\page.tsx</code> (되돌리기 <code>git checkout -- frontend/app/page.tsx</code>).</p><p class="small">이 화면의 <strong>팀 이름</strong>은 <code>.env.local</code>을 따르지만, 그 아래 <strong>소개 문구</strong>는 <code>frontend/app/wakeup/page.tsx</code> 머리말(<code>&lt;header&gt;</code>)의 <code>&lt;p&gt;</code>에 직접 적혀 있습니다 — 바꾸려면 그 줄을 고칩니다.</p></div>
+  <div class="box ok"><b class="k">wakeup 팀 화면은 두 곳</b><p>완성된 본보기 <code>/wakeup</code> (<code>frontend/app/wakeup/page.tsx</code>) — 모의 작업은 여기를 고쳤습니다. <code>/</code>를 우리 화면으로 쓰려면 <code>copy frontend\app\wakeup\page.tsx frontend\app\page.tsx</code> (되돌리기 <code>git checkout -- frontend/app/page.tsx</code>).</p><p class="small"><code>/wakeup</code>은 <strong>7인치 터치 화면(800×480)용 앱 화면</strong>입니다 — 상단 바의 <strong>팀 이름</strong>은 <code>.env.local</code>을 따르고, 소개 문구는 없습니다. 화면 조각은 <code>frontend/components/team/wakeup/</code>에 있습니다 (<a href="#s21">21번</a> · <a href="#s22">22번</a> 슬라이드).</p></div>
 </section>
 
 <!-- 6 ─────────────────────────────────────────── -->
@@ -684,7 +689,7 @@ Invoke-RestMethod -Method Post -Uri $url -Headers $h -ContentType "application/j
       </ul>
       <h3>화면</h3>
       <ul class="check">
-        <li><input type="checkbox" id="e5"><label for="e5">머리말이 우리 팀 이름이다 (<code>.env.local</code>) · 소개 문구도 우리 팀 것이다 (<code>app/wakeup/page.tsx</code>)</label></li>
+        <li><input type="checkbox" id="e5"><label for="e5">상단 바가 우리 팀 이름이다 (<code>.env.local</code>) · 파이의 7인치 화면에서 상단 바 점이 초록 <strong>연결됨</strong>이다</label></li>
         <li><input type="checkbox" id="e6"><label for="e6">3m 떨어져서 3초 안에 지금 상태가 읽힌다</label></li>
         <li><input type="checkbox" id="e7"><label for="e7">전시에 쓸 화면 크기(노트북·패드)에서 가로 스크롤이 없다</label></li>
         <li><input type="checkbox" id="e8"><label for="e8">"우리 팀 시나리오를 여기에" 안내 카드를 지웠다</label></li>
@@ -700,7 +705,7 @@ Invoke-RestMethod -Method Post -Uri $url -Headers $h -ContentType "application/j
       </ul>
       <div class="box ok"><b class="k">당일 아침 명령</b>
         <p><code>cd backend; .\venv\Scripts\Activate.ps1; uvicorn main:app --host 0.0.0.0 --port 8000</code><br>
-        <code>cd frontend; npm run dev</code> → <code>http://localhost:3000</code></p></div>
+        <code>cd frontend; npm run start</code> (고친 뒤 처음이면 먼저 <code>npm run build</code>) → 파이 7인치 화면에서 <code>http://&lt;PC IP&gt;:3000/wakeup</code> (<a href="#s21">21번</a>)</p></div>
     </div>
   </div>
 </section>
@@ -782,6 +787,7 @@ Invoke-RestMethod -Method Post -Uri $url -Headers $h -ContentType "application/j
 <section class="slide" data-title="우리 팀 예시 ① 요청">
   <p class="tag">TEAM EXAMPLE · WAKEUP</p>
   <h2>우리 팀 예시 ① — 조도 센서 + SG90 서보(커튼) 추가를 AI에게 요청하기</h2>
+  <div class="box warn"><b class="k">연습용 예시입니다</b><p>실제 팀 구성은 <a href="#s4">4번 슬라이드</a>의 약속표입니다 — <code>sensor_02</code>는 이제 <strong>침대 압력 센서</strong>이고, 커튼·모션 베드·조명은 이미 배치표와 화면에 들어 있습니다. 이 예시는 "부품 하나 추가" 순서를 익히는 데만 씁니다.</p></div>
   <p class="lead">파이 담당이 아래 두 부품을 달았다고 보고 매뉴얼 순서대로 진행한 <strong>모의 작업</strong>입니다. 결과: 알람 울리기 → <code>actuator_02</code>에 move / 180° 명령 · <code>sensor_02</code>에 35 → 카드 35 % · eslint·빌드 통과.</p>
   <div class="grid g2">
     <div>
@@ -820,6 +826,7 @@ Invoke-RestMethod -Method Post -Uri $url -Headers $h -ContentType "application/j
 <section class="slide" data-title="우리 팀 예시 ② 확인">
   <p class="tag">TEAM EXAMPLE · WAKEUP</p>
   <h2>우리 팀 예시 ② — 넣고, 파이 없이 시험하고, 커밋하기</h2>
+  <div class="box warn"><b class="k">연습용 예시입니다</b><p>실제 팀 구성은 <a href="#s4">4번 슬라이드</a>의 약속표입니다 — <code>sensor_02</code>는 이제 <strong>침대 압력 센서</strong>이고, 커튼·모션 베드·조명은 이미 배치표와 화면에 들어 있습니다. 이 예시는 "부품 하나 추가" 순서를 익히는 데만 씁니다.</p></div>
   <div class="grid g2">
     <div>
       <h3>4. AI가 만든 핵심 코드 (이렇게 생겼으면 맞음)</h3>
@@ -856,6 +863,90 @@ git commit -m "[frontend] 조도 센서 + SG90 서보(커튼) 화면·동작 추
     </div>
   </div>
 </section>
+
+<!-- 21 ─────────────────────────────────────────── -->
+<section class="slide" data-title="7인치 화면 켜기">
+  <p class="tag">7-INCH TOUCH · 전시 구성</p>
+  <h2>7인치 터치 화면 — PC에서 켜고, 파이 브라우저로 보기</h2>
+  <p class="lead">화면(Next.js)은 <strong>팀 PC</strong>에서 실행하고, 라즈베리파이의 7인치 터치모니터(800×480)는 브라우저로 PC에 접속합니다. 파이에서 <code>localhost</code>는 <strong>파이 자신</strong>이므로 주소는 모두 <strong>PC IP</strong>로 적습니다. (아래 <code>192.168.0.10</code>은 예시)</p>
+  <div class="grid g2">
+    <div>
+      <h3>PC — 한 번만 설정</h3>
+      <ol class="small">
+        <li>PC IP 확인: PowerShell에서 <code>ipconfig</code> → <strong>IPv4 주소</strong></li>
+        <li><code>frontend/.env.local</code> 두 줄을 PC IP로 바꿉니다
+          <div class="cmd"><div class="cmd-h"><span class="where">frontend/.env.local</span><button class="copy" type="button">복사</button></div>
+<pre>NEXT_PUBLIC_API_BASE_URL=http://192.168.0.10:8000
+NEXT_PUBLIC_WS_URL=ws://192.168.0.10:8000/ws</pre></div></li>
+        <li><code>backend/.env</code>의 허용 주소에 PC IP를 <strong>덧붙이고</strong> 백엔드를 다시 켭니다
+          <div class="cmd"><div class="cmd-h"><span class="where">backend/.env</span><button class="copy" type="button">복사</button></div>
+<pre>CORS_ALLOW_ORIGINS=http://localhost:3000,http://127.0.0.1:3000,http://192.168.0.10:3000</pre></div></li>
+        <li>Windows 방화벽: 처음 켤 때 뜨는 창에서 <strong>허용</strong>. 창이 안 떴는데 파이에서 안 열리면 <strong>관리자</strong> PowerShell에서
+          <div class="cmd"><div class="cmd-h"><span class="where">관리자 PowerShell · 한 번만</span><button class="copy" type="button">복사</button></div>
+<pre>New-NetFirewallRule -DisplayName "IoT 3000 8000" -Direction Inbound -Protocol TCP -LocalPort 3000,8000 -Action Allow</pre></div></li>
+      </ol>
+    </div>
+    <div>
+      <h3>PC — 매번 켜기 (배포 모드)</h3>
+      <div class="cmd"><div class="cmd-h"><span class="where">PC · PowerShell · 저장소 맨 위</span><button class="copy" type="button">복사</button></div>
+<pre>cd frontend
+npm run build
+npm run start</pre></div>
+      <div class="box warn"><b class="k"><code>npm run dev</code>는 쓰지 않습니다</b><p>Next.js 16 개발 서버는 다른 기기(파이)에서 들어온 접속을 막습니다. <code>npm run start</code>는 모든 주소에서 받습니다. <code>.env.local</code>이나 코드를 고쳤으면 <strong>다시 <code>npm run build</code></strong> — <code>NEXT_PUBLIC_</code> 값은 build 때 들어갑니다.</p></div>
+      <h3>파이 — 7인치 화면에 띄우기</h3>
+      <div class="cmd"><div class="cmd-h"><span class="where">파이 데스크톱의 터미널 (SSH 창 아님)</span><button class="copy" type="button">복사</button></div>
+<pre>chromium-browser --kiosk --noerrdialogs http://192.168.0.10:3000/wakeup</pre></div>
+      <p class="small">명령이 없다고 나오면 <code>chromium</code>으로. 전체 화면에서 나오기: 키보드 <kbd>Alt</kbd>+<kbd>F4</kbd>. 자동 실행은 10.1 매뉴얼 마지막 슬라이드를 봅니다.</p>
+      <div class="box ok"><b class="k">확인</b><p>상단 바 오른쪽 점이 초록 <strong>연결됨</strong>. 회색 <strong>연결 대기</strong>면 ① <code>.env.local</code>의 WS 주소 → build 다시 ② <code>CORS_ALLOW_ORIGINS</code> ③ 방화벽 순서로 봅니다. 화면이 아예 안 열리면 ③ 방화벽, 같은 공유기(와이파이)인지.</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- 22 ─────────────────────────────────────────── -->
+<section class="slide" data-title="7인치 화면 구성·시나리오">
+  <p class="tag">7-INCH TOUCH · 화면과 동작</p>
+  <h2>7인치 화면 구성과 침실 장치 시나리오</h2>
+  <div class="grid g2">
+    <div>
+      <h3>화면 구성 — 모바일 앱처럼</h3>
+      <div class="tw"><table>
+        <thead><tr><th>부분</th><th>내용</th></tr></thead>
+        <tbody>
+          <tr><td class="nw">상단 바</td><td>팀 이름 · 시각 · 연결 점 · <strong>⋮ 메뉴</strong>(하드웨어·규칙 설정 <code>/kit</code>, 알람 테스트, 전체 화면, 새로 고침)</td></tr>
+          <tr><td class="nw">하단 탭 5개</td><td><strong>홈</strong>(큰 시계 · 다음 알람 · 침대/조명/커튼) · <strong>예약</strong>(시·분 버튼, 06:00~08:00 빠른 선택) · <strong>센서</strong>(압력 막대와 기준선) · <strong>제어</strong>(부저·커튼·베드·조명 타일 + <strong>모두 끄기</strong> 버튼) · <strong>기타</strong>(영상인식 로그·알림·설정값)</td></tr>
+          <tr><td class="nw">알람 중</td><td>탭이 사라지고 홈이 <strong>미션 화면</strong>으로: 미션 카드 · 수행 상태(조명·커튼·베드·침대) · 큰 <strong>알람 끄기</strong></td></tr>
+        </tbody>
+      </table></div>
+      <h3>고치는 파일</h3>
+      <ul class="small">
+        <li><code>frontend/components/team/wakeup/</code> — 탭 화면 조각 (<code>HomeScreen.tsx</code> 등)</li>
+        <li><code>frontend/scenarios/useWakeup.ts</code> — <code>WAKEUP_SLOTS</code>, 조명·커튼·베드 동작</li>
+        <li><code>frontend/scenarios/wakeupEngine.ts</code> — 판정과 기본값 (<code>bedShouldShake</code>)</li>
+      </ul>
+    </div>
+    <div>
+      <h3>시나리오</h3>
+      <ol class="small">
+        <li>알람(예약 또는 알람 테스트) → 미션 시작 → <strong>조명 켜기 + 커튼 180°</strong></li>
+        <li>미션 중 압력이 <strong>기준(30) 이상</strong> → 모션 베드 0° ↔ 60°를 <strong>2초마다</strong></li>
+        <li>압력이 기준 아래 · 미션 성공 · 알람 끄기 → 베드 0° (조명·커튼은 그대로)</li>
+        <li>성공 25초 뒤 기상 확인 팝업 → 15초 안에 안 누르면 다시 알람 → 1로</li>
+      </ol>
+      <p class="small">부품이 배치표에 아직 없으면 그 명령은 보내지 않습니다 (홈·제어 화면에 "배치표에 없음").</p>
+      <h3>값 바꾸기 — <code>frontend/.env.local</code> (선택)</h3>
+      <div class="cmd"><div class="cmd-h"><span class="where">frontend/.env.local · 바꾼 뒤 npm run build</span><button class="copy" type="button">복사</button></div>
+<pre>NEXT_PUBLIC_WAKEUP_BED_PRESSURE=30
+NEXT_PUBLIC_WAKEUP_BED_ANGLE=60
+NEXT_PUBLIC_WAKEUP_BED_SHAKE_SECONDS=2
+NEXT_PUBLIC_WAKEUP_CURTAIN_OPEN_ANGLE=180
+NEXT_PUBLIC_WAKEUP_CURTAIN_CLOSE_ANGLE=0
+NEXT_PUBLIC_WAKEUP_LIGHT_COLOR=#ffb45a
+NEXT_PUBLIC_WAKEUP_LIGHT_BRIGHTNESS=70</pre></div>
+      <div class="box"><b class="k">파이 없이 시험</b><p><a href="#s13">13번</a> 슬라이드의 가짜 입력으로 <code>sensor_02</code>에 <code>{"value":60}</code> → ⋮ → 알람 테스트 → 홈에 <strong>모션 베드 흔드는 중</strong>, <code>/kit</code>의 베드 카드가 0 ↔ 60으로 바뀌면 성공. <code>{"value":10}</code>을 보내면 멈춤.</p></div>
+    </div>
+  </div>
+</section>
+
 
   </div><!-- /viewport -->
 

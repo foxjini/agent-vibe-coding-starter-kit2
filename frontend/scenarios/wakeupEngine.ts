@@ -587,3 +587,71 @@ export function configFromEnv(
     ),
   };
 }
+
+// ============================================================================
+// 침실 장치 — 조명 · 커튼 · 모션 베드 (7인치 터치 화면 버전에서 추가)
+// ============================================================================
+// 미션이 시작되면 조명을 켜고 커튼을 엽니다. 미션 중에 침대 압력이 기준 이상이면
+// (= 아직 누워 있으면) 모션 베드를 0°와 설정 각도 사이로 흔듭니다.
+// 판정은 여기(React 없음), 실제 명령은 useWakeup.ts가 보냅니다.
+
+export interface DeviceConfig {
+  /** 침대 압력이 이 값 이상이면 "아직 누워 있음" (압력 센서가 보고하는 단위 그대로, 기본 %) */
+  bedPressureThreshold: number;
+  /** 모션 베드를 흔들 때 올리는 각도 (0~180) */
+  bedAngle: number;
+  /** 흔드는 간격(초) — 0°와 bedAngle을 이 간격으로 오갑니다 */
+  bedShakeSeconds: number;
+  /** 커튼 서보 — 열림·닫힘 각도 (0~180) */
+  curtainOpenAngle: number;
+  curtainCloseAngle: number;
+  /** 미션 시작 때 켤 조명 색 (#RRGGBB)과 밝기 (0~100) */
+  lightColor: string;
+  lightBrightness: number;
+}
+
+export const DEFAULT_DEVICE_CONFIG: DeviceConfig = {
+  bedPressureThreshold: 30,
+  bedAngle: 60,
+  bedShakeSeconds: 2,
+  curtainOpenAngle: 180,
+  curtainCloseAngle: 0,
+  lightColor: "#ffb45a",
+  lightBrightness: 70,
+};
+
+/** .env의 NEXT_PUBLIC_WAKEUP_* 값으로 장치 설정을 만듭니다 (없거나 이상하면 기본값). */
+export function deviceConfigFromEnv(
+  env: Record<string, string | undefined> = {}
+): DeviceConfig {
+  const num = (key: string, fallback: number, min: number, max: number) => {
+    const text = String(env[key] ?? "").trim();
+    const raw = Number(text);
+    return text !== "" && Number.isFinite(raw) ? Math.max(min, Math.min(max, raw)) : fallback;
+  };
+  const color = String(env.NEXT_PUBLIC_WAKEUP_LIGHT_COLOR ?? "").trim();
+  const d = DEFAULT_DEVICE_CONFIG;
+  return {
+    bedPressureThreshold: num("NEXT_PUBLIC_WAKEUP_BED_PRESSURE", d.bedPressureThreshold, 0, 100000),
+    bedAngle: num("NEXT_PUBLIC_WAKEUP_BED_ANGLE", d.bedAngle, 1, 180),
+    bedShakeSeconds: num("NEXT_PUBLIC_WAKEUP_BED_SHAKE_SECONDS", d.bedShakeSeconds, 1, 30),
+    curtainOpenAngle: num("NEXT_PUBLIC_WAKEUP_CURTAIN_OPEN_ANGLE", d.curtainOpenAngle, 0, 180),
+    curtainCloseAngle: num("NEXT_PUBLIC_WAKEUP_CURTAIN_CLOSE_ANGLE", d.curtainCloseAngle, 0, 180),
+    lightColor: /^#[0-9a-fA-F]{6}$/.test(color) ? color.toLowerCase() : d.lightColor,
+    lightBrightness: num("NEXT_PUBLIC_WAKEUP_LIGHT_BRIGHTNESS", d.lightBrightness, 0, 100),
+  };
+}
+
+/** 아직 누워 있어서 모션 베드를 흔들어야 하는지 — 미션 중 + 압력 ≥ 기준 */
+export function bedShouldShake(
+  missionActive: boolean,
+  pressure: number | null,
+  threshold: number
+): boolean {
+  return missionActive && pressure !== null && Number.isFinite(pressure) && pressure >= threshold;
+}
+
+/** 흔들기의 다음 각도 — 0°와 upAngle을 번갈아 갑니다. */
+export function nextBedAngle(previousAngle: number, upAngle: number): number {
+  return previousAngle >= upAngle ? 0 : upAngle;
+}

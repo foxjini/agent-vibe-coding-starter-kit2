@@ -78,9 +78,13 @@
 | 슬롯 | 부품 | kind | control_type / 단위 |
 |---|---|---|---|
 | `actuator_01` | 알람 피에조 부저 | `buzzer` | `tonal` |
+| `actuator_02` | SG90 서보(커튼) | `servo` | `servo` |
+| `actuator_03` | SG90 서보(모션 베드) | `servo` | `servo` |
+| `actuator_04` | 네오픽셀(조명) | `neopixel` | `rgb` |
 | `sensor_01` | 기상 확인 버튼/터치센서 | `button` | — |
+| `sensor_02` | 압력 센서(침대, MCP3008 CH0) | `pressure` | `%` |
 | (vision) | 기상 감지 웹캠 | — | `vision_events` |
-| 미사용 | `actuator_02~10`, `sensor_02~10` | | `enabled=false` |
+| 미사용 | `actuator_05~10`, `sensor_03~10` | | `enabled=false` |
 
 **classroom — 스마트 교실 (액추에이터 5개, 가장 많음)**
 

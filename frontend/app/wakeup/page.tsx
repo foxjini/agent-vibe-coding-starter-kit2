@@ -1,34 +1,34 @@
 /**
- * 스마트 기상 시스템 대시보드 (app/wakeup/page.tsx) — **wakeup 팀 완성 화면 · 본보기**
+ * 스마트 기상 시스템 (app/wakeup/page.tsx) — **wakeup 팀 화면 · 7인치 터치모니터(800×480)용**
  * =============================================================================
- * 이 화면은 `/wakeup` 주소에서 돌아갑니다. 4팀 공통 시작 화면은 `app/page.tsx`입니다.
+ * 라즈베리파이에 연결한 7인치 터치모니터의 브라우저가 윈도 PC의 이 화면(`/wakeup`)에 접속합니다.
+ * 모바일 앱처럼 위에 상단 바, 아래에 탭 바가 있고 탭마다 화면이 바뀝니다.
  *
- *   키트가 주는 것   슬롯 카드 자동 생성(SlotGrid), 실시간 상태, 알림, 비전 로그
- *   팀이 만드는 것   기상 미션 판정(scenarios/), 미션 카드, 알람 예약 카드
+ *   홈   현재 시각 · 다음 알람 · 침실 상태      (알람이 울리면 기상 미션 화면으로 바뀝니다)
+ *   예약 알람 시각 정하기 (± 버튼 — 터치 화면에는 키보드가 없으니까요)
+ *   센서 침대 압력 · 기상 확인 버튼
+ *   제어 알람 · 커튼 · 모션 베드 · 조명  (+ 모두 끄기 버튼)
+ *   기타 영상인식 감지 로그 · 알림 · 설정값
  *
- * ── 다른 팀이 이 파일을 보는 방법 ────────────────────────────────────────────
- * "시나리오가 있는 화면은 이렇게 생겼다"의 본보기입니다. 베껴 쓰지 말고 구조만 보세요.
- *   · `useWakeup()` 한 줄로 시나리오 상태를 받아 화면에 그립니다
- *   · 판정 규칙은 화면이 아니라 `scenarios/wakeupEngine.ts`(React 없는 순수 함수)에 있습니다
- *   · 부품이 바뀌어도 `<SlotGrid>` 한 줄은 그대로입니다
- *
- * ── wakeup 팀이 할 일 ───────────────────────────────────────────────────────
- * 이 파일을 `app/page.tsx`로 복사하면 `/`가 기상 화면이 됩니다.
- * (또는 그냥 `/wakeup` 주소를 쓰세요.)
- *
- * 하드웨어 구성과 자동화 규칙 화면은 /kit 에 있습니다 (docs/부록F 9장).
+ * 시나리오(미션 판정, 조명·커튼·모션 베드 동작)는 `scenarios/useWakeup.ts`,
+ * 판정 규칙은 `scenarios/wakeupEngine.ts`(React 없는 순수 함수)에 있습니다.
+ * 화면 조각은 `components/team/wakeup/`에 있습니다. 하드웨어·규칙 설정은 `/kit`.
  */
 "use client";
 
-import { AlarmClock, Bell, BellOff, Settings2, Wifi, WifiOff, X } from "lucide-react";
-import Link from "next/link";
-import React from "react";
+import { Bell, Maximize, RefreshCw, Settings2, X } from "lucide-react";
+import React, { useState } from "react";
 
-import SlotGrid from "@/components/kit/SlotGrid";
-import VisionLogCard from "@/components/kit/VisionLogCard";
-import AlarmScheduleCard from "@/components/team/AlarmScheduleCard";
+import { useAlarmSchedule } from "@/components/team/AlarmScheduleCard";
 import WakeupConfirmModal from "@/components/team/WakeupConfirmModal";
-import WakeupMissionCard from "@/components/team/WakeupMissionCard";
+import AppBar from "@/components/team/wakeup/AppBar";
+import ControlScreen from "@/components/team/wakeup/ControlScreen";
+import HomeScreen from "@/components/team/wakeup/HomeScreen";
+import MoreScreen from "@/components/team/wakeup/MoreScreen";
+import ScheduleScreen from "@/components/team/wakeup/ScheduleScreen";
+import SensorScreen from "@/components/team/wakeup/SensorScreen";
+import TabBar from "@/components/team/wakeup/TabBar";
+import type { TabId } from "@/components/team/wakeup/TabBar";
 import { useWakeup } from "@/scenarios/useWakeup";
 
 /** 팀 이름은 `frontend/.env.local`의 NEXT_PUBLIC_TEAM_NAME에서 옵니다 (study 화면과 같음). */
@@ -41,151 +41,87 @@ const NOTICE_STYLES: Record<string, string> = {
   alert: "border-rose-200 bg-rose-50 text-rose-800",
 };
 
-export default function WakeupDashboardPage() {
-  const {
-    scenario,
-    mission,
-    remainingSeconds,
-    popup,
-    ringing,
-    startAlarm,
-    stopAlarm,
-    confirmWakeup,
-    submitPattern,
-    config,
-  } = useWakeup();
-  const { slots, connected, notices, dismissNotice, setActuator } = scenario;
+export default function WakeupPage() {
+  const wakeup = useWakeup();
+  const schedule = useAlarmSchedule();
+  const [tab, setTab] = useState<TabId>("home");
+  const { connected, notices, dismissNotice } = wakeup.scenario;
+
+  // 알람이 울리는 동안은 어느 탭에 있었든 홈(기상 미션)을 보여 주고 탭 바를 숨깁니다
+  const alarmMode = wakeup.ringing || wakeup.mission.active;
+  const shown: TabId = alarmMode ? "home" : tab;
+  const latest = notices[0] ?? null; // 최신 알림이 맨 앞 (lib/scenario.ts)
+
+  const menu = [
+    { label: "하드웨어·규칙 설정", icon: <Settings2 className="h-5 w-5" />, href: "/kit" },
+    {
+      label: "알람 테스트 (지금 울리기)",
+      icon: <Bell className="h-5 w-5" />,
+      onSelect: () => void wakeup.startAlarm(),
+    },
+    {
+      label: "전체 화면",
+      icon: <Maximize className="h-5 w-5" />,
+      onSelect: () => void document.documentElement.requestFullscreen?.().catch(() => {}),
+    },
+    {
+      label: "새로 고침",
+      icon: <RefreshCw className="h-5 w-5" />,
+      onSelect: () => window.location.reload(),
+    },
+  ];
 
   return (
-    <main className="min-h-screen bg-slate-50">
-      <div className="mx-auto max-w-6xl px-4 py-8 sm:px-6">
-        {/* 머리말 */}
-        <header className="mb-6 flex flex-wrap items-start justify-between gap-3">
-          <div>
-            <h1 className="text-2xl font-semibold text-slate-900">{TEAM_NAME}</h1>
-            <p className="mt-1 text-sm text-slate-500">
-              {config.mode === "pattern"
-                ? "알람이 울리면 화면에 나온 패턴을 똑같이 이어 그려야 꺼집니다"
-                : "알람이 울리면 카메라 앞에서 가위바위보를 이겨야 꺼집니다"}
-            </p>
-          </div>
-          <div className="flex flex-wrap items-center gap-2">
-            <span
-              className={`flex h-9 items-center gap-1.5 rounded-full border px-3 text-sm font-medium ${
-                connected
-                  ? "border-emerald-200 bg-emerald-50 text-emerald-700"
-                  : "border-amber-200 bg-amber-50 text-amber-700"
-              }`}
-            >
-              {connected ? <Wifi className="h-4 w-4" /> : <WifiOff className="h-4 w-4" />}
-              {connected ? "실시간 연결됨" : "연결 대기 중"}
-            </span>
-            <Link
-              href="/kit"
-              className="flex h-9 items-center gap-1.5 rounded-full border border-slate-200 bg-white px-3 text-sm font-medium text-slate-600 hover:border-slate-300"
-            >
-              <Settings2 className="h-4 w-4" />
-              하드웨어·규칙 설정
-            </Link>
-          </div>
-        </header>
+    <div
+      className="flex h-dvh select-none flex-col overflow-hidden bg-slate-50"
+      onContextMenu={(event) => event.preventDefault()}
+    >
+      <AppBar title={TEAM_NAME} connected={connected} alarmMode={alarmMode} menu={menu} />
 
-        {/* 알림 */}
-        {notices.length > 0 && (
-          <div className="mb-5 space-y-2">
-            {notices.map((notice) => (
-              <div
-                key={notice.id}
-                className={`flex items-start justify-between gap-3 rounded-lg border px-3 py-2 text-sm ${
-                  NOTICE_STYLES[notice.level] ?? NOTICE_STYLES.info
-                }`}
-              >
-                <span className="flex items-start gap-2">
-                  <Bell className="mt-0.5 h-4 w-4 shrink-0" />
-                  {notice.message}
-                </span>
-                <button
-                  type="button"
-                  onClick={() => dismissNotice(notice.id)}
-                  aria-label="알림 닫기"
-                  className="shrink-0 opacity-60 hover:opacity-100"
-                >
-                  <X className="h-4 w-4" />
-                </button>
-              </div>
-            ))}
-          </div>
+      {/* 가장 최근 알림 한 줄 (전체 기록은 기타 탭) */}
+      {latest && (
+        <div
+          className={`flex h-10 shrink-0 items-center gap-2 border-b pl-4 text-sm ${
+            NOTICE_STYLES[latest.level] ?? NOTICE_STYLES.info
+          }`}
+        >
+          <Bell className="h-4 w-4 shrink-0" />
+          <span className="min-w-0 flex-1 truncate">{latest.message}</span>
+          <button
+            type="button"
+            onClick={() => dismissNotice(latest.id)}
+            aria-label="알림 닫기"
+            className="flex h-10 w-12 shrink-0 items-center justify-center opacity-70 active:opacity-100"
+          >
+            <X className="h-5 w-5" />
+          </button>
+        </div>
+      )}
+
+      <main className="min-h-0 flex-1">
+        {shown === "home" && (
+          <HomeScreen
+            wakeup={wakeup}
+            schedule={schedule}
+            alarmMode={alarmMode}
+            onOpenSchedule={() => setTab("schedule")}
+          />
         )}
+        {shown === "schedule" && <ScheduleScreen schedule={schedule} />}
+        {shown === "sensors" && <SensorScreen wakeup={wakeup} />}
+        {shown === "control" && <ControlScreen wakeup={wakeup} />}
+        {shown === "more" && <MoreScreen wakeup={wakeup} />}
+      </main>
 
-        {/* 알람 제어 + 미션 */}
-        <section className="mb-8 grid grid-cols-1 gap-4 lg:grid-cols-3">
-          <div className="space-y-4">
-            <AlarmScheduleCard />
-            <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-              <div className="mb-3 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-slate-400">
-                <AlarmClock className="h-3.5 w-3.5 text-slate-500" />
-                지금 바로
-              </div>
-              <div className="flex gap-2">
-                <button
-                  type="button"
-                  onClick={() => void startAlarm()}
-                  disabled={ringing}
-                  className="flex h-11 flex-1 items-center justify-center gap-1.5 rounded-lg border border-slate-200 text-sm font-medium text-slate-700 hover:border-slate-300 disabled:opacity-50"
-                >
-                  <Bell className="h-4 w-4" />
-                  알람 울리기
-                </button>
-                <button
-                  type="button"
-                  onClick={() => void stopAlarm()}
-                  disabled={!ringing}
-                  className="flex h-11 flex-1 items-center justify-center gap-1.5 rounded-lg border border-rose-200 bg-rose-50 text-sm font-medium text-rose-700 hover:border-rose-300 disabled:opacity-50"
-                >
-                  <BellOff className="h-4 w-4" />
-                  알람 끄기
-                </button>
-              </div>
-              <p className="mt-3 border-t border-slate-100 pt-3 text-xs text-slate-400">
-                미션을 건너뛰고 끄는 버튼입니다. 정상 기상은 미션을 완수해서 꺼 주세요.
-              </p>
-            </div>
-          </div>
+      {!alarmMode && <TabBar active={tab} onChange={setTab} badges={{ more: notices.length }} />}
 
-          <div className="lg:col-span-2">
-            <WakeupMissionCard
-              mission={mission}
-              remainingSeconds={remainingSeconds}
-              config={config}
-              onSubmitPattern={submitPattern}
-            />
-          </div>
-        </section>
-
-        {/* 하드웨어 — 슬롯이 바뀌면 카드도 알아서 바뀝니다 */}
-        <SlotGrid
-          slots={slots}
-          onControl={setActuator}
-          emptyHint={
-            <>
-              라즈베리파이에서 <code className="rounded bg-white px-1 py-0.5">daemon.py</code>를
-              실행하면 부저와 버튼이 여기에 나타납니다.
-            </>
-          }
-        />
-
-        <section className="mt-8">
-          <VisionLogCard />
-        </section>
-      </div>
-
-      {popup && (
+      {wakeup.popup && (
         <WakeupConfirmModal
-          message={popup.message}
-          timeLeft={popup.timeLeft}
-          onConfirm={confirmWakeup}
+          message={wakeup.popup.message}
+          timeLeft={wakeup.popup.timeLeft}
+          onConfirm={wakeup.confirmWakeup}
         />
       )}
-    </main>
+    </div>
   );
 }

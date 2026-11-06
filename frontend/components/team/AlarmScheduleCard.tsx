@@ -32,7 +32,24 @@ function definitionOf(rule: RuleRow): Record<string, unknown> | null {
   return rule.definition;
 }
 
-export default function AlarmScheduleCard() {
+export interface AlarmSchedule {
+  /** 입력 중인 시각 ("HH:MM") */
+  time: string;
+  setTime: (time: string) => void;
+  /** 저장된 예약 (없으면 null) */
+  saved: { id: number; at: string } | null;
+  busy: boolean;
+  error: string | null;
+  /** 입력한 시각으로 예약(또는 변경) */
+  save: (at?: string) => Promise<void>;
+  remove: () => Promise<void>;
+  reload: () => Promise<void>;
+}
+
+/**
+ * 알람 예약 읽기·저장 (자동화 규칙 "기상 알람"). 카드와 7인치 화면이 같이 씁니다.
+ */
+export function useAlarmSchedule(): AlarmSchedule {
   const [time, setTime] = useState("07:30");
   const [saved, setSaved] = useState<{ id: number; at: string } | null>(null);
   const [busy, setBusy] = useState(false);
@@ -58,14 +75,14 @@ export default function AlarmScheduleCard() {
     return () => clearTimeout(timer);
   }, [load]);
 
-  const save = async () => {
+  const save = async (at: string = time) => {
     setBusy(true);
     setError(null);
     const body = {
       name: RULE_NAME,
       enabled: true,
       definition: {
-        when: { type: "schedule", at: time },
+        when: { type: "schedule", at },
         then: [
           {
             action: "set_actuator",
@@ -96,6 +113,12 @@ export default function AlarmScheduleCard() {
     if (!res.ok) setError(res.errorMessage ?? "알람을 지우지 못했습니다.");
     await load();
   };
+
+  return { time, setTime, saved, busy, error, save, remove, reload: load };
+}
+
+export default function AlarmScheduleCard() {
+  const { time, setTime, saved, busy, error, save, remove } = useAlarmSchedule();
 
   return (
     <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">

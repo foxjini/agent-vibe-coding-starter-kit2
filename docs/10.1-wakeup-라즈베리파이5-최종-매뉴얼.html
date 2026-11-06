@@ -256,6 +256,7 @@ body.all .deck-foot,body.all .more{display:none!important}
       <span class="chip"><b>넘기기</b> <kbd>←</kbd> <kbd>→</kbd> · 목차</span>
     </div>
     <p class="small">짝 매뉴얼: 프론트엔드 담당은 <strong>09.1 wakeup 프론트엔드 최종 매뉴얼</strong>을 봅니다. 두 사람이 5번 슬라이드(슬롯 약속표)를 함께 채웁니다.</p>
+    <div class="box"><b class="k">7인치 터치 화면</b><p>파이의 7인치 모니터에 PC의 화면을 띄우는 방법은 <a href="#s21">21번</a> 슬라이드.</p></div>
     <div class="box ok"><b class="k">우리 팀 예시부터 보기</b><p>조도 센서 + SG90 서보(커튼)를 추가한 모의 작업을 <a href="#s19">19번</a> · <a href="#s20">20번</a> 슬라이드에 그대로 정리했습니다. 처음이면 이 예시를 따라 한 바퀴 돌아 봅니다.</p></div>
   </div>
 </section>
@@ -366,15 +367,17 @@ git commit -m "[hardware] 경보 LED 추가 (GPIO 23)"</pre></div>
 <!-- 5 ─────────────────────────────────────────── -->
 <section class="slide" data-title="슬롯 약속표">
   <p class="tag">STEP 2 · 프론트엔드 담당과 함께</p>
-  <h2>슬롯 약속표 — wakeup 팀 (★ = 모의 작업에서 추가)</h2>
+  <h2>슬롯 약속표 — wakeup 팀 (★ = 7인치 화면 버전에서 추가)</h2>
   <p class="lead">화면 코드는 부품을 <strong>슬롯 이름</strong>(<code>actuator_01</code>)으로 부릅니다. 내가 슬롯을 옮기면 화면이 오류 없이 엉뚱한 부품을 켭니다. 표를 팀 노션에 두고 같이 고칩니다.</p>
   <div class="tw"><table>
     <thead><tr><th>슬롯</th><th>부품</th><th>label</th><th>driver</th><th>control_type / unit</th><th>GPIO / 채널</th></tr></thead>
     <tbody>
       <tr><td class="nw"><code>actuator_01</code></td><td>피에조 부저</td><td>알람 부저</td><td><code>tonal_buzzer</code></td><td><code>tonal</code></td><td>18</td></tr>
       <tr><td class="nw"><code>actuator_02</code> <strong style="color:var(--blue)">★ 추가</strong></td><td>SG90 서보 (커튼)</td><td>커튼</td><td><code>servo</code></td><td><code>servo</code></td><td>12</td></tr>
+      <tr><td class="nw"><code>actuator_03</code> <strong style="color:var(--blue)">★ 추가</strong></td><td>SG90 서보 (모션 베드)</td><td>모션 베드</td><td><code>servo</code></td><td><code>servo</code></td><td>13</td></tr>
+      <tr><td class="nw"><code>actuator_04</code> <strong style="color:var(--blue)">★ 추가</strong></td><td>네오픽셀 12알 (조명)</td><td>조명</td><td><code>neopixel_out</code></td><td><code>rgb</code></td><td>21</td></tr>
       <tr><td class="nw"><code>sensor_01</code></td><td>푸시 버튼</td><td>기상 확인 버튼</td><td><code>button_in</code></td><td>—</td><td>24</td></tr>
-      <tr><td class="nw"><code>sensor_02</code> <strong style="color:var(--blue)">★ 추가</strong></td><td>CDS 조도 센서 (MCP3008)</td><td>방 밝기</td><td><code>analog_in</code></td><td><code>%</code></td><td>CH0</td></tr>
+      <tr><td class="nw"><code>sensor_02</code> <strong style="color:var(--blue)">★ 추가</strong></td><td>압력 센서 FSR (MCP3008)</td><td>침대 압력</td><td><code>analog_in</code></td><td><code>%</code></td><td>CH0</td></tr>
       <tr><td>&nbsp;</td><td></td><td></td><td></td><td></td><td></td></tr>
     </tbody>
   </table></div>
@@ -392,6 +395,7 @@ git commit -m "[hardware] 경보 LED 추가 (GPIO 23)"</pre></div>
       </ol>
     </div>
   </div>
+  <p class="small">이 여섯 줄은 <code>pi/examples/slot_map_wakeup.py</code>에 이미 들어 있습니다 (<code>--check</code>로 6개 확인). 서보 2개 + 네오픽셀은 <strong>별도 5V(2A 이상)</strong>에서 전원을 받고 GND를 파이와 공통으로 묶습니다.</p>
   <div class="box"><b class="k">어느 쪽 문제인지 가리기</b><p>화면에서 켜기 → 카드가 <strong>반영 대기</strong>에 머묾 → <strong>내 쪽</strong>(데몬·연결·배선) · <strong>동작 중</strong>인데 시나리오가 안 넘어감 → 화면 쪽</p></div>
 </section>
 
@@ -869,6 +873,7 @@ sudo systemctl enable --now iot-daemon</pre></div>
 <section class="slide" data-title="우리 팀 예시 ① 배선·배치표">
   <p class="tag">TEAM EXAMPLE · WAKEUP</p>
   <h2>우리 팀 예시 ① — 조도 센서 + SG90 서보(커튼): 배선하고 배치표에 두 줄</h2>
+  <div class="box warn"><b class="k">연습용 예시입니다</b><p>실제 팀 구성은 <a href="#s5">5번 슬라이드</a>의 약속표입니다 — <code>sensor_02</code>는 이제 <strong>침대 압력 센서</strong>이고, 커튼·모션 베드·조명은 이미 배치표와 화면에 들어 있습니다. 이 예시는 "부품 하나 추가" 순서를 익히는 데만 씁니다.</p></div>
   <p class="lead">매뉴얼 순서대로 진행한 <strong>모의 작업</strong>입니다(파이는 gpiozero 가짜 핀으로 흉내). 실제 부품에서는 배선 후 <strong>선생님 확인 → 전원</strong>.</p>
   <div class="grid g2">
     <div>
@@ -917,6 +922,7 @@ slot_map.py 파일 전체를 생략 없이 다시 줘.</pre></div>
 <section class="slide" data-title="우리 팀 예시 ② 보내고 확인">
   <p class="tag">TEAM EXAMPLE · WAKEUP</p>
   <h2>우리 팀 예시 ② — 확인하고 파이로 보내고, 프론트 담당에게 알리기</h2>
+  <div class="box warn"><b class="k">연습용 예시입니다</b><p>실제 팀 구성은 <a href="#s5">5번 슬라이드</a>의 약속표입니다 — <code>sensor_02</code>는 이제 <strong>침대 압력 센서</strong>이고, 커튼·모션 베드·조명은 이미 배치표와 화면에 들어 있습니다. 이 예시는 "부품 하나 추가" 순서를 익히는 데만 씁니다.</p></div>
   <div class="grid g2">
     <div>
       <h3>3. 내 PC에서 확인 → WinSCP로 보내기 → 파이에서 다시 켜기</h3>
@@ -947,6 +953,40 @@ git commit -m "[hardware] 조도 센서 + SG90 서보(커튼) 추가"</pre></div
     </div>
   </div>
 </section>
+
+<!-- 21 ─────────────────────────────────────────── -->
+<section class="slide" data-title="7인치 화면 띄우기">
+  <p class="tag">7-INCH TOUCH · 파이 쪽</p>
+  <h2>7인치 터치모니터 — 파이 브라우저로 팀 PC의 화면 띄우기</h2>
+  <p class="lead">화면 프로그램은 <strong>팀 PC</strong>에서 돕니다(프론트 담당이 <code>npm run build</code> → <code>npm run start</code>). 파이는 브라우저로 <strong>PC IP</strong>에 접속만 합니다. PC 쪽 설정은 09.1 매뉴얼 21번 슬라이드. (아래 <code>192.168.0.10</code>은 예시)</p>
+  <div class="grid g2">
+    <div>
+      <h3>1. 먼저 연결 확인</h3>
+      <div class="cmd"><div class="cmd-h"><span class="where">파이 터미널</span><button class="copy" type="button">복사</button></div>
+<pre>curl -s -o /dev/null -w "%{http_code}\n" http://192.168.0.10:3000/wakeup</pre></div>
+      <p class="small"><code>200</code>이면 통과. 멈추거나 <code>000</code>이면 PC 방화벽 · 같은 공유기인지 · PC에서 <code>npm run start</code>가 켜져 있는지.</p>
+      <h3>2. 전체 화면으로 띄우기</h3>
+      <div class="cmd"><div class="cmd-h"><span class="where">파이 데스크톱의 터미널 (SSH 창 아님)</span><button class="copy" type="button">복사</button></div>
+<pre>chromium-browser --kiosk --noerrdialogs http://192.168.0.10:3000/wakeup</pre></div>
+      <p class="small">명령이 없다고 나오면 <code>chromium</code>으로. 빠져나오기: 키보드 <kbd>Alt</kbd>+<kbd>F4</kbd> 또는 SSH에서 <code>pkill -f chromium</code>.</p>
+    </div>
+    <div>
+      <h3>3. 전원만 꽂으면 화면이 뜨게 (선택)</h3>
+      <div class="cmd"><div class="cmd-h"><span class="where">파이 터미널 · 한 번만</span><button class="copy" type="button">복사</button></div>
+<pre>mkdir -p ~/.config/autostart
+nano ~/.config/autostart/wakeup.desktop</pre></div>
+      <div class="cmd"><div class="cmd-h"><span class="where">wakeup.desktop 내용</span><button class="copy" type="button">복사</button></div>
+<pre>[Desktop Entry]
+Type=Application
+Name=wakeup
+Exec=sh -c "sleep 15; chromium-browser --kiosk --noerrdialogs http://192.168.0.10:3000/wakeup"</pre></div>
+      <p class="small">저장(<kbd>Ctrl</kbd>+<kbd>O</kbd>, <kbd>Enter</kbd>, <kbd>Ctrl</kbd>+<kbd>X</kbd>) → <code>sudo reboot</code>. <code>sleep 15</code>는 와이파이가 붙을 때까지 기다리는 시간입니다. 안 뜨면 OS 버전마다 자동 실행 방식이 달라서일 수 있으니 선생님과 확인합니다. 데몬 자동 실행은 16번 슬라이드.</p>
+      <div class="box ok"><b class="k">통합 시험</b><p>화면 상단 점이 초록 <strong>연결됨</strong> → 침대에 누워(압력 30 이상) ⋮ → 알람 테스트 → 조명 켜짐 · 커튼 180° · 모션 베드가 2초마다 0° ↔ 60° → 일어나면 베드 멈춤.</p></div>
+      <div class="box warn"><b class="k">터치가 안 먹거나 화면이 작게 보이면</b><p>주소 끝이 <code>/wakeup</code>인지 확인합니다. 화면 확대는 꺼져 있습니다(잘못 눌러 확대되지 않게).</p></div>
+    </div>
+  </div>
+</section>
+
   </div><!-- /viewport -->
 
   <footer class="deck-foot">
