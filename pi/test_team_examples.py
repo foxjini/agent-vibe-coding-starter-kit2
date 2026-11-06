@@ -34,7 +34,7 @@ _failed = 0
 
 #: 부록F 2-3절 워크시트 기준 (팀, 액추에이터 수, 센서 수)
 EXPECTED = {
-    "wakeup": (1, 1),
+    "wakeup": (4, 2),
     "classroom": (5, 0),
     "study": (4, 1),
     "subway": (2, 1),

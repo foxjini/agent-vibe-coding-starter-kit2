@@ -15,17 +15,21 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import { ScenarioApi, useScenario } from "@/lib/scenario";
-import { isOnState } from "@/lib/slots";
+import { isOnState, numberFrom, sensorNumber } from "@/lib/slots";
 import {
   IDLE_MISSION,
+  bedShouldShake,
   configFromEnv,
+  deviceConfigFromEnv,
   judgePattern,
   judgeVision,
+  nextBedAngle,
   roundDurationSeconds,
   startMission,
   timeoutRound,
 } from "@/scenarios/wakeupEngine";
 import type {
+  DeviceConfig,
   MissionConfig,
   MissionOutcome,
   MissionState,
@@ -35,7 +39,11 @@ import type {
 /** wakeup 팀 하드웨어 배치 — pi/slot_map.py와 같은 슬롯을 가리킵니다. */
 export const WAKEUP_SLOTS = {
   buzzer: "actuator_01",
+  curtain: "actuator_02",   // 커튼 서보
+  bed: "actuator_03",       // 모션 베드 서보
+  light: "actuator_04",     // 조명 (네오픽셀)
   button: "sensor_01",
+  pressure: "sensor_02",    // 침대 압력 센서
 } as const;
 
 export interface WakeupPopup {
@@ -59,11 +67,26 @@ export interface WakeupApi {
    */
   submitPattern: (drawn: number[]) => PatternFeedback;
   config: MissionConfig;
+  /** 조명·커튼·모션 베드 설정 (.env의 NEXT_PUBLIC_WAKEUP_*) */
+  device: DeviceConfig;
+  /** 침대 압력 (센서 값 그대로, 없으면 null) */
+  pressure: number | null;
+  /** 지금 모션 베드를 흔드는 중인지 */
+  bedShaking: boolean;
+  /** 조명이 켜져 있는지 */
+  lightOn: boolean;
+  /** 커튼 서보의 지금 각도 (보고 전이면 null) */
+  curtainAngle: number | null;
+  /** 이 배치표에 그 부품이 등록돼 있는지 — 없으면 명령을 보내지 않습니다 */
+  hasSlot: (slotId: string) => boolean;
+  /** 알람 끄기 + 조명 끄기 + 모션 베드 0° (제어 화면의 "모두 끄기") */
+  stopAll: () => Promise<void>;
 }
 
 export function useWakeup(): WakeupApi {
   const scenario = useScenario();
-  const { slots, setActuator, notify, onVision, onSensor, onSlotChange, serverTimer } = scenario;
+  const { slots, slotOf, setActuator, notify, onVision, onSensor, onSlotChange, serverTimer } =
+    scenario;
 
   // Next.js는 `process.env.NEXT_PUBLIC_X`처럼 **직접 쓴 것만** 브라우저 코드에 넣어 줍니다.
   // process.env를 통째로 넘기면 브라우저에서는 빈 객체가 되어 설정이 조용히 무시됩니다.
@@ -88,6 +111,17 @@ export function useWakeup(): WakeupApi {
       NEXT_PUBLIC_PATTERN_KEEP_VISIBLE: process.env.NEXT_PUBLIC_PATTERN_KEEP_VISIBLE,
     })
   );
+  const [device] = useState<DeviceConfig>(() =>
+    deviceConfigFromEnv({
+      NEXT_PUBLIC_WAKEUP_BED_PRESSURE: process.env.NEXT_PUBLIC_WAKEUP_BED_PRESSURE,
+      NEXT_PUBLIC_WAKEUP_BED_ANGLE: process.env.NEXT_PUBLIC_WAKEUP_BED_ANGLE,
+      NEXT_PUBLIC_WAKEUP_BED_SHAKE_SECONDS: process.env.NEXT_PUBLIC_WAKEUP_BED_SHAKE_SECONDS,
+      NEXT_PUBLIC_WAKEUP_CURTAIN_OPEN_ANGLE: process.env.NEXT_PUBLIC_WAKEUP_CURTAIN_OPEN_ANGLE,
+      NEXT_PUBLIC_WAKEUP_CURTAIN_CLOSE_ANGLE: process.env.NEXT_PUBLIC_WAKEUP_CURTAIN_CLOSE_ANGLE,
+      NEXT_PUBLIC_WAKEUP_LIGHT_COLOR: process.env.NEXT_PUBLIC_WAKEUP_LIGHT_COLOR,
+      NEXT_PUBLIC_WAKEUP_LIGHT_BRIGHTNESS: process.env.NEXT_PUBLIC_WAKEUP_LIGHT_BRIGHTNESS,
+    })
+  );
   const [mission, setMission] = useState<MissionState>(IDLE_MISSION);
   const [remainingSeconds, setRemainingSeconds] = useState(0);
   const [popup, setPopup] = useState<WakeupPopup | null>(null);
@@ -100,6 +134,25 @@ export function useWakeup(): WakeupApi {
 
   const buzzer = slots.find((s) => s.slot_id === WAKEUP_SLOTS.buzzer);
   const ringing = isOnState(buzzer?.current_state ?? buzzer?.desired_state);
+
+  // 침실 장치 — 배치표에 없는 부품에는 명령을 보내지 않습니다 (오류 알림이 쏟아지지 않게)
+  const hasSlot = useCallback((slotId: string) => slotOf(slotId) !== undefined, [slotOf]);
+  const lightSlot = slotOf(WAKEUP_SLOTS.light);
+  const curtainSlot = slotOf(WAKEUP_SLOTS.curtain);
+  const pressure = sensorNumber(slotOf(WAKEUP_SLOTS.pressure)?.current_value);
+  const lightOn = isOnState(lightSlot?.current_state ?? lightSlot?.desired_state);
+  const curtainAngle = numberFrom(
+    curtainSlot?.current_value ?? curtainSlot?.desired_value, ["angle"], Number.NaN
+  );
+  const bedShaking =
+    hasSlot(WAKEUP_SLOTS.bed) &&
+    bedShouldShake(mission.active, pressure, device.bedPressureThreshold);
+
+  // 콜백 안에서 최신 슬롯을 읽기 위한 ref
+  const hasSlotRef = useRef(hasSlot);
+  useEffect(() => {
+    hasSlotRef.current = hasSlot;
+  }, [hasSlot]);
 
   const applyMission = useCallback((next: MissionState) => {
     missionRef.current = next;
@@ -215,8 +268,19 @@ export function useWakeup(): WakeupApi {
       applyMission(state);
       armRoundTimer(state);
       notify(`기상 미션을 시작합니다! ${message}`, "info");
+
+      // 조명을 켜고 커튼을 엽니다 (모션 베드는 아래 효과가 압력을 보고 판단합니다)
+      if (hasSlotRef.current(WAKEUP_SLOTS.light)) {
+        void setActuator(WAKEUP_SLOTS.light, "on", {
+          color: device.lightColor,
+          brightness: device.lightBrightness,
+        });
+      }
+      if (hasSlotRef.current(WAKEUP_SLOTS.curtain)) {
+        void setActuator(WAKEUP_SLOTS.curtain, "move", { angle: device.curtainOpenAngle });
+      }
     },
-    [applyMission, armRoundTimer, config, notify]
+    [applyMission, armRoundTimer, config, device, notify, setActuator]
   );
 
   const cancelMission = useCallback(() => {
@@ -235,6 +299,34 @@ export function useWakeup(): WakeupApi {
     setPopup(null);
     await setActuator(WAKEUP_SLOTS.buzzer, "off");
   }, [cancelMission, clearGuards, setActuator]);
+
+  const stopAll = useCallback(async () => {
+    await stopAlarm();
+    if (hasSlotRef.current(WAKEUP_SLOTS.light)) await setActuator(WAKEUP_SLOTS.light, "off");
+    if (hasSlotRef.current(WAKEUP_SLOTS.bed)) {
+      await setActuator(WAKEUP_SLOTS.bed, "move", { angle: 0 });
+    }
+  }, [stopAlarm, setActuator]);
+
+  // --------------------------------------------------------------------
+  // 모션 베드 — 미션 중 아직 누워 있으면(압력 ≥ 기준) 0° ↔ 설정 각도로 흔들기
+  // 압력이 기준 아래로 내려가거나 미션이 끝나면 멈추고 0°로 돌아갑니다.
+  // --------------------------------------------------------------------
+
+  useEffect(() => {
+    if (!bedShaking) return;
+    let angle = 0;
+    const step = () => {
+      angle = nextBedAngle(angle, device.bedAngle);
+      void setActuator(WAKEUP_SLOTS.bed, "move", { angle });
+    };
+    step();
+    const ticker = setInterval(step, device.bedShakeSeconds * 1000);
+    return () => {
+      clearInterval(ticker);
+      void setActuator(WAKEUP_SLOTS.bed, "move", { angle: 0 });
+    };
+  }, [bedShaking, device, setActuator]);
 
   // --------------------------------------------------------------------
   // 판정 결과 처리 — 카메라(비전)와 그리기 판(패턴)이 같은 길을 씁니다
@@ -335,5 +427,12 @@ export function useWakeup(): WakeupApi {
     confirmWakeup,
     submitPattern,
     config,
+    device,
+    pressure,
+    bedShaking,
+    lightOn,
+    curtainAngle: Number.isFinite(curtainAngle) ? curtainAngle : null,
+    hasSlot,
+    stopAll,
   };
 }

@@ -24,6 +24,7 @@ export default function WakeupMissionCard({
   remainingSeconds,
   config,
   onSubmitPattern,
+  compact = false,
 }: {
   mission: MissionState;
   remainingSeconds: number;
@@ -31,6 +32,8 @@ export default function WakeupMissionCard({
   config?: MissionConfig;
   /** 패턴 미션 — 그린 패턴을 판정에 넘깁니다 (useWakeup().submitPattern) */
   onSubmitPattern?: (drawn: number[]) => PatternFeedback;
+  /** 7인치(800×480) 화면용 — 여백을 줄이고 패턴 판을 작게 */
+  compact?: boolean;
 }) {
   if (!mission.active) {
     return (
@@ -57,8 +60,8 @@ export default function WakeupMissionCard({
       : null;
 
   return (
-    <div className="rounded-xl border border-sky-200 bg-white p-5 shadow-sm">
-      <div className="mb-4 flex items-start justify-between gap-2">
+    <div className={`rounded-xl border border-sky-200 bg-white shadow-sm ${compact ? "p-3" : "p-5"}`}>
+      <div className={`flex items-start justify-between gap-2 ${compact ? "mb-2" : "mb-4"}`}>
         <div>
           <div className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-sky-500">
             {patternView ? <Grid3x3 className="h-3.5 w-3.5" /> : <Hand className="h-3.5 w-3.5" />}
@@ -77,7 +80,7 @@ export default function WakeupMissionCard({
       </div>
 
       {patternView ? (
-        <div className="mb-4">
+        <div className={compact ? "mx-auto mb-2 w-full max-w-[220px]" : "mb-4"}>
           <PatternPad
             pattern={patternView.pattern}
             round={mission.round}
@@ -89,7 +92,11 @@ export default function WakeupMissionCard({
           />
         </div>
       ) : (
-        <div className="mb-4 flex items-center justify-center gap-6 rounded-lg bg-slate-50 py-5">
+        <div
+          className={`flex items-center justify-center gap-6 rounded-lg bg-slate-50 ${
+            compact ? "mb-2 py-6" : "mb-4 py-5"
+          }`}
+        >
           <div className="text-center">
             <div className="text-xs text-slate-400">AI가 낸 손</div>
             <div className="mt-1 text-2xl font-semibold text-slate-900">

@@ -9,16 +9,20 @@
  *     node --experimental-strip-types scenarios/wakeupEngine.test.ts
  */
 import {
+  DEFAULT_DEVICE_CONFIG,
   DEFAULT_MISSION_CONFIG,
   PATTERN_DOTS,
   WINNING_HAND,
   addDot,
   beginRound,
+  bedShouldShake,
   configFromEnv,
+  deviceConfigFromEnv,
   generatePattern,
   judgePattern,
   judgeVision,
   middleDot,
+  nextBedAngle,
   patternTiming,
   roundDurationSeconds,
   samePattern,
@@ -426,6 +430,35 @@ section("P6. 환경변수로 난이도 바꾸기");
   const odd = configFromEnv({ NEXT_PUBLIC_PATTERN_LENGTH: "많이", NEXT_PUBLIC_PATTERN_KEEP_VISIBLE: "nope" });
   check("이상한 값은 기본값으로", odd.patternLength === 4 && odd.patternKeepVisible === false);
   check("모드를 안 적으면 기존처럼 auto", configFromEnv({}).mode === "auto");
+}
+
+// ---------------------------------------------------------------------------
+section("침실 장치 — 모션 베드 판정 · 장치 설정");
+{
+  check("미션 중 + 압력이 기준 이상이면 흔든다", bedShouldShake(true, 45, 30) === true);
+  check("기준과 같아도 흔든다 (이상)", bedShouldShake(true, 30, 30) === true);
+  check("압력이 기준 아래면 흔들지 않는다 (일어남)", bedShouldShake(true, 12, 30) === false);
+  check("미션이 아니면 압력이 높아도 흔들지 않는다", bedShouldShake(false, 90, 30) === false);
+  check("압력 값이 없으면 흔들지 않는다", bedShouldShake(true, null, 30) === false);
+  check("흔들기: 0° → 올린 각도", nextBedAngle(0, 60) === 60);
+  check("흔들기: 올린 각도 → 0°", nextBedAngle(60, 60) === 0);
+
+  const d = deviceConfigFromEnv({});
+  check("설정이 없으면 기본값", JSON.stringify(d) === JSON.stringify(DEFAULT_DEVICE_CONFIG));
+  const custom = deviceConfigFromEnv({
+    NEXT_PUBLIC_WAKEUP_BED_PRESSURE: "45",
+    NEXT_PUBLIC_WAKEUP_BED_ANGLE: "90",
+    NEXT_PUBLIC_WAKEUP_CURTAIN_CLOSE_ANGLE: "0",
+    NEXT_PUBLIC_WAKEUP_LIGHT_COLOR: "#FF0000",
+  });
+  check(".env 값 반영 (닫힘 각도 0도 그대로)",
+        custom.bedPressureThreshold === 45 && custom.bedAngle === 90 &&
+        custom.curtainCloseAngle === 0 && custom.lightColor === "#ff0000");
+  const odd = deviceConfigFromEnv({
+    NEXT_PUBLIC_WAKEUP_BED_ANGLE: "999", NEXT_PUBLIC_WAKEUP_LIGHT_COLOR: "red",
+    NEXT_PUBLIC_WAKEUP_BED_SHAKE_SECONDS: "많이",
+  });
+  check("범위 밖·이상한 값은 고치거나 기본값", odd.bedAngle === 180 && odd.lightColor === "#ffb45a" && odd.bedShakeSeconds === 2);
 }
 
 console.log("\n" + "=".repeat(68));
