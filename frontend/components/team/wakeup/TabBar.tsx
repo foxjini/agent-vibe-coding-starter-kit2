@@ -1,5 +1,6 @@
 /**
- * 하단 탭 바 (wakeup 7인치 화면) — 홈 · 예약 · 센서 · 제어 · 기타
+ * 하단 탭 (wakeup 7인치 화면) — 홈 · 예약 · 센서 · 제어 · 기타
+ * 지금 탭은 앰버 글자와 아이콘 위 작은 점으로 표시합니다.
  */
 "use client";
 
@@ -23,13 +24,13 @@ export default function TabBar({
 }: {
   active: TabId;
   onChange: (tab: TabId) => void;
-  /** 탭 위에 띄울 숫자 (예: 기타 탭의 알림 개수) */
+  /** 탭에 붙일 숫자 (예: 기타 탭의 알림 개수) */
   badges?: Partial<Record<TabId, number>>;
 }) {
   return (
     <nav
       aria-label="화면 이동"
-      className="grid h-[60px] shrink-0 grid-cols-5 border-t border-slate-200 bg-white"
+      className="relative z-10 grid h-[60px] shrink-0 grid-cols-5 border-t border-(--wk-line)"
     >
       {TABS.map(({ id, label, Icon }) => {
         const on = id === active;
@@ -40,20 +41,15 @@ export default function TabBar({
             type="button"
             onClick={() => onChange(id)}
             aria-current={on ? "page" : undefined}
-            className={`relative flex flex-col items-center justify-center gap-0.5 text-sm font-medium ${
-              on ? "text-sky-700" : "text-slate-500 active:bg-slate-50"
+            className={`wk-press relative flex flex-col items-center justify-center gap-1 text-sm active:bg-(--wk-press) ${
+              on ? "font-semibold text-(--wk-accent)" : "text-(--wk-dim)"
             }`}
           >
-            {on && <span className="absolute inset-x-6 top-0 h-1 rounded-b-full bg-sky-600" />}
-            <span className="relative">
-              <Icon className="h-6 w-6" />
-              {badge > 0 && (
-                <span className="absolute -right-3 -top-1.5 min-w-5 rounded-full bg-rose-500 px-1 text-center text-[11px] font-bold leading-5 text-white">
-                  {badge > 9 ? "9+" : badge}
-                </span>
-              )}
+            <Icon className="h-6 w-6" strokeWidth={on ? 2.2 : 1.6} aria-hidden="true" />
+            <span>
+              {label}
+              {badge > 0 && <span className="ml-1 text-(--wk-accent)">{badge > 9 ? "9+" : badge}</span>}
             </span>
-            {label}
           </button>
         );
       })}

@@ -30,7 +30,7 @@ export default function OverflowMenu({ items }: { items: MenuItem[] }) {
   }, [open]);
 
   const itemClass =
-    "flex min-h-12 w-full items-center gap-3 px-4 text-left text-base text-slate-700 active:bg-slate-100";
+    "wk-press flex min-h-12 w-full items-center gap-3 px-4 text-left text-base text-(--wk-text) active:bg-(--wk-press)";
 
   return (
     <div ref={boxRef} className="relative">
@@ -39,19 +39,19 @@ export default function OverflowMenu({ items }: { items: MenuItem[] }) {
         onClick={() => setOpen((prev) => !prev)}
         aria-label="메뉴 열기"
         aria-expanded={open}
-        className="flex h-12 w-12 items-center justify-center rounded-full text-slate-600 active:bg-slate-100"
+        className="wk-press flex h-12 w-12 items-center justify-center rounded-full text-(--wk-dim) active:bg-(--wk-press)"
       >
         <EllipsisVertical className="h-6 w-6" />
       </button>
       {open && (
         <div
           role="menu"
-          className="absolute right-0 top-12 z-40 w-60 overflow-hidden rounded-xl border border-slate-200 bg-white py-1 shadow-lg"
+          className="absolute right-1 top-12 z-40 w-64 overflow-hidden rounded-[var(--wk-radius-control)] border border-(--wk-line-strong) bg-(--wk-bg) py-1 shadow-2xl"
         >
           {items.map((item) =>
             item.href ? (
               <Link key={item.label} href={item.href} role="menuitem" className={itemClass}>
-                {item.icon}
+                <span className="text-(--wk-dim)">{item.icon}</span>
                 {item.label}
               </Link>
             ) : (
@@ -65,7 +65,7 @@ export default function OverflowMenu({ items }: { items: MenuItem[] }) {
                   item.onSelect?.();
                 }}
               >
-                {item.icon}
+                <span className="text-(--wk-dim)">{item.icon}</span>
                 {item.label}
               </button>
             )

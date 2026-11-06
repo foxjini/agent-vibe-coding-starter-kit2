@@ -1,102 +1,95 @@
 /**
- * 센서 화면 (wakeup 7인치 화면) — 타일 격자
- * 침대 압력은 막대와 기준선으로, 그 밖의 센서는 키트가 주는 표시 그대로 보여 줍니다.
+ * 센서 (wakeup 7인치 화면)
+ * 침대 압력은 기준선이 있는 가로 막대로, 버튼은 상태 글자로 보여 줍니다.
+ * 배치표에 다른 센서가 더 있으면 키트가 주는 표시(sensorText) 그대로 덧붙입니다.
  */
 "use client";
 
-import { Activity, BedDouble, Hand } from "lucide-react";
 import React from "react";
 
-import { MissingSlot, Pill, Tile } from "@/components/team/wakeup/Tile";
+import { MissingSlot, Panel, State } from "@/components/team/wakeup/Tile";
 import { asObject, sensorText, slotLabel } from "@/lib/slots";
 import type { WakeupApi } from "@/scenarios/useWakeup";
 import { WAKEUP_SLOTS } from "@/scenarios/useWakeup";
 
-function PressureTile({ wakeup }: { wakeup: WakeupApi }) {
+function Pressure({ wakeup }: { wakeup: WakeupApi }) {
   const slot = wakeup.scenario.slotOf(WAKEUP_SLOTS.pressure);
   const threshold = wakeup.device.bedPressureThreshold;
   if (!slot) {
     return (
-      <Tile icon={<BedDouble className="h-5 w-5" />} title="침대 압력" muted>
+      <Panel className="col-span-2 p-5">
+        <h2 className="mb-1 text-lg font-medium">침대 압력</h2>
         <MissingSlot slotId={WAKEUP_SLOTS.pressure} />
-      </Tile>
+      </Panel>
     );
   }
   const value = wakeup.pressure;
   const scale = Math.max(100, threshold * 1.5, value ?? 0);
   const lying = value !== null && value >= threshold;
+  const pct = (n: number) => `${Math.min(100, (n / scale) * 100)}%`;
   return (
-    <Tile
-      icon={<BedDouble className="h-5 w-5" />}
-      title={slotLabel(slot)}
-      badge={<Pill on={!lying}>{value === null ? "측정 전" : lying ? "누워 있음" : "비어 있음"}</Pill>}
-    >
-      <div className="flex items-baseline gap-1">
-        <span className="text-6xl font-semibold tabular-nums text-slate-900">
-          {value === null ? "—" : Math.round(value)}
-        </span>
-        <span className="text-lg text-slate-500">{slot.unit ?? ""}</span>
+    <Panel className="col-span-2 p-5">
+      <div className="flex items-baseline justify-between gap-4">
+        <h2 className="text-lg font-medium">{slotLabel(slot)}</h2>
+        <State on={lying}>{value === null ? "측정 전" : lying ? "누워 있어요" : "비어 있어요"}</State>
       </div>
-      <div className="relative mt-3 h-4 rounded-full bg-slate-100">
-        <div
-          className={`h-4 rounded-full ${lying ? "bg-amber-400" : "bg-emerald-400"}`}
-          style={{ width: `${Math.min(100, ((value ?? 0) / scale) * 100)}%` }}
-        />
-        <div
-          className="absolute -top-1 h-6 w-1 rounded bg-rose-500"
-          style={{ left: `${Math.min(100, (threshold / scale) * 100)}%` }}
-          aria-hidden="true"
-        />
+      <div className="mt-2 flex items-baseline gap-2">
+        <span className="wk-clock text-[64px] leading-none">{value === null ? "—" : Math.round(value)}</span>
+        <span className="text-xl text-(--wk-dim)">{slot.unit ?? ""}</span>
       </div>
-      <p className="mt-2 text-sm text-slate-500">
-        빨간 선(기준 {threshold}) 이상이면 미션 중 모션 베드가 흔들립니다
+      <div className="relative mt-4 h-3 rounded-full bg-(--wk-sunken)" aria-hidden="true">
+        <div className="h-3 rounded-full bg-(--wk-accent)" style={{ width: pct(value ?? 0) }} />
+        <div className="absolute -top-2 h-7 w-0.5 bg-(--wk-text)" style={{ left: pct(threshold) }} />
+      </div>
+      <p className="mt-3 text-base text-(--wk-dim)">
+        세로선({threshold})을 넘으면 누워 있는 것으로 봅니다. 미션 중에 넘으면 모션 베드가 흔들려요.
       </p>
-    </Tile>
+    </Panel>
   );
 }
 
-function ButtonTile({ wakeup }: { wakeup: WakeupApi }) {
+function ConfirmButton({ wakeup }: { wakeup: WakeupApi }) {
   const slot = wakeup.scenario.slotOf(WAKEUP_SLOTS.button);
   if (!slot) {
     return (
-      <Tile icon={<Hand className="h-5 w-5" />} title="기상 확인 버튼" muted>
+      <Panel className="p-5">
+        <h2 className="mb-1 text-lg font-medium">기상 확인 버튼</h2>
         <MissingSlot slotId={WAKEUP_SLOTS.button} />
-      </Tile>
+      </Panel>
     );
   }
   const pressed = Boolean(asObject(slot.current_value)?.pressed);
   return (
-    <Tile
-      icon={<Hand className="h-5 w-5" />}
-      title={slotLabel(slot)}
-      badge={<Pill on={pressed}>{pressed ? "눌림" : "대기"}</Pill>}
-    >
-      <div className="text-5xl font-semibold text-slate-900">{pressed ? "눌림" : "대기"}</div>
-      <p className="mt-2 text-sm text-slate-500">기상 확인 팝업이 떴을 때 누르면 확인됩니다</p>
-    </Tile>
+    <Panel className="p-5">
+      <h2 className="text-lg font-medium">{slotLabel(slot)}</h2>
+      <p className="mt-2">
+        <State on={pressed}>{pressed ? "눌렀어요" : "누르지 않음"}</State>
+      </p>
+      <p className="mt-2 text-base text-(--wk-dim)">기상 확인 창이 떴을 때 누르면 확인돼요</p>
+    </Panel>
   );
 }
 
 export default function SensorScreen({ wakeup }: { wakeup: WakeupApi }) {
   const known: string[] = [WAKEUP_SLOTS.pressure, WAKEUP_SLOTS.button];
-  // 배치표에 다른 센서가 더 있으면 키트 표시 그대로 덧붙입니다
   const others = wakeup.scenario.slots.filter(
     (slot) => slot.role !== "actuator" && !known.includes(slot.slot_id)
   );
   return (
-    <div className="grid h-full auto-rows-min grid-cols-2 gap-3 overflow-y-auto p-3">
-      <PressureTile wakeup={wakeup} />
-      <ButtonTile wakeup={wakeup} />
+    <div className="grid h-full auto-rows-min grid-cols-2 gap-3 overflow-y-auto px-5 pb-4">
+      <Pressure wakeup={wakeup} />
+      <ConfirmButton wakeup={wakeup} />
       {others.map((slot) => {
         const reading = sensorText(slot);
         return (
-          <Tile key={slot.slot_id} icon={<Activity className="h-5 w-5" />} title={slotLabel(slot)}>
-            <div className="flex items-baseline gap-1">
-              <span className="text-5xl font-semibold tabular-nums text-slate-900">{reading.value}</span>
-              <span className="text-lg text-slate-500">{reading.unit}</span>
-            </div>
-            {reading.hint && <p className="mt-1 text-sm text-slate-500">{reading.hint}</p>}
-          </Tile>
+          <Panel key={slot.slot_id} className="p-5">
+            <h2 className="text-lg font-medium">{slotLabel(slot)}</h2>
+            <p className="mt-1 flex items-baseline gap-1">
+              <span className="text-4xl font-medium">{reading.value}</span>
+              <span className="text-lg text-(--wk-dim)">{reading.unit}</span>
+            </p>
+            {reading.hint && <p className="mt-1 text-base text-(--wk-dim)">{reading.hint}</p>}
+          </Panel>
         );
       })}
     </div>

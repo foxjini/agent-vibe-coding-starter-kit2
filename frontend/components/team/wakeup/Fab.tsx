@@ -1,5 +1,5 @@
 /**
- * 떠 있는 동작 버튼 (FAB, wakeup 7인치 화면) — 화면 오른쪽 아래의 둥근 큰 버튼
+ * 떠 있는 동작 버튼 (FAB, wakeup 7인치 화면) — 화면 오른쪽 아래
  */
 "use client";
 
@@ -18,7 +18,7 @@ export default function Fab({
     <button
       type="button"
       onClick={onClick}
-      className="absolute bottom-3 right-3 z-30 flex h-14 items-center gap-2 rounded-full bg-slate-900 px-5 text-base font-semibold text-white shadow-lg active:bg-slate-700"
+      className="wk-press absolute bottom-4 right-4 z-30 flex h-14 items-center gap-2 rounded-full bg-(--wk-accent) px-6 text-base font-semibold text-(--wk-on-accent) shadow-xl"
     >
       {icon}
       {label}
