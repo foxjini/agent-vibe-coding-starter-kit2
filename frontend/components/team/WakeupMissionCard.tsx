@@ -63,7 +63,7 @@ export default function WakeupMissionCard({
     <div className={`rounded-xl border border-sky-200 bg-white shadow-sm ${compact ? "p-3" : "p-5"}`}>
       <div className={`flex items-start justify-between gap-2 ${compact ? "mb-2" : "mb-4"}`}>
         <div>
-          <div className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-sky-500">
+          <div className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-sky-700">
             {patternView ? <Grid3x3 className="h-3.5 w-3.5" /> : <Hand className="h-3.5 w-3.5" />}
             기상 미션 · {mission.round}라운드
           </div>
@@ -98,14 +98,14 @@ export default function WakeupMissionCard({
           }`}
         >
           <div className="text-center">
-            <div className="text-xs text-slate-400">AI가 낸 손</div>
+            <div className="text-sm text-slate-600">AI가 낸 손</div>
             <div className="mt-1 text-2xl font-semibold text-slate-900">
               {aiHand ? HAND_KO[aiHand] : "—"}
             </div>
           </div>
-          <div className="text-2xl text-slate-300">vs</div>
+          <div className="text-2xl text-slate-400" aria-hidden="true">vs</div>
           <div className="text-center">
-            <div className="text-xs text-slate-400">내야 하는 손</div>
+            <div className="text-sm text-slate-600">내야 하는 손</div>
             <div className="mt-1 text-2xl font-semibold text-sky-700">
               {expected ? HAND_KO[expected] : "—"}
             </div>

@@ -40,7 +40,7 @@ export function Tile({
 
 const TONES = {
   plain: "border border-slate-200 bg-white text-slate-700 active:bg-slate-100",
-  primary: "bg-sky-600 text-white active:bg-sky-700",
+  primary: "bg-sky-700 text-white active:bg-sky-800",
   danger: "bg-rose-600 text-white active:bg-rose-700",
   soft: "border border-sky-200 bg-sky-50 text-sky-800 active:bg-sky-100",
 } as const;
@@ -77,7 +77,7 @@ export function Pill({ on, children }: { on: boolean; children: React.ReactNode 
   return (
     <span
       className={`shrink-0 rounded-full px-2.5 py-0.5 text-xs font-semibold ${
-        on ? "bg-emerald-100 text-emerald-800" : "bg-slate-100 text-slate-500"
+        on ? "bg-emerald-100 text-emerald-800" : "bg-slate-100 text-slate-600"
       }`}
     >
       {children}
