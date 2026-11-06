@@ -1,68 +1,64 @@
 /**
- * 홈 화면 (wakeup 7인치 화면)
- *   평상시 — 큰 시계 · 다음 예약 알람 · 침실 상태(침대 · 조명 · 커튼)
- *   알람 중 — 기상 미션 · 수행 상태 · 알람 끄기
+ * 홈 (wakeup 7인치 화면)
+ *   밤(평상시) — 가는 숫자의 큰 시계 · 다음 알람 · 침실 상태를 문장으로
+ *   새벽(알람 중) — 해야 할 미션을 가장 크게, 오른쪽에 깨우는 순서(조명 → 커튼 → 모션 베드)
  */
 "use client";
 
-import {
-  AlarmClock,
-  BedDouble,
-  BellOff,
-  Blinds,
-  ChevronRight,
-  CircleCheck,
-  Circle,
-  Lightbulb,
-} from "lucide-react";
+import { BedDouble, BellOff, Blinds, Check, Lightbulb } from "lucide-react";
 import React from "react";
 
 import type { AlarmSchedule } from "@/components/team/AlarmScheduleCard";
 import WakeupMissionCard from "@/components/team/WakeupMissionCard";
+import { Panel, TouchButton } from "@/components/team/wakeup/Tile";
 import { dateText, hhmm, useClock } from "@/components/team/wakeup/useClock";
 import type { WakeupApi } from "@/scenarios/useWakeup";
 import { WAKEUP_SLOTS } from "@/scenarios/useWakeup";
 
-/** 침대에 누워 있는지 — 압력 센서가 없으면 null */
-function bedText(w: WakeupApi): { lying: boolean | null; text: string } {
-  if (!w.hasSlot(WAKEUP_SLOTS.pressure) || w.pressure === null) {
-    return { lying: null, text: "압력 센서 없음" };
-  }
-  const lying = w.pressure >= w.device.bedPressureThreshold;
-  return { lying, text: `${lying ? "누워 있음" : "비어 있음"} · ${Math.round(w.pressure)}` };
+/** 침대 압력 → 누워 있는지 (센서가 없으면 null) */
+function lyingOf(w: WakeupApi): boolean | null {
+  if (!w.hasSlot(WAKEUP_SLOTS.pressure) || w.pressure === null) return null;
+  return w.pressure >= w.device.bedPressureThreshold;
 }
 
-function curtainText(w: WakeupApi): string {
-  if (!w.hasSlot(WAKEUP_SLOTS.curtain)) return "커튼 없음";
-  if (w.curtainAngle === null) return "확인 중";
-  return w.curtainAngle >= w.device.curtainOpenAngle - 5 ? `열림 · ${w.curtainAngle}°` : `닫힘 · ${w.curtainAngle}°`;
+function curtainOpen(w: WakeupApi): boolean | null {
+  if (!w.hasSlot(WAKEUP_SLOTS.curtain) || w.curtainAngle === null) return null;
+  return w.curtainAngle >= w.device.curtainOpenAngle - 5;
 }
 
-function StatusRow({
-  icon,
-  label,
-  value,
-  done,
-}: {
-  icon: React.ReactNode;
-  label: string;
-  value: string;
-  /** true면 초록 체크 */
-  done?: boolean;
-}) {
+/** 저장된 알람이 오늘인지 내일인지 */
+function dayOf(at: string, now: Date | null): string {
+  if (!now) return "";
+  const current = `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`;
+  return at > current ? "오늘" : "내일";
+}
+
+function Line({ icon, children, dim }: { icon: React.ReactNode; children: React.ReactNode; dim?: boolean }) {
   return (
-    <div className="flex min-h-12 items-center gap-3 border-b border-slate-100 last:border-0">
-      <span className="text-slate-500">{icon}</span>
-      <span className="flex-1 text-base text-slate-700">{label}</span>
-      <span className={`text-base font-semibold ${done ? "text-emerald-700" : "text-slate-600"}`}>
-        {value}
+    <li className={`flex min-h-11 items-center gap-3 text-lg ${dim ? "text-(--wk-dim)" : ""}`}>
+      <span className="text-(--wk-dim)" aria-hidden="true">
+        {icon}
       </span>
-      {done === undefined ? null : done ? (
-        <CircleCheck className="h-5 w-5 text-emerald-600" />
-      ) : (
-        <Circle className="h-5 w-5 text-slate-300" />
-      )}
-    </div>
+      {children}
+    </li>
+  );
+}
+
+/** 깨우는 순서 한 단계 — 끝났으면 체크 */
+function Step({ done, label, detail }: { done: boolean; label: string; detail: string }) {
+  return (
+    <li className="flex min-h-14 items-center gap-3 border-b border-(--wk-line) last:border-0">
+      <span
+        aria-hidden="true"
+        className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full ${
+          done ? "bg-(--wk-ok) text-(--wk-on-accent)" : "border-2 border-(--wk-line-strong)"
+        }`}
+      >
+        {done && <Check className="h-4 w-4" strokeWidth={3} />}
+      </span>
+      <span className="flex-1 text-lg font-medium">{label}</span>
+      <span className="text-base text-(--wk-dim)">{detail}</span>
+    </li>
   );
 }
 
@@ -78,104 +74,100 @@ export default function HomeScreen({
   onOpenSchedule: () => void;
 }) {
   const now = useClock();
-  const bed = bedText(wakeup);
+  const lying = lyingOf(wakeup);
+  const open = curtainOpen(wakeup);
+  const has = wakeup.hasSlot;
 
   if (alarmMode) {
-    const lyingNow = bed.lying === true;
+    const bedDetail = !has(WAKEUP_SLOTS.bed)
+      ? "부품 없음"
+      : wakeup.bedShaking
+        ? "흔드는 중"
+        : lying === false
+          ? "일어났어요"
+          : "대기";
     return (
-      <div className="grid h-full grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)] gap-3 p-3">
-        <div className="min-h-0 overflow-y-auto">
+      <div className="grid h-full grid-cols-[minmax(0,1.25fr)_minmax(0,1fr)] gap-4 px-5 pb-4 pt-1">
+        <div className="min-h-0">
           <WakeupMissionCard
             mission={wakeup.mission}
             remainingSeconds={wakeup.remainingSeconds}
             config={wakeup.config}
             onSubmitPattern={wakeup.submitPattern}
-            compact
           />
         </div>
         <div className="flex min-h-0 flex-col gap-3">
-          <div className="rounded-2xl border border-slate-200 bg-white px-4 py-1 shadow-sm">
-            <StatusRow
-              icon={<Lightbulb className="h-5 w-5" />}
-              label="조명"
-              value={wakeup.hasSlot(WAKEUP_SLOTS.light) ? (wakeup.lightOn ? "켜짐" : "꺼짐") : "없음"}
-              done={wakeup.lightOn}
-            />
-            <StatusRow
-              icon={<Blinds className="h-5 w-5" />}
-              label="커튼"
-              value={curtainText(wakeup)}
-              done={
-                wakeup.curtainAngle !== null &&
-                wakeup.curtainAngle >= wakeup.device.curtainOpenAngle - 5
-              }
-            />
-            <StatusRow
-              icon={<BedDouble className="h-5 w-5" />}
-              label="모션 베드"
-              value={
-                wakeup.bedShaking ? "흔드는 중" : lyingNow ? "대기" : bed.lying === false ? "멈춤" : "—"
-              }
-            />
-            <StatusRow
-              icon={<BedDouble className="h-5 w-5" />}
-              label="침대"
-              value={bed.text}
-              done={bed.lying === false}
-            />
-          </div>
-          <button
-            type="button"
+          <Panel className="px-4 py-1">
+            <ol aria-label="깨우는 순서">
+              <Step
+                done={wakeup.lightOn}
+                label="조명"
+                detail={has(WAKEUP_SLOTS.light) ? (wakeup.lightOn ? "켜졌어요" : "켜는 중") : "부품 없음"}
+              />
+              <Step
+                done={open === true}
+                label="커튼"
+                detail={open === null ? "부품 없음" : open ? "열렸어요" : "여는 중"}
+              />
+              <Step done={lying === false} label="모션 베드" detail={bedDetail} />
+            </ol>
+          </Panel>
+          <TouchButton
             onClick={() => void wakeup.stopAlarm()}
-            className="mt-auto flex min-h-14 items-center justify-center gap-2 rounded-2xl bg-rose-600 text-lg font-semibold text-white active:bg-rose-700"
+            tone="accent"
+            className="mt-auto min-h-16 text-xl"
           >
-            <BellOff className="h-6 w-6" />
-            알람 끄기
-          </button>
-          <p className="text-center text-xs text-slate-500">
-            미션을 건너뛰고 끄는 버튼입니다. 정상 기상은 미션을 완수해서 꺼 주세요.
-          </p>
+            <BellOff className="h-6 w-6" aria-hidden="true" />
+            미션 없이 알람 끄기
+          </TouchButton>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="grid h-full grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)] gap-3 p-3">
-      <div className="flex flex-col items-center justify-center rounded-2xl border border-slate-200 bg-white shadow-sm">
-        <div className="text-[96px] font-semibold leading-none tabular-nums text-slate-900">
+    <div className="grid h-full grid-cols-[minmax(0,1.35fr)_minmax(0,1fr)] gap-6 px-8 pb-4">
+      <div className="flex flex-col justify-center">
+        <p className="wk-clock text-[136px] leading-[0.95] tracking-[-0.04em]">
           {hhmm(now)}
-        </div>
-        <div className="mt-3 text-xl text-slate-500">{dateText(now)}</div>
+        </p>
+        <p className="mt-3 pl-1 text-xl text-(--wk-dim)">{dateText(now)}</p>
       </div>
-      <div className="flex min-h-0 flex-col gap-3">
+
+      <div className="flex flex-col justify-center gap-5">
         <button
           type="button"
           onClick={onOpenSchedule}
-          className="flex min-h-[96px] items-center gap-3 rounded-2xl border border-sky-200 bg-sky-50 px-4 text-left active:bg-sky-100"
+          className="wk-press -mx-3 rounded-[var(--wk-radius-control)] px-3 py-2 text-left active:bg-(--wk-press)"
         >
-          <AlarmClock className="h-8 w-8 shrink-0 text-sky-600" />
-          <span className="min-w-0 flex-1">
-            <span className="block text-sm font-medium text-sky-700">다음 알람</span>
-            {schedule.saved ? (
-              <span className="block text-4xl font-semibold tabular-nums text-slate-900">
+          {schedule.saved ? (
+            <>
+              <span className="block text-[44px] font-medium leading-tight text-(--wk-accent)">
                 {schedule.saved.at}
               </span>
-            ) : (
-              <span className="block text-lg text-slate-600">예약 없음 · 눌러서 예약</span>
-            )}
-          </span>
-          <ChevronRight className="h-6 w-6 text-sky-500" />
+              <span className="block text-lg text-(--wk-dim)">
+                {dayOf(schedule.saved.at, now)} 이 시각에 깨워요
+              </span>
+            </>
+          ) : (
+            <>
+              <span className="block text-2xl font-medium">알람이 없어요</span>
+              <span className="block text-lg text-(--wk-accent)">눌러서 시각 정하기</span>
+            </>
+          )}
         </button>
-        <div className="rounded-2xl border border-slate-200 bg-white px-4 py-1 shadow-sm">
-          <StatusRow icon={<BedDouble className="h-5 w-5" />} label="침대" value={bed.text} />
-          <StatusRow
-            icon={<Lightbulb className="h-5 w-5" />}
-            label="조명"
-            value={wakeup.hasSlot(WAKEUP_SLOTS.light) ? (wakeup.lightOn ? "켜짐" : "꺼짐") : "없음"}
-          />
-          <StatusRow icon={<Blinds className="h-5 w-5" />} label="커튼" value={curtainText(wakeup)} />
-        </div>
+
+        <ul className="border-t border-(--wk-line) pt-3">
+          <Line icon={<BedDouble className="h-5 w-5" />} dim={lying === null}>
+            {lying === null ? "압력 센서 없음" : lying ? "침대에 누워 있어요" : "침대가 비어 있어요"}
+          </Line>
+          <Line icon={<Lightbulb className="h-5 w-5" />} dim={!has(WAKEUP_SLOTS.light)}>
+            {!has(WAKEUP_SLOTS.light) ? "조명 없음" : wakeup.lightOn ? "조명 켜짐" : "조명 꺼짐"}
+          </Line>
+          <Line icon={<Blinds className="h-5 w-5" />} dim={open === null}>
+            {open === null ? "커튼 없음" : open ? "커튼 열림" : "커튼 닫힘"}
+          </Line>
+        </ul>
       </div>
     </div>
   );

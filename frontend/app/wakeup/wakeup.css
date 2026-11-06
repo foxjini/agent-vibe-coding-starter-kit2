@@ -1,0 +1,127 @@
+/*
+ * wakeup 팀 디자인 토큰 — "새벽빛"
+ * =============================================================================
+ * /wakeup 화면에만 적용됩니다. 모든 규칙이 `.wk` 안에 있어 다른 팀 화면에는 영향이 없습니다.
+ * 설명서: components/team/wakeup/DESIGN.md
+ *
+ * 화면은 두 상태(phase)를 오갑니다.
+ *   night — 평상시. 침실 머리맡에서 눈부시지 않은 깊은 남색
+ *   dawn  — 알람·기상 미션 중. 화면 전체가 해 뜨는 색 (조명 네오픽셀 #FFB45A와 같은 계열)
+ * 컴포넌트는 아래 의미 변수(--wk-bg, --wk-text …)만 씁니다. 그래서 상태가 바뀌면 색이 함께 바뀝니다.
+ */
+
+.wk {
+  /* ── 원색 (팔레트) ─────────────────────────────── */
+  --wk-indigo-950: #0f1226;
+  --wk-indigo-900: #171b36;
+  --wk-indigo-800: #232850;
+  --wk-indigo-700: #343a6b;
+  --wk-moon: #e6e3f4;
+  --wk-mist: #a3a7cc;
+  --wk-ember: #f5a85b;
+  --wk-ember-deep: #2a1606;
+  --wk-mint: #86dcb6;
+  --wk-coral: #ff8f80;
+
+  --wk-sun: #ffb45a;
+  --wk-apricot: #ffd29c;
+  --wk-sky: #fff1df;
+  --wk-umber: #3b1d10;
+  --wk-clay: #6b3a22;
+  --wk-leaf: #1f6b4a;
+  --wk-brick: #a3321f;
+
+  /* ── 의미 변수: night (기본) ───────────────────── */
+  --wk-bg: var(--wk-indigo-950);
+  --wk-raised: var(--wk-indigo-900);
+  --wk-sunken: #0b0d1d;
+  --wk-line: var(--wk-indigo-800);
+  --wk-line-strong: var(--wk-indigo-700);
+  --wk-text: var(--wk-moon);
+  --wk-dim: var(--wk-mist);
+  --wk-accent: var(--wk-ember);
+  --wk-on-accent: var(--wk-ember-deep);
+  --wk-ok: var(--wk-mint);
+  --wk-alert: var(--wk-coral);
+  --wk-press: rgba(230, 227, 244, 0.08);
+  --wk-scrim: rgba(6, 7, 18, 0.72);
+  /* 시계 굵기 — 밤에는 가는 숫자(빛을 덜 냄), 새벽에는 굵은 숫자 */
+  --wk-clock-weight: 200;
+
+  /* ── 크기 체계 ─────────────────────────────────── */
+  --wk-radius-control: 12px;
+  --wk-radius-panel: 20px;
+
+  min-height: 100%;
+  background: var(--wk-bg);
+  color: var(--wk-text);
+  font-family: var(--font-wakeup), "IBM Plex Sans KR", "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
+  font-feature-settings: "tnum" 1;
+  -webkit-tap-highlight-color: transparent;
+  transition: background-color 600ms ease, color 600ms ease;
+}
+
+/* ── 의미 변수: dawn (알람·미션 중) ──────────────── */
+.wk[data-phase="dawn"] {
+  --wk-bg: var(--wk-sky);
+  --wk-raised: rgba(255, 250, 243, 0.78);
+  --wk-sunken: rgba(255, 236, 212, 0.9);
+  --wk-line: rgba(107, 58, 34, 0.18);
+  --wk-line-strong: rgba(107, 58, 34, 0.32);
+  --wk-text: var(--wk-umber);
+  --wk-dim: var(--wk-clay);
+  --wk-accent: var(--wk-umber);
+  --wk-on-accent: var(--wk-sky);
+  --wk-ok: var(--wk-leaf);
+  --wk-alert: var(--wk-brick);
+  --wk-press: rgba(59, 29, 16, 0.08);
+  --wk-scrim: rgba(59, 29, 16, 0.45);
+  --wk-clock-weight: 600;
+}
+
+/* 해 뜨는 빛 — 이 화면에서 단 하나의 큰 연출. 알람이 시작될 때 한 번 떠오릅니다. */
+.wk-sunrise {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(120% 85% at 50% 118%, var(--wk-sun) 0%, var(--wk-apricot) 38%, rgba(255, 241, 223, 0) 72%);
+  opacity: 0;
+  transform: translateY(18%);
+  transition: opacity 1600ms ease-out, transform 1600ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+.wk[data-phase="dawn"] .wk-sunrise {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* 큰 시계 — 굵기가 상태에 따라 바뀝니다 */
+.wk-clock {
+  font-weight: var(--wk-clock-weight);
+}
+
+/* 눌렀을 때 반응 (터치 화면에는 hover가 없으므로 active로) */
+.wk-press {
+  transition: background-color 120ms ease, transform 120ms ease;
+}
+.wk-press:active:not(:disabled) {
+  transform: scale(0.98);
+}
+
+/* 키보드로 다룰 때만 보이는 초점 테두리 */
+.wk :focus-visible {
+  outline: 2px solid var(--wk-accent);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .wk,
+  .wk-sunrise,
+  .wk-press {
+    transition: none;
+  }
+  .wk-press:active:not(:disabled) {
+    transform: none;
+  }
+}

@@ -1,22 +1,33 @@
 /**
- * 기상 미션 카드 (wakeup 팀 화면) — 키트 컴포넌트가 아니라 **팀 화면**입니다.
- * 다른 팀은 이 파일 대신 자기 시나리오 화면을 만들면 됩니다.
+ * 기상 미션 (wakeup 팀 화면) — 키트 컴포넌트가 아니라 **팀 화면**입니다.
+ * 새벽빛 디자인(app/wakeup/wakeup.css)의 의미 변수를 씁니다. 해야 할 일을 가장 크게 보여 줍니다.
+ * 판정은 scenarios/wakeupEngine.ts가 하고, 이 파일은 보여 주기만 합니다.
  */
 "use client";
 
-import { Grid3x3, Hand, Sparkles, Timer } from "lucide-react";
 import React from "react";
 
 import PatternPad from "@/components/team/PatternPad";
-import { HAND_KO, patternTiming } from "@/scenarios/wakeupEngine";
-import type { MissionConfig, MissionState, PatternFeedback } from "@/scenarios/wakeupEngine";
+import { patternTiming } from "@/scenarios/wakeupEngine";
+import type { Hand, MissionConfig, MissionState, PatternFeedback } from "@/scenarios/wakeupEngine";
 
-const RESULT_STYLES: Record<string, string> = {
-  win: "border-emerald-200 bg-emerald-50 text-emerald-800",
-  object: "border-emerald-200 bg-emerald-50 text-emerald-800",
-  lose: "border-rose-200 bg-rose-50 text-rose-800",
-  draw: "border-amber-200 bg-amber-50 text-amber-800",
-  timeout: "border-amber-200 bg-amber-50 text-amber-800",
+/** 손 이름 + 받침에 맞는 조사 (주먹을 · 보를 · 가위를) */
+const HAND_OBJ: Record<Hand, string> = { rock: "주먹을", paper: "보를", scissors: "가위를" };
+
+const OBJECT_KO: Record<string, string> = {
+  person: "사람",
+  bottle: "물병",
+  cup: "컵",
+  book: "책",
+  "cell phone": "휴대폰",
+};
+
+const RESULT_TONE: Record<string, string> = {
+  win: "text-(--wk-ok)",
+  object: "text-(--wk-ok)",
+  lose: "text-(--wk-alert)",
+  draw: "text-(--wk-dim)",
+  timeout: "text-(--wk-alert)",
 };
 
 export default function WakeupMissionCard({
@@ -24,31 +35,20 @@ export default function WakeupMissionCard({
   remainingSeconds,
   config,
   onSubmitPattern,
-  compact = false,
 }: {
   mission: MissionState;
   remainingSeconds: number;
-  /** 패턴 미션에서 보여 주는 속도·정답 남기기를 읽습니다 */
+  /** 패턴 미션의 속도·정답 남기기, 사물 목록을 읽습니다 */
   config?: MissionConfig;
   /** 패턴 미션 — 그린 패턴을 판정에 넘깁니다 (useWakeup().submitPattern) */
   onSubmitPattern?: (drawn: number[]) => PatternFeedback;
-  /** 7인치(800×480) 화면용 — 여백을 줄이고 패턴 판을 작게 */
+  /** 예전 화면과 호환용 (지금은 7인치 크기 하나뿐) */
   compact?: boolean;
 }) {
   if (!mission.active) {
-    return (
-      <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 p-6 text-center">
-        <Sparkles className="mx-auto mb-2 h-6 w-6 text-slate-300" />
-        <p className="text-sm text-slate-500">
-          알람이 울리면 기상 미션이 시작됩니다.
-        </p>
-      </div>
-    );
+    return <p className="text-base text-(--wk-dim)">알람이 울리면 기상 미션이 시작됩니다.</p>;
   }
 
-  const aiHand = mission.aiHand;
-  const expected = mission.expectedHand;
-  // 패턴 미션이면 그리기 판에 넘길 것을 한데 모읍니다 (아니면 null → 가위바위보 화면)
   const patternView =
     mission.mode === "pattern" && mission.pattern && config && onSubmitPattern
       ? {
@@ -59,28 +59,26 @@ export default function WakeupMissionCard({
         }
       : null;
 
+  // 예로 들 물건 두 개 (사람은 빼고)
+  const objects = (config?.objectTargets ?? [])
+    .filter((name) => name !== "person")
+    .slice(0, 2)
+    .map((name) => OBJECT_KO[name] ?? name);
+  const acceptsObjects = mission.mode === "auto" || mission.mode === "object";
+
   return (
-    <div className={`rounded-xl border border-sky-200 bg-white shadow-sm ${compact ? "p-3" : "p-5"}`}>
-      <div className={`flex items-start justify-between gap-2 ${compact ? "mb-2" : "mb-4"}`}>
-        <div>
-          <div className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-sky-700">
-            {patternView ? <Grid3x3 className="h-3.5 w-3.5" /> : <Hand className="h-3.5 w-3.5" />}
-            기상 미션 · {mission.round}라운드
-          </div>
-          <h3 className="text-base font-medium text-slate-800">
-            {patternView
-              ? "보여 준 패턴을 똑같이 이어 그려야 알람이 꺼집니다"
-              : "카메라 앞에서 이겨야 알람이 꺼집니다"}
-          </h3>
-        </div>
-        <span className="flex shrink-0 items-center gap-1 rounded-full border border-sky-200 bg-sky-50 px-2.5 py-1 text-xs font-medium text-sky-700">
-          <Timer className="h-3.5 w-3.5" />
+    <div className="flex h-full flex-col">
+      <div className="flex items-baseline justify-between gap-3 text-base text-(--wk-dim)">
+        <span>
+          {patternView ? "패턴 그리기" : mission.aiHand ? "가위바위보" : "물건 보여 주기"} {mission.round}라운드
+        </span>
+        <span aria-label={`남은 시간 ${remainingSeconds}초`} className="font-medium">
           {remainingSeconds}초
         </span>
       </div>
 
       {patternView ? (
-        <div className={compact ? "mx-auto mb-2 w-full max-w-[220px]" : "mb-4"}>
+        <div className="mx-auto my-2 w-full max-w-[210px]">
           <PatternPad
             pattern={patternView.pattern}
             round={mission.round}
@@ -92,52 +90,47 @@ export default function WakeupMissionCard({
           />
         </div>
       ) : (
-        <div
-          className={`flex items-center justify-center gap-6 rounded-lg bg-slate-50 ${
-            compact ? "mb-2 py-6" : "mb-4 py-5"
-          }`}
-        >
-          <div className="text-center">
-            <div className="text-sm text-slate-600">AI가 낸 손</div>
-            <div className="mt-1 text-2xl font-semibold text-slate-900">
-              {aiHand ? HAND_KO[aiHand] : "—"}
-            </div>
-          </div>
-          <div className="text-2xl text-slate-400" aria-hidden="true">vs</div>
-          <div className="text-center">
-            <div className="text-sm text-slate-600">내야 하는 손</div>
-            <div className="mt-1 text-2xl font-semibold text-sky-700">
-              {expected ? HAND_KO[expected] : "—"}
-            </div>
-          </div>
+        <div className="flex flex-1 flex-col justify-center py-2">
+          {mission.aiHand && mission.expectedHand ? (
+            <>
+              <p className="text-xl text-(--wk-dim)">AI는 {HAND_OBJ[mission.aiHand]} 냈어요</p>
+              <p className="mt-1 text-[56px] font-semibold leading-tight tracking-tight">
+                {HAND_OBJ[mission.expectedHand]} 내세요
+              </p>
+            </>
+          ) : (
+            <p className="text-[44px] font-semibold leading-tight">물건을 카메라에 보여 주세요</p>
+          )}
+          {acceptsObjects && objects.length > 0 && (
+            <p className="mt-3 text-base text-(--wk-dim)">
+              {mission.aiHand ? "또는 " : ""}
+              {objects.join(", ")} 같은 물건을 보여 줘도 돼요
+            </p>
+          )}
         </div>
       )}
 
-      <div className="mb-3 flex items-center gap-2">
-        <span className="text-sm text-slate-600">{patternView ? "성공" : "승리"}</span>
-        <div className="flex gap-1">
+      <div className="flex items-center gap-3">
+        <div className="flex gap-1.5" aria-hidden="true">
           {Array.from({ length: mission.requiredWins }, (_, i) => (
             <span
               key={i}
-              className={`h-2.5 w-8 rounded-full ${
-                i < mission.wins ? "bg-emerald-500" : "bg-slate-200"
-              }`}
+              className={`h-3 w-10 rounded-full ${i < mission.wins ? "bg-(--wk-ok)" : "bg-(--wk-line-strong)"}`}
             />
           ))}
         </div>
-        <span className="text-sm tabular-nums text-slate-500">
-          {mission.wins} / {mission.requiredWins}
+        <span className="text-base text-(--wk-dim)">
+          {mission.requiredWins}번 중 {mission.wins}번 성공
         </span>
       </div>
 
       {mission.lastResult && mission.lastResultMessage && (
-        <div
-          className={`rounded-lg border px-3 py-2 text-sm ${
-            RESULT_STYLES[mission.lastResult] ?? "border-slate-200 bg-slate-50 text-slate-700"
-          }`}
+        <p
+          role="status"
+          className={`mt-2 truncate text-base font-medium ${RESULT_TONE[mission.lastResult] ?? "text-(--wk-dim)"}`}
         >
           {mission.lastResultMessage}
-        </div>
+        </p>
       )}
     </div>
   );
