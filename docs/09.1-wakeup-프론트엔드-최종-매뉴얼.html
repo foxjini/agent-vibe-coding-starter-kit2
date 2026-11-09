@@ -884,6 +884,9 @@ NEXT_PUBLIC_WS_URL=ws://192.168.0.10:8000/ws</pre></div></li>
         <li>Windows 방화벽: 처음 켤 때 뜨는 창에서 <strong>허용</strong>. 창이 안 떴는데 파이에서 안 열리면 <strong>관리자</strong> PowerShell에서
           <div class="cmd"><div class="cmd-h"><span class="where">관리자 PowerShell · 한 번만</span><button class="copy" type="button">복사</button></div>
 <pre>New-NetFirewallRule -DisplayName "IoT 3000 8000" -Direction Inbound -Protocol TCP -LocalPort 3000,8000 -Action Allow</pre></div></li>
+        <li><strong>절전 끄기</strong>: 설정 → 시스템 → 전원 → 화면·절전에서 "절전 모드"를 <strong>안 함</strong>. 알람은 PC 백엔드가 울리므로 밤에 PC가 잠들면 아침 알람이 울리지 않습니다</li>
+        <li><strong>PC IP 고정</strong>: 공유기 설정에서 PC에 같은 IP를 예약합니다. IP가 바뀌면 네 곳을 고쳐야 합니다 — <code>.env.local</code>(+다시 build) · <code>CORS_ALLOW_ORIGINS</code> · 파이 데몬의 <code>BACKEND_URL</code> · 키오스크 주소</li>
+        <li><strong>시각 맞추기</strong>: 설정 → 시간 및 언어에서 표준 시간대 <strong>서울</strong>, "자동으로 시간 설정" 켜기. 예약 알람은 PC 시각, 화면 시계와 미션 시간은 파이 시각을 따릅니다</li>
       </ol>
     </div>
     <div>
@@ -897,7 +900,7 @@ npm run start</pre></div>
       <div class="cmd"><div class="cmd-h"><span class="where">파이 데스크톱의 터미널 (SSH 창 아님)</span><button class="copy" type="button">복사</button></div>
 <pre>chromium-browser --kiosk --noerrdialogs http://192.168.0.10:3000/wakeup</pre></div>
       <p class="small">명령이 없다고 나오면 <code>chromium</code>으로. 전체 화면에서 나오기: 키보드 <kbd>Alt</kbd>+<kbd>F4</kbd>. 자동 실행은 10.1 매뉴얼 마지막 슬라이드를 봅니다.</p>
-      <div class="box ok"><b class="k">확인</b><p>상단 바 오른쪽 점이 초록 <strong>연결됨</strong>. 회색 <strong>연결 대기</strong>면 ① <code>.env.local</code>의 WS 주소 → build 다시 ② <code>CORS_ALLOW_ORIGINS</code> ③ 방화벽 순서로 봅니다. 화면이 아예 안 열리면 ③ 방화벽, 같은 공유기(와이파이)인지.</p></div>
+      <div class="box ok"><b class="k">확인</b><p>상단 바 오른쪽 점이 초록 <strong>연결됨</strong>. 회색 <strong>연결 대기</strong>면 ① <code>.env.local</code>의 WS 주소 → build 다시 ② <code>CORS_ALLOW_ORIGINS</code> ③ 방화벽 순서로 봅니다. 화면이 아예 안 열리면 ③ 방화벽, 같은 공유기(와이파이)인지.</p><p><strong>켜는 순서</strong>: PC(DB → 백엔드 → <code>npm run start</code>) → 파이. 파이가 먼저 켜져 오류 화면이면 ⋮ → 새로 고침.</p></div>
     </div>
   </div>
 </section>

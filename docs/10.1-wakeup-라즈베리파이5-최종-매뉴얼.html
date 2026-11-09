@@ -969,6 +969,15 @@ git commit -m "[hardware] 조도 센서 + SG90 서보(커튼) 추가"</pre></div
       <div class="cmd"><div class="cmd-h"><span class="where">파이 데스크톱의 터미널 (SSH 창 아님)</span><button class="copy" type="button">복사</button></div>
 <pre>chromium-browser --kiosk --noerrdialogs http://192.168.0.10:3000/wakeup</pre></div>
       <p class="small">명령이 없다고 나오면 <code>chromium</code>으로. 빠져나오기: 키보드 <kbd>Alt</kbd>+<kbd>F4</kbd> 또는 SSH에서 <code>pkill -f chromium</code>.</p>
+      <h3>한 번만 — 화면 꺼짐 · 한글 글꼴 · 시각</h3>
+      <div class="cmd"><div class="cmd-h"><span class="where">파이 터미널 · 한 번만</span><button class="copy" type="button">복사</button></div>
+<pre>sudo apt install -y fonts-noto-cjk
+timedatectl</pre></div>
+      <ul class="small">
+        <li><strong>화면 꺼짐 끄기</strong>: <code>sudo raspi-config</code> → Display Options → Screen Blanking → <strong>No</strong> → 재부팅. 화면이 꺼져 있으면 알람이 울려도 미션 화면이 보이지 않습니다</li>
+        <li><strong>한글 글꼴</strong>: wakeup 화면은 글꼴을 PC가 함께 보내지만, <code>/kit</code> 같은 다른 화면·오류 창은 파이 글꼴을 씁니다(없으면 □로 보임)</li>
+        <li><strong>시각</strong>: <code>timedatectl</code>에 <code>Asia/Seoul</code>과 <code>System clock synchronized: yes</code>가 보여야 합니다. 시간대가 다르면 <code>sudo raspi-config</code> → Localisation Options → Timezone. 화면 시계·미션 시간은 파이 시각을, 예약 알람은 PC 시각을 따릅니다</li>
+      </ul>
     </div>
     <div>
       <h3>3. 전원만 꽂으면 화면이 뜨게 (선택)</h3>
@@ -980,7 +989,7 @@ nano ~/.config/autostart/wakeup.desktop</pre></div>
 Type=Application
 Name=wakeup
 Exec=sh -c "sleep 15; chromium-browser --kiosk --noerrdialogs http://192.168.0.10:3000/wakeup"</pre></div>
-      <p class="small">저장(<kbd>Ctrl</kbd>+<kbd>O</kbd>, <kbd>Enter</kbd>, <kbd>Ctrl</kbd>+<kbd>X</kbd>) → <code>sudo reboot</code>. <code>sleep 15</code>는 와이파이가 붙을 때까지 기다리는 시간입니다. 안 뜨면 OS 버전마다 자동 실행 방식이 달라서일 수 있으니 선생님과 확인합니다. 데몬 자동 실행은 16번 슬라이드.</p>
+      <p class="small">저장(<kbd>Ctrl</kbd>+<kbd>O</kbd>, <kbd>Enter</kbd>, <kbd>Ctrl</kbd>+<kbd>X</kbd>) → <code>sudo reboot</code>. <code>sleep 15</code>는 와이파이가 붙을 때까지 기다리는 시간입니다. PC가 늦게 켜져 오류 화면이 뜨면 숫자를 늘리거나 ⋮ → 새로 고침. 안 뜨면 OS 버전마다 자동 실행 방식이 달라서일 수 있으니 선생님과 확인합니다. 데몬 자동 실행은 16번 슬라이드.</p>
       <div class="box ok"><b class="k">통합 시험</b><p>화면 상단 점이 초록 <strong>연결됨</strong> → 침대에 누워(압력 30 이상) ⋮ → 알람 지금 울려 보기 → 화면이 해 뜨는 색으로 바뀌고 조명 켜짐 · 커튼 180° · 모션 베드가 2초마다 0° ↔ 60° → 일어나면 베드 멈춤.</p></div>
       <div class="box warn"><b class="k">터치가 안 먹거나 화면이 작게 보이면</b><p>주소 끝이 <code>/wakeup</code>인지 확인합니다. 화면 확대는 꺼져 있습니다(잘못 눌러 확대되지 않게).</p></div>
     </div>
