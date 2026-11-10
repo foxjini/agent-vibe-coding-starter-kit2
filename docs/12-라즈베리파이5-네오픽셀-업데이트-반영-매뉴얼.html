@@ -1,0 +1,646 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="light">
+<meta name="description" content="라즈베리파이 담당 학생이 11월 20일 작품 전시회까지 하드웨어 구성을 바꾸고 완성하는 작업 순서와 명령어. 컨텍스트 팩 만들기와 예시 프롬프트 포함.">
+<title>12 라즈베리파이 5 네오픽셀 업데이트 반영 매뉴얼</title>
+<style>
+:root{
+  --blue:#0064E0; --blue-dark:#0052B8; --blue-soft:#EBF5FF; --blue-line:#BFDBFE;
+  --ink:#0F172A; --ink-2:#475569; --ink-3:#94A3B8;
+  --line:#E2E8F0; --surface:#F8FAFC; --canvas:#FFFFFF; --page:#F1F5F9;
+  --green:#047857; --green-soft:#ECFDF5; --green-line:#A7F3D0;
+  --red:#BE123C; --red-soft:#FFF1F2; --red-line:#FECDD3;
+  --amber:#B45309; --amber-soft:#FFFBEB; --amber-line:#FDE68A;
+  --code-bg:#0B1B33; --code-ink:#E2E8F0; --code-dim:#7C8DA8;
+  --sans:"Pretendard Variable",Pretendard,-apple-system,BlinkMacSystemFont,"Segoe UI","Malgun Gothic","Apple SD Gothic Neo","Noto Sans KR",sans-serif;
+  --mono:ui-monospace,"Cascadia Mono",Consolas,"D2Coding","JetBrains Mono","Noto Sans Mono CJK KR",monospace;
+}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{background:var(--page); color:var(--ink); font-family:var(--sans); font-size:15px; line-height:1.6; -webkit-text-size-adjust:100%}
+
+/* ── 덱 ─────────────────────────────────────── */
+.deck{
+  max-width:1180px; margin:16px auto; background:var(--canvas);
+  border:1px solid var(--line); border-radius:20px; box-shadow:0 4px 20px rgba(15,23,42,.06);
+  display:flex; flex-direction:column; height:calc(100vh - 32px); height:calc(100dvh - 32px); min-height:560px; overflow:hidden;
+}
+.deck-head{
+  display:flex; align-items:center; justify-content:space-between; gap:12px;
+  padding:14px 28px; border-bottom:1px solid var(--line);
+}
+.brand{display:flex; align-items:center; gap:10px; font-size:12.5px; font-weight:700; color:var(--blue); letter-spacing:.02em; min-width:0}
+.brand .dot{width:10px; height:10px; border-radius:50%; background:var(--blue); flex:none}
+.brand span:last-child{white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+.head-tools{display:flex; align-items:center; gap:8px; flex:none}
+.pill{
+  font-family:var(--sans); font-size:12.5px; font-weight:600; color:var(--blue);
+  background:var(--blue-soft); border:1px solid transparent; border-radius:20px; padding:5px 12px; cursor:pointer;
+}
+.pill:hover{border-color:var(--blue-line)}
+.pill:focus-visible,.nav-btn:focus-visible,.dots button:focus-visible{outline:2px solid var(--blue); outline-offset:2px}
+.counter{font-size:12.5px; font-weight:600; color:var(--ink-3); font-variant-numeric:tabular-nums; min-width:52px; text-align:right}
+
+.viewport{flex:1; position:relative; overflow:hidden}
+.slide{
+  position:absolute; inset:0; padding:30px 40px 36px; overflow-y:auto;
+  opacity:0; visibility:hidden; transform:translateY(10px);
+  transition:opacity .25s ease, transform .25s ease, visibility .25s;
+}
+.slide.active{opacity:1; visibility:visible; transform:none}
+.more{
+  position:absolute; left:50%; bottom:12px; transform:translateX(-50%); z-index:10; display:none;
+  background:var(--blue); color:#fff; font-size:12px; font-weight:700; padding:5px 14px; border-radius:20px;
+  box-shadow:0 4px 14px rgba(0,100,224,.3); pointer-events:none;
+}
+.more.show{display:block}
+
+.deck-foot{
+  display:flex; align-items:center; gap:14px; padding:12px 28px; border-top:1px solid var(--line);
+}
+.nav-btn{
+  font-family:var(--sans); font-size:13.5px; font-weight:600; border-radius:10px; padding:8px 16px; cursor:pointer;
+  border:1px solid var(--line); background:var(--canvas); color:var(--ink-2);
+}
+.nav-btn.next{background:var(--blue); border-color:var(--blue); color:#fff}
+.nav-btn.next:hover{background:var(--blue-dark)}
+.nav-btn:disabled{opacity:.35; cursor:default}
+.dots{flex:1; display:flex; justify-content:center; gap:6px; flex-wrap:wrap}
+.dots button{width:9px; height:9px; padding:0; border-radius:50%; border:0; background:var(--line); cursor:pointer}
+.dots button[aria-current="true"]{background:var(--blue); width:22px; border-radius:6px}
+
+/* 목차 */
+.toc-panel{
+  position:absolute; inset:0; background:rgba(255,255,255,.97); z-index:20; padding:28px 40px; overflow-y:auto; display:none;
+}
+.toc-panel.open{display:block}
+.toc-panel h2{margin:0 0 14px; font-size:20px}
+.toc-panel ol{margin:0; padding:0; list-style:none; columns:2; column-gap:28px}
+.toc-panel li{break-inside:avoid; margin:0 0 6px}
+.toc-panel a{display:flex; gap:10px; text-decoration:none; color:var(--ink); padding:7px 10px; border-radius:8px}
+.toc-panel a:hover{background:var(--blue-soft)}
+.toc-panel a b{color:var(--blue); font-variant-numeric:tabular-nums; min-width:22px}
+@media(max-width:640px){ .toc-panel ol{columns:1} }
+
+/* ── 슬라이드 글자 ────────────────────────────── */
+.tag{font-size:12px; font-weight:700; color:var(--blue); letter-spacing:.06em; margin:0 0 6px}
+h1{font-size:clamp(30px,5vw,46px); line-height:1.15; letter-spacing:-.02em; font-weight:800; margin:0 0 12px}
+h2{font-size:clamp(21px,2.6vw,27px); line-height:1.25; letter-spacing:-.015em; font-weight:800; margin:0 0 6px}
+h3{font-size:15.5px; font-weight:700; margin:18px 0 8px}
+.lead{color:var(--ink-2); font-size:15.5px; margin:0 0 18px; max-width:72ch}
+p{margin:0 0 10px}
+ul,ol{margin:0 0 12px; padding-left:20px}
+li{margin-bottom:4px}
+code{font-family:var(--mono); font-size:.88em; background:var(--surface); border:1px solid var(--line); border-radius:5px; padding:.05em .35em; overflow-wrap:anywhere}
+kbd{font-family:var(--mono); font-size:.82em; border:1px solid var(--line); border-bottom-width:2px; border-radius:5px; padding:.05em .4em; background:#fff}
+.small{font-size:13px; color:var(--ink-2)}
+strong{font-weight:700}
+a{color:var(--blue)}
+
+/* 레이아웃 */
+.grid{display:grid; gap:14px}
+.grid > *{min-width:0}
+.g2{grid-template-columns:repeat(2,minmax(0,1fr))}
+.g3{grid-template-columns:repeat(3,minmax(0,1fr))}
+.g4{grid-template-columns:repeat(4,minmax(0,1fr))}
+@media(max-width:900px){ .g3,.g4{grid-template-columns:repeat(2,minmax(0,1fr))} }
+@media(max-width:640px){ .g2,.g3,.g4{grid-template-columns:1fr} }
+.card{border:1px solid var(--line); border-radius:12px; background:var(--canvas); padding:14px 16px}
+.card.soft{background:var(--surface)}
+.card.blue{background:var(--blue-soft); border-color:var(--blue-line)}
+.card h3{margin-top:0}
+.card ul{margin-bottom:0}
+
+/* 흐름 */
+.flow{display:grid; grid-template-columns:repeat(auto-fit,minmax(130px,1fr)); gap:10px; margin:0 0 16px; padding:0; list-style:none; counter-reset:f}
+.flow li{counter-increment:f; border:1px solid var(--line); border-radius:12px; padding:12px 12px 12px; background:var(--canvas); margin:0}
+.flow li::before{
+  content:counter(f); display:grid; place-items:center; width:26px; height:26px; border-radius:50%;
+  background:var(--blue); color:#fff; font-weight:800; font-size:13px; margin-bottom:6px;
+}
+.flow b{display:block; font-size:14.5px}
+.flow span{font-size:12.5px; color:var(--ink-2)}
+
+/* 단계 */
+.steps{list-style:none; padding:0; margin:0; counter-reset:s}
+.steps > li{counter-increment:s; position:relative; padding-left:40px; margin-bottom:16px}
+.steps > li::before{
+  content:counter(s); position:absolute; left:0; top:0; width:26px; height:26px; border-radius:50%;
+  background:var(--ink); color:#fff; font-weight:800; font-size:13px; display:grid; place-items:center;
+}
+.steps > li > b{display:block; margin-bottom:4px; font-size:15px}
+
+/* 명령 */
+.cmd{border-radius:12px; overflow:hidden; margin:0 0 12px; border:1px solid #13284A}
+.cmd-h{display:flex; align-items:center; justify-content:space-between; gap:8px; background:#122848; padding:6px 10px 6px 12px}
+.where{font-family:var(--mono); font-size:11.5px; font-weight:700; letter-spacing:.03em; color:#9CC3FF}
+.where.pi{color:#86EFAC}
+.where.out{color:#CBD5E1}
+.copy{
+  font-family:var(--sans); font-size:11.5px; font-weight:600; color:#CBD5E1; background:rgba(255,255,255,.08);
+  border:1px solid rgba(255,255,255,.18); border-radius:6px; padding:3px 10px; cursor:pointer;
+}
+.copy:hover{background:rgba(255,255,255,.16); color:#fff}
+.copy.done{background:var(--blue); border-color:var(--blue); color:#fff}
+.cmd pre{margin:0; background:var(--code-bg); color:var(--code-ink); padding:12px 14px; overflow-x:auto; font-family:var(--mono); font-size:13px; line-height:1.6}
+.cmd pre .c{color:var(--code-dim)}
+
+/* 프롬프트 */
+.prompt{border:1px solid var(--blue-line); background:var(--blue-soft); border-radius:12px; margin:0 0 12px; overflow:hidden}
+.prompt-h{display:flex; align-items:center; justify-content:space-between; padding:7px 12px; border-bottom:1px solid var(--blue-line)}
+.prompt-h span{font-size:12.5px; font-weight:700; color:var(--blue)}
+.prompt .copy{color:var(--blue); background:#fff; border-color:var(--blue-line)}
+.prompt .copy.done{color:#fff; background:var(--blue)}
+.prompt pre{margin:0; padding:12px 14px; white-space:pre-wrap; font-family:var(--mono); font-size:13px; line-height:1.65; color:var(--ink)}
+
+/* 상자 */
+.box{border-radius:12px; padding:11px 14px; margin:0 0 12px; border:1px solid var(--blue-line); background:var(--blue-soft); font-size:14px}
+.box.ok{border-color:var(--green-line); background:var(--green-soft)}
+.box.warn{border-color:var(--amber-line); background:var(--amber-soft)}
+.box.no{border-color:var(--red-line); background:var(--red-soft)}
+.box b.k{display:block; font-size:12px; letter-spacing:.06em; margin-bottom:2px; color:var(--blue)}
+.box.ok b.k{color:var(--green)} .box.warn b.k{color:var(--amber)} .box.no b.k{color:var(--red)}
+.box p:last-child,.box ul:last-child{margin-bottom:0}
+
+/* 표 */
+.tw{overflow-x:auto; border:1px solid var(--line); border-radius:12px; margin:0 0 12px}
+table{border-collapse:collapse; width:100%; font-size:13.5px; background:#fff}
+th,td{padding:8px 11px; border-bottom:1px solid var(--line); text-align:left; vertical-align:top}
+th{background:var(--surface); font-size:12px; color:var(--ink-2); font-weight:700; white-space:nowrap}
+tr:last-child td{border-bottom:0}
+td code{background:transparent; border:0; padding:0; color:var(--blue); font-weight:600}
+td.nw{white-space:nowrap}
+
+/* 핀 표 */
+.pins td{padding:4px 10px; font-family:var(--mono); font-size:12.5px}
+.pins td.r{text-align:right}
+.pins td.n{text-align:center; color:var(--ink-3); background:var(--surface); width:44px}
+.pins td.g{color:var(--blue); font-weight:700}
+.pins td.pw{color:var(--red); font-weight:700}
+.pins td.gd{color:var(--ink-3)}
+
+/* 체크 */
+.check{list-style:none; padding:0; margin:0 0 10px}
+.check li{display:flex; gap:10px; align-items:flex-start; padding:7px 0; border-bottom:1px solid var(--line); margin:0}
+.check li:last-child{border-bottom:0}
+.check input{margin-top:4px; width:16px; height:16px; accent-color:var(--blue); flex:none}
+
+/* 표지 */
+.cover{display:flex; flex-direction:column; justify-content:center; min-height:100%}
+.cover .big{font-size:15px; color:var(--blue); font-weight:800; letter-spacing:.08em; margin-bottom:10px}
+.chips{display:flex; flex-wrap:wrap; gap:8px; margin:18px 0}
+.chip{font-size:13px; border:1px solid var(--line); background:var(--surface); border-radius:20px; padding:5px 12px; color:var(--ink-2)}
+.chip b{color:var(--ink)}
+.dday{display:inline-flex; align-items:baseline; gap:8px; background:var(--blue); color:#fff; border-radius:14px; padding:10px 16px; font-weight:800}
+.dday small{font-weight:600; opacity:.85}
+
+/* 좁은 화면: 슬라이드가 자연스럽게 흐르게 */
+@media(max-width:760px), (max-height:560px){
+  .deck{height:auto; min-height:0; margin:0; border-radius:0; border:0}
+  .viewport{overflow:visible}
+  .slide{position:static; display:none; opacity:1; visibility:visible; transform:none; padding:22px 16px 26px; overflow:visible}
+  .slide.active{display:block}
+  .deck-head{padding:12px 16px; position:sticky; top:0; background:#fff; z-index:30}
+  .deck-foot{padding:10px 16px; position:sticky; bottom:0; background:#fff; z-index:30}
+  .toc-panel{position:fixed; padding:22px 16px}
+  .more{display:none!important}
+}
+
+/* 전체 보기 · 인쇄 */
+body.all .deck{height:auto; min-height:0}
+body.all .viewport{overflow:visible}
+body.all .slide{position:static; display:block; opacity:1; visibility:visible; transform:none; overflow:visible; border-bottom:6px solid var(--page)}
+body.all .deck-foot,body.all .more{display:none!important}
+@media print{
+  body{background:#fff}
+  .deck{height:auto; border:0; box-shadow:none; margin:0; max-width:none}
+  .deck-head,.deck-foot,.copy,.toc-panel{display:none!important}
+  .viewport{overflow:visible}
+  .slide{position:static; display:block!important; opacity:1; visibility:visible; transform:none; overflow:visible; page-break-after:always; padding:18px 8px}
+  .cmd pre{white-space:pre-wrap}
+}
+@media (prefers-reduced-motion:reduce){ .slide{transition:none} }
+.shot{display:block;max-width:100%;height:auto;border:1px solid var(--line);border-radius:12px;margin:6px 0 8px}
+</style>
+</head>
+<body>
+<div class="deck" id="deck">
+  <header class="deck-head">
+    <div class="brand"><span class="dot" aria-hidden="true"></span><span>IoT 개발 플랫폼 키트 · 12 라즈베리파이 5 네오픽셀 업데이트 반영</span></div>
+    <div class="head-tools">
+      <button class="pill" type="button" id="btn-toc" aria-expanded="false" aria-controls="toc">목차</button>
+      <button class="pill" type="button" id="btn-all" aria-pressed="false">전체 보기</button>
+      <span class="counter" id="counter" aria-live="polite">1 / 1</span>
+    </div>
+  </header>
+
+  <div class="viewport" id="viewport">
+  <div class="more" id="more" aria-hidden="true">▼ 아래에 더 있습니다 — 스크롤</div>
+  <nav class="toc-panel" id="toc" aria-label="목차"><h2>목차</h2><ol id="toc-list"></ol></nav>
+
+
+<!-- 1 ─────────────────────────────────────────── -->
+<section class="slide" data-title="표지">
+  <div class="cover">
+    <p class="big">RASPBERRY PI 5 · NEOPIXEL UPDATE</p>
+    <h1>12 네오픽셀 업데이트 반영하기<br>플랫폼 수정을 우리 파이에 가져오기</h1>
+    <p class="lead">플랫폼(키트)에서 <strong>라즈베리파이 5용 네오픽셀 연결 방법</strong>을 고쳤습니다. 우리 팀 PC와 파이에 이 수정을 가져와, 네오픽셀이 <strong>흉내내기가 아니라 실제로</strong> 켜지게 만듭니다.
+      한 단계를 끝내고 <strong>눈으로 확인한 다음</strong> 넘어갑니다.</p>
+    <div class="chips">
+      <span class="chip"><b>꼭 할 팀</b> wakeup · classroom (네오픽셀 · 온습도)</span>
+      <span class="chip"><b>파일만 받을 팀</b> study · subway</span>
+      <span class="chip"><b>누가</b> 1단계 팀 PC 담당 · 2~6단계 파이 담당</span>
+      <span class="chip"><b>시간</b> 30분 안팎 (파이 업데이트가 필요하면 +20분)</span>
+    </div>
+    <div class="box ok"><b class="k">우리 팀이 만든 것은 그대로입니다</b>
+      <p>배치표 <code>pi/slot_map.py</code>, 비밀값 <code>.env</code>, 파이의 <code>venv</code> 폴더는 덮어쓰지 않습니다. 바뀌는 것은 키트가 주는 파일(데몬과 드라이버)뿐입니다.</p></div>
+    <p class="small">이 매뉴얼의 "고쳐야 할 것" 문구는 키트의 점검 코드(<code>pi/drivers/libcheck.py</code>)가 실제로 출력하는 그대로입니다.</p>
+  </div>
+</section>
+
+<!-- 2 ─────────────────────────────────────────── -->
+<section class="slide" data-title="무엇이 바뀌었나">
+  <p class="tag">WHAT CHANGED</p>
+  <h2>무엇이 바뀌었나</h2>
+  <p class="lead">예전 안내는 <strong>라즈베리파이 4 방식</strong>이었습니다. 라즈베리파이 5는 핀을 다루는 칩(RP1)이 달라서 그 방식으로는 네오픽셀이 켜지지 않습니다.</p>
+  <div class="tw"><table>
+    <thead><tr><th></th><th>예전 (파이 4 방식) ✕</th><th>지금 (파이 5 방식) ○</th></tr></thead>
+    <tbody>
+      <tr><td class="nw">설치 위치</td><td><code>sudo pip install … --break-system-packages</code> (venv 밖)</td><td><strong>venv 안</strong>에 <code>pip install</code> (sudo 없이)</td></tr>
+      <tr><td class="nw">라이브러리</td><td><code>rpi_ws281x</code></td><td><code>adafruit-blinka-raspberry-pi5-neopixel</code> (파이 5 전용)</td></tr>
+      <tr><td class="nw">데몬 실행</td><td><code>sudo python daemon.py</code></td><td><code>python daemon.py</code> (sudo 없이)</td></tr>
+      <tr><td class="nw">필요한 것</td><td>—</td><td>파이에 <code>/dev/pio0</code> 장치가 있어야 함 (최신 펌웨어)</td></tr>
+      <tr><td class="nw">문제를 알려 주는 곳</td><td>없음 — 데몬은 도는데 LED만 가만히 있음</td><td><code>python daemon.py --check</code>의 <strong>"고쳐야 할 것"</strong>에 원인과 설치 명령이 나옴</td></tr>
+    </tbody>
+  </table></div>
+  <div class="grid g2">
+    <div class="card blue"><h3>바뀐 키트 파일 (덮어씀)</h3><p class="small"><code>pi/daemon.py</code> · <code>pi/drivers/</code> 폴더(<code>libcheck.py</code> 새로 생김, <code>neopixel_out.py</code>, <code>dht_in.py</code> 등) · <code>pi/requirements.txt</code></p></div>
+    <div class="card blue"><h3>우리 팀 파일 (그대로)</h3><p class="small"><code>pi/slot_map.py</code> · <code>pi/.env</code> · 파이의 <code>venv/</code> — 1단계 git pull도, 2단계 복사도 이 파일들은 건드리지 않습니다.</p></div>
+  </div>
+</section>
+
+<!-- 3 ─────────────────────────────────────────── -->
+<section class="slide" data-title="전체 순서">
+  <p class="tag">STEPS</p>
+  <h2>전체 순서 — 6단계 (괄호 안은 슬라이드 번호)</h2>
+  <ol class="flow">
+    <li><b>팀 PC에서 받기</b><span>git pull (4)</span></li>
+    <li><b>파이로 보내기</b><span>WinSCP (5)</span></li>
+    <li><b>파이 장치 확인</b><span>/dev/pio0 (6)</span></li>
+    <li><b>venv에 설치</b><span>pip install (7)</span></li>
+    <li><b>점검</b><span>--check (8)</span></li>
+    <li><b>켜고 LED 보기</b><span>/kit (9)</span></li>
+  </ol>
+  <div class="grid g3">
+    <div class="card blue"><h3>규칙 1 · sudo 쓰지 않기</h3><p class="small">pip 설치와 데몬 실행에 <code>sudo</code>를 붙이지 않습니다. sudo가 필요한 곳은 3단계(파이 업데이트)뿐입니다.</p></div>
+    <div class="card blue"><h3>규칙 2 · (venv) 확인</h3><p class="small">파이 터미널 줄 앞에 <code>(venv)</code>가 보일 때만 pip을 실행합니다. 없으면 <code>source venv/bin/activate</code>.</p></div>
+    <div class="card blue"><h3>규칙 3 · 막히면 표부터</h3><p class="small">출력 첫 줄을 읽고 10번 슬라이드(증상으로 찾기) → 선생님. AI에 물을 때 <code>.env</code> 내용은 붙이지 않습니다.</p></div>
+  </div>
+</section>
+
+<!-- 4 ─────────────────────────────────────────── -->
+<section class="slide" data-title="1. 팀 PC에서 받기">
+  <p class="tag">STEP 1 · 팀 PC</p>
+  <h2>1. 팀 PC에서 받기 — git pull</h2>
+  <div class="grid g2">
+    <div>
+      <ol class="steps">
+        <li><b>내 작업부터 저장(커밋)</b>
+          <div class="cmd"><div class="cmd-h"><span class="where">팀 PC · PowerShell · 저장소 맨 위</span><button class="copy" type="button">복사</button></div>
+<pre>git status
+git add -A
+git commit -m "[작업] 업데이트 받기 전 저장"</pre></div>
+          <p class="small"><code>nothing to commit</code>이 나오면 이미 깨끗한 것이니 넘어갑니다. <code>.env</code>·<code>.env.local</code>·<code>venv</code>는 git이 원래 건드리지 않습니다.</p></li>
+        <li><b>플랫폼 수정 받기</b>
+          <div class="cmd"><div class="cmd-h"><span class="where">팀 PC · PowerShell · 저장소 맨 위</span><button class="copy" type="button">복사</button></div>
+<pre>git pull --no-rebase --no-edit origin platform</pre></div></li>
+        <li><b>받았는지 확인</b>
+          <div class="cmd"><div class="cmd-h"><span class="where">팀 PC · PowerShell</span><button class="copy" type="button">복사</button></div>
+<pre>Test-Path pi\drivers\libcheck.py</pre></div>
+          <p class="small"><code>True</code>가 나오면 성공입니다.</p></li>
+      </ol>
+    </div>
+    <div>
+      <h3>이런 글이 나오면</h3>
+      <div class="tw"><table>
+        <thead><tr><th>화면에 나온 글</th><th>할 일</th></tr></thead>
+        <tbody>
+          <tr><td><code>Your local changes … would be overwritten</code></td><td>①의 커밋을 안 했음 → ① 다시</td></tr>
+          <tr><td><code>Need to specify how to reconcile divergent branches</code></td><td>②의 명령에 <code>--no-rebase</code>를 빠뜨림 → 그대로 복사해서 다시</td></tr>
+          <tr><td><code>CONFLICT (content): Merge conflict in …</code></td><td>같은 파일을 우리와 키트가 함께 고침 → <code>git merge --abort</code>로 되돌리고 <strong>선생님에게</strong></td></tr>
+          <tr><td><code>Already up to date.</code></td><td>이미 받았음 → ③ 확인으로</td></tr>
+        </tbody>
+      </table></div>
+      <div class="box warn"><b class="k">--no-edit를 빼지 마세요</b><p>빠지면 커밋 메시지를 쓰는 편집기(vim)가 열립니다. 열렸다면 <kbd>Esc</kbd> → <code>:wq</code> → <kbd>Enter</kbd>.</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- 5 ─────────────────────────────────────────── -->
+<section class="slide" data-title="2. 파이로 보내기">
+  <p class="tag">STEP 2 · 파이 담당 PC → 파이</p>
+  <h2>2. 파이로 보내기 — 세 가지만 덮어쓰기</h2>
+  <div class="grid g2">
+    <div>
+      <ol class="steps">
+        <li><b>파이에서 데몬 끄기</b>
+          <div class="cmd"><div class="cmd-h"><span class="where">파이 터미널</span><button class="copy" type="button">복사</button></div>
+<pre>sudo systemctl stop iot-daemon</pre></div>
+          <p class="small">자동 실행을 등록하지 않았다면, 데몬 창에서 <kbd>Ctrl</kbd>+<kbd>C</kbd>.</p></li>
+        <li><b>팀 PC → 내 PC</b>: USB로 팀 PC 저장소의 <code>pi</code> 폴더에서 아래 세 가지를 내 PC의 <code>C:\pi-work\pi</code>에 덮어씁니다.</li>
+        <li><b>내 PC → 파이 (WinSCP)</b>: 왼쪽 <code>C:\pi-work\pi</code> → 오른쪽 <code>/home/사용자이름/iot-kit/pi/</code>로 같은 세 가지를 끌어 놓기 → <strong>덮어쓰기 예</strong></li>
+      </ol>
+    </div>
+    <div>
+      <div class="tw"><table>
+        <thead><tr><th>보낼 것 ○</th><th>보내지 않을 것 ✕</th></tr></thead>
+        <tbody>
+          <tr><td><code>daemon.py</code></td><td><code>slot_map.py</code> — 파이에 있는 것이 진짜</td></tr>
+          <tr><td><code>drivers</code> 폴더 <strong>통째로</strong></td><td><code>.env</code> — 디바이스 키가 들어 있음</td></tr>
+          <tr><td><code>requirements.txt</code></td><td><code>venv</code> 폴더 — 윈도우용이라 파이 venv가 망가짐</td></tr>
+        </tbody>
+      </table></div>
+      <div class="box ok"><b class="k">확인</b><p>WinSCP 오른쪽 <code>drivers</code> 폴더 안에 <code>libcheck.py</code>가 보이면 성공입니다.</p></div>
+      <p class="small">study · subway 팀은 여기까지 하고 5단계(8번 슬라이드)의 <code>--check</code>만 해 봅니다(네오픽셀·온습도가 없으면 3·4단계는 건너뜀).</p>
+    </div>
+  </div>
+</section>
+
+<!-- 6 ─────────────────────────────────────────── -->
+<section class="slide" data-title="3. 파이 장치 확인">
+  <p class="tag">STEP 3 · 파이 (한 번만)</p>
+  <h2>3. 네오픽셀용 장치 /dev/pio0 확인</h2>
+  <p class="lead">파이 5의 네오픽셀 라이브러리는 <code>/dev/pio0</code>라는 장치를 씁니다. 파이 펌웨어가 오래됐으면 이 장치가 없습니다.</p>
+  <div class="grid g2">
+    <div>
+      <div class="cmd"><div class="cmd-h"><span class="where">파이 터미널</span><button class="copy" type="button">복사</button></div>
+<pre>ls -l /dev/pio0
+groups</pre></div>
+      <div class="box ok"><b class="k">이렇게 나오면 통과 → 4단계로</b><p><code>crw-rw---- 1 root gpio … /dev/pio0</code> 같은 줄이 보이고, <code>groups</code> 결과에 <code>gpio</code>가 있음</p></div>
+    </div>
+    <div>
+      <h3>"No such file or directory"가 나오면 — 파이 업데이트</h3>
+      <div class="cmd"><div class="cmd-h"><span class="where">파이 터미널 · 인터넷 연결 필요 · 10~20분</span><button class="copy" type="button">복사</button></div>
+<pre>sudo apt update &amp;&amp; sudo apt full-upgrade -y
+sudo rpi-eeprom-update -a
+sudo reboot</pre></div>
+      <h3>장치는 있는데 <code>root root</code>로 나오면 — 권한 주기</h3>
+      <div class="cmd"><div class="cmd-h"><span class="where">파이 터미널</span><button class="copy" type="button">복사</button></div>
+<pre style="white-space:pre-wrap">echo 'SUBSYSTEM=="*-pio", GROUP="gpio", MODE="0660"' | sudo tee /etc/udev/rules.d/99-pio.rules
+sudo reboot</pre></div>
+      <p class="small">다시 켠 뒤 맨 위 두 명령으로 다시 확인합니다.</p>
+    </div>
+  </div>
+</section>
+
+<!-- 7 ─────────────────────────────────────────── -->
+<section class="slide" data-title="4. venv에 설치">
+  <p class="tag">STEP 4 · 파이</p>
+  <h2>4. venv에 라이브러리 설치 (sudo 없이)</h2>
+  <div class="grid g2">
+    <div>
+      <div class="cmd"><div class="cmd-h"><span class="where">파이 터미널 · 폴더 이름은 우리 팀 것으로</span><button class="copy" type="button">복사</button></div>
+<pre>cd ~/iot-kit/pi
+source venv/bin/activate
+pip install adafruit-circuitpython-neopixel "gpiod&gt;=2.2.2,&lt;3"
+pip install --pre adafruit-blinka-raspberry-pi5-neopixel</pre></div>
+      <p class="small">줄 앞에 <code>(venv)</code>가 붙은 것을 확인한 뒤 pip을 실행합니다. 마지막 줄의 <code>--pre</code>는 꼭 붙입니다(아직 정식판이 없는 파이 5 전용 라이브러리).</p>
+      <div class="box ok"><b class="k">이렇게 되면 성공</b><p>마지막에 <code>Successfully installed …</code>. 이미 깔려 있으면 <code>Requirement already satisfied</code> — 그것도 정상입니다.</p></div>
+    </div>
+    <div>
+      <h3>온습도(DHT) 센서도 쓰는 팀 (classroom)</h3>
+      <div class="cmd"><div class="cmd-h"><span class="where">같은 파이 터미널 · (venv)</span><button class="copy" type="button">복사</button></div>
+<pre>pip install adafruit-circuitpython-dht "gpiod&gt;=2.2.2,&lt;3"</pre></div>
+      <div class="box warn"><b class="k">예전 방식으로 설치했었다면</b><p>예전에 <code>sudo pip install … --break-system-packages</code>를 했어도 지우지 않아도 됩니다. 대신 앞으로 <strong>데몬을 sudo로 켜지 않습니다</strong>. 자동 실행 서비스(<code>iot-daemon</code>)는 원래 내 사용자로 돌기 때문에 그대로 두면 됩니다.</p></div>
+      <p class="small">pip이 <code>Python.h</code>나 <code>gcc</code> 오류로 멈추면 <code>sudo apt install -y python3-dev</code> 뒤 같은 pip 명령을 다시 합니다.</p>
+    </div>
+  </div>
+</section>
+
+<!-- 8 ─────────────────────────────────────────── -->
+<section class="slide" data-title="5. 점검 --check">
+  <p class="tag">STEP 5 · 파이</p>
+  <h2>5. 점검 — "고쳐야 할 것"이 없으면 통과</h2>
+  <div class="grid g2">
+    <div>
+      <div class="cmd"><div class="cmd-h"><span class="where">파이 터미널 · (venv)</span><button class="copy" type="button">복사</button></div>
+<pre>python daemon.py --check</pre></div>
+      <div class="box ok"><b class="k">통과</b><p>배치표 슬롯 목록이 나오고, 그 아래에 <code>⚠ 고쳐야 할 것</code> 줄이 <strong>없습니다</strong>. 네오픽셀 슬롯(예: wakeup <code>actuator_04</code> 조명, classroom <code>actuator_03</code>)이 목록에 있는지도 봅니다.</p></div>
+      <p class="small">PC에서 <code>--check</code>를 하면 라이브러리 점검은 건너뜁니다(PC에는 네오픽셀이 없으니 정상). 라이브러리 점검은 <strong>파이에서만</strong> 합니다.</p>
+    </div>
+    <div>
+      <h3>아직 문제가 있으면 — 이렇게 알려 줍니다 (실제 출력)</h3>
+      <div class="cmd"><div class="cmd-h"><span class="where">--check 출력의 끝부분 예시</span></div>
+<pre style="white-space:pre-wrap"> ⚠ 고쳐야 할 것 5개 (이 줄만 빼고 나머지는 동작합니다)
+   · actuator_04 네오픽셀: 라이브러리를 쓸 수 없어 실제 부품 대신 흉내내기로 돕니다 — No module named 'neopixel'
+   · 네오픽셀: /dev/pio0이 없습니다 (파이 5 펌웨어가 오래됨) → sudo apt update &amp;&amp; sudo apt full-upgrade -y &amp;&amp; sudo rpi-eeprom-update -a 후 sudo reboot
+   · 설치 — (venv)가 켜진 파이 터미널에서: pip install adafruit-circuitpython-neopixel
+   · 설치 — 이어서: pip install --pre Adafruit-Blinka-Raspberry-Pi5-Neopixel
+   · 설치한 뒤: python daemon.py --check 로 이 줄들이 사라졌는지 확인 → 데몬 다시 켜기</pre></div>
+      <p class="small">"설치 —" 줄의 명령을 <strong>그대로 복사</strong>해 실행하고 <code>--check</code>를 다시 합니다. 줄이 다 사라질 때까지 반복.</p>
+    </div>
+  </div>
+</section>
+
+<!-- 9 ─────────────────────────────────────────── -->
+<section class="slide" data-title="6. 켜고 LED 보기">
+  <p class="tag">STEP 6 · 파이 + 화면</p>
+  <h2>6. 데몬 켜고 실제 LED 확인</h2>
+  <div class="grid g2">
+    <div>
+      <div class="cmd"><div class="cmd-h"><span class="where">파이 터미널 · 자동 실행을 등록한 팀</span><button class="copy" type="button">복사</button></div>
+<pre>sudo systemctl restart iot-daemon
+journalctl -u iot-daemon -n 20 --no-pager</pre></div>
+      <div class="cmd"><div class="cmd-h"><span class="where">파이 터미널 · 손으로 켜는 팀 (venv)</span><button class="copy" type="button">복사</button></div>
+<pre>python daemon.py</pre></div>
+      <div class="box no"><b class="k">이 줄이 보이면 아직 흉내내기입니다</b><p><code>네오픽셀 라이브러리를 쓸 수 없어 실제 LED 대신 색을 로그로만 표시합니다</code> → 5단계로 돌아가 <code>--check</code>.</p></div>
+    </div>
+    <div>
+      <ol class="steps">
+        <li><b>화면에서 켜기</b>: 브라우저로 <code>http://팀PC주소:3000/kit</code> → 네오픽셀 슬롯 카드 → 켜기(색 고르기)</li>
+        <li><b>LED 보기</b>: 고른 색으로 켜지면 성공. 데몬 창에도 <code>[actuator_…] … → on RGB(…)</code> 같은 줄이 나옵니다</li>
+        <li><b>팀 시나리오</b>: wakeup은 <code>/wakeup</code> 제어 탭 → 조명 "새벽빛", classroom은 팀 화면의 조명 동작으로 한 번 더</li>
+      </ol>
+      <div class="box ok"><b class="k">끝 — 팀 PC 기록</b><p>파이에서 <code>slot_map.py</code>를 고치지 않았다면 팀 PC에서 따로 커밋할 것은 없습니다(1단계에서 이미 받음). 고쳤다면 평소처럼 USB로 가져와 커밋합니다.</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- 10 ─────────────────────────────────────────── -->
+<section class="slide" data-title="증상으로 찾기">
+  <p class="tag">TROUBLESHOOTING</p>
+  <h2>증상으로 찾기</h2>
+  <div class="tw"><table>
+    <thead><tr><th>증상 (화면에 나온 글)</th><th>원인 · 해결</th></tr></thead>
+    <tbody>
+      <tr><td><code>No module named 'neopixel'</code></td><td>venv 밖에서 설치했거나 설치를 안 함 → <code>(venv)</code> 확인 후 4단계</td></tr>
+      <tr><td><code>/dev/pio0이 없습니다</code></td><td>파이 펌웨어가 오래됨 → 3단계 업데이트 후 재부팅</td></tr>
+      <tr><td><code>/dev/pio0을 쓸 권한이 없습니다</code></td><td>3단계 권한 주기(udev 규칙) → 재부팅</td></tr>
+      <tr><td><code>The platform library 'gpiod' was not found</code></td><td><code>pip install "gpiod&gt;=2.2.2,&lt;3"</code> (venv)</td></tr>
+      <tr><td>pip 설치 중 <code>Python.h</code> · <code>gcc</code> 오류</td><td><code>sudo apt install -y python3-dev</code> → 같은 pip 명령 다시</td></tr>
+      <tr><td><code>… GPIO busy</code></td><td>데몬이 두 개 돌고 있음 → <code>sudo systemctl stop iot-daemon</code> 또는 다른 창 <kbd>Ctrl</kbd>+<kbd>C</kbd></td></tr>
+      <tr><td><code>--check</code>는 통과인데 LED가 그대로</td><td>배선: DIN(입력 쪽 화살표 방향)에 연결했는지 · DIN과 GPIO 사이 330Ω · 5V와 GND, GND를 파이와 공통 · <code>slot_map.py</code>의 <code>pin</code>이 실제 꽂은 GPIO 번호인지</td></tr>
+      <tr><td>앞쪽 몇 알만 켜짐</td><td><code>slot_map.py</code>의 <code>count</code>를 실제 LED 개수로</td></tr>
+      <tr><td>밝게 하면 색이 이상하거나 파이가 다시 켜짐</td><td>전원 부족 → 네오픽셀을 별도 5V로, GND 공통</td></tr>
+      <tr><td>git pull에서 막힘</td><td>4번 슬라이드 오른쪽 표</td></tr>
+    </tbody>
+  </table></div>
+  <p class="small">막혔을 때 순서: ① 출력 첫 줄 다시 읽기 → ② 이 표 → ③ AI(출력을 붙여넣되 <code>.env</code> 내용은 빼고) → ④ 선생님.</p>
+</section>
+
+<!-- 11 ─────────────────────────────────────────── -->
+<section class="slide" data-title="체크리스트">
+  <p class="tag">CHECKLIST</p>
+  <h2>다 했는지 확인</h2>
+  <div class="grid g2">
+    <div>
+      <h3>팀 PC 담당</h3>
+      <ul class="small">
+        <li>☐ 업데이트 전에 내 작업을 커밋했다</li>
+        <li>☐ <code>git pull --no-rebase --no-edit origin platform</code> 성공</li>
+        <li>☐ <code>Test-Path pi\drivers\libcheck.py</code> → <code>True</code></li>
+      </ul>
+      <h3>파이 담당</h3>
+      <ul class="small">
+        <li>☐ <code>daemon.py</code> · <code>drivers</code> 폴더 · <code>requirements.txt</code>만 파이에 덮어썼다 (<code>slot_map.py</code> · <code>.env</code> · <code>venv</code>는 그대로)</li>
+        <li>☐ <code>ls -l /dev/pio0</code>에 장치가 보인다</li>
+        <li>☐ <code>(venv)</code>에서 네오픽셀 라이브러리 두 줄을 설치했다 (classroom은 온습도도)</li>
+        <li>☐ <code>python daemon.py --check</code>에 "고쳐야 할 것"이 없다</li>
+        <li>☐ <code>/kit</code>에서 켠 색으로 실제 LED가 켜진다</li>
+      </ul>
+    </div>
+    <div>
+      <div class="box ok"><b class="k">왜 이렇게 바뀌었나 (한 문단)</b><p>라즈베리파이 5는 핀을 다루는 칩이 RP1으로 바뀌어, 예전 네오픽셀 라이브러리(<code>rpi_ws281x</code>)가 동작하지 않습니다. 대신 RP1 안의 PIO라는 작은 프로세서를 쓰는 전용 라이브러리를 씁니다. 이 라이브러리는 sudo 없이 동작하므로 venv에 설치하고, 데몬도 sudo 없이 켭니다.</p></div>
+      <div class="box"><b class="k">더 보기</b><p>배선 표: 10번 매뉴얼(라즈베리파이 5 최종)의 부품별 배선 · 팀별: 10.1 wakeup, 10.3 classroom · 설치 명령 원본: <code>pi/requirements.txt</code></p></div>
+    </div>
+  </div>
+</section>
+
+  </div><!-- /viewport -->
+
+  <footer class="deck-foot">
+    <button class="nav-btn" type="button" id="prev" aria-label="이전 슬라이드">← 이전</button>
+    <div class="dots" id="dots" role="tablist" aria-label="슬라이드 이동"></div>
+    <button class="nav-btn next" type="button" id="next" aria-label="다음 슬라이드">다음 →</button>
+  </footer>
+</div>
+
+<script>
+(function(){
+  var slides = Array.prototype.slice.call(document.querySelectorAll('.slide'));
+  var dots = document.getElementById('dots');
+  var counter = document.getElementById('counter');
+  var prev = document.getElementById('prev'), next = document.getElementById('next');
+  var toc = document.getElementById('toc'), tocList = document.getElementById('toc-list');
+  var btnToc = document.getElementById('btn-toc'), btnAll = document.getElementById('btn-all');
+  var cur = 0;
+
+  slides.forEach(function(s, i){
+    s.id = 's' + (i + 1);
+    s.setAttribute('aria-label', (i + 1) + '. ' + (s.dataset.title || ''));
+    var d = document.createElement('button');
+    d.type = 'button'; d.setAttribute('aria-label', (i + 1) + '번 슬라이드: ' + (s.dataset.title || ''));
+    d.addEventListener('click', function(){ go(i); });
+    dots.appendChild(d);
+    var li = document.createElement('li');
+    li.innerHTML = '<a href="#s' + (i + 1) + '"><b>' + (i + 1) + '</b><span></span></a>';
+    li.querySelector('span').textContent = s.dataset.title || '';
+    li.querySelector('a').addEventListener('click', function(e){ e.preventDefault(); closeToc(); go(i); });
+    tocList.appendChild(li);
+  });
+
+  function go(i){
+    cur = Math.max(0, Math.min(slides.length - 1, i));
+    slides.forEach(function(s, j){ s.classList.toggle('active', j === cur); });
+    Array.prototype.forEach.call(dots.children, function(d, j){ d.setAttribute('aria-current', String(j === cur)); });
+    counter.textContent = (cur + 1) + ' / ' + slides.length;
+    prev.disabled = cur === 0; next.disabled = cur === slides.length - 1;
+    slides[cur].scrollTop = 0;
+    updateMore();
+    if (window.matchMedia('(max-width:760px), (max-height:560px)').matches) window.scrollTo(0, 0);
+    try { history.replaceState(null, '', '#s' + (cur + 1)); } catch(e){}
+  }
+  var more = document.getElementById('more');
+  function updateMore(){
+    var s = slides[cur];
+    more.classList.toggle('show', s.scrollHeight - s.clientHeight > 4 && s.scrollTop + s.clientHeight < s.scrollHeight - 24);
+  }
+  slides.forEach(function(s){ s.addEventListener('scroll', updateMore, { passive: true }); });
+  window.addEventListener('resize', updateMore);
+
+  function openToc(){ toc.classList.add('open'); btnToc.setAttribute('aria-expanded','true'); }
+  function closeToc(){ toc.classList.remove('open'); btnToc.setAttribute('aria-expanded','false'); }
+
+  prev.addEventListener('click', function(){ go(cur - 1); });
+  next.addEventListener('click', function(){ go(cur + 1); });
+  btnToc.addEventListener('click', function(){ toc.classList.contains('open') ? closeToc() : openToc(); });
+  btnAll.addEventListener('click', function(){
+    var on = document.body.classList.toggle('all');
+    btnAll.setAttribute('aria-pressed', String(on));
+    btnAll.textContent = on ? '슬라이드로' : '전체 보기';
+    if (!on) go(cur);
+  });
+  document.addEventListener('keydown', function(e){
+    if (e.target && /INPUT|TEXTAREA/.test(e.target.tagName)) return;
+    if (document.body.classList.contains('all')) return;
+    if (e.key === 'ArrowRight' || e.key === 'PageDown') { go(cur + 1); e.preventDefault(); }
+    else if (e.key === 'ArrowLeft' || e.key === 'PageUp') { go(cur - 1); e.preventDefault(); }
+    else if (e.key === 'Home') { go(0); }
+    else if (e.key === 'End') { go(slides.length - 1); }
+    else if (e.key === 'Escape') { closeToc(); }
+  });
+
+  function fromHash(){
+    var m = /^#s(\d+)$/.exec(location.hash);
+    var i = m ? parseInt(m[1], 10) - 1 : 0;
+    if (i !== cur || !slides[cur].classList.contains('active')) go(i);
+  }
+  window.addEventListener('hashchange', fromHash);
+  fromHash();
+
+  // 코드 복사
+  document.querySelectorAll('.copy').forEach(function(btn){
+    btn.addEventListener('click', function(){
+      var box = btn.closest('.cmd, .prompt');
+      var pre = box && box.querySelector('pre');
+      if (!pre) return;
+      var text = pre.innerText;
+      var done = function(){
+        btn.textContent = '복사됨'; btn.classList.add('done');
+        setTimeout(function(){ btn.textContent = '복사'; btn.classList.remove('done'); }, 1400);
+      };
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text).then(done, function(){ fallback(text, done); });
+      } else { fallback(text, done); }
+    });
+  });
+  function fallback(text, done){
+    var ta = document.createElement('textarea');
+    ta.value = text; ta.style.position = 'fixed'; ta.style.opacity = '0';
+    document.body.appendChild(ta); ta.select();
+    try { document.execCommand('copy'); done(); } catch(e){}
+    document.body.removeChild(ta);
+  }
+
+  // 체크리스트는 이 브라우저에만 기억합니다
+  var KEY = 'final-manual-' + document.title;
+  var boxes = Array.prototype.slice.call(document.querySelectorAll('.check input'));
+  try {
+    var saved = JSON.parse(localStorage.getItem(KEY) || '{}');
+    boxes.forEach(function(b){ if (saved[b.id]) b.checked = true; });
+  } catch(e){}
+  boxes.forEach(function(b){
+    b.addEventListener('change', function(){
+      try {
+        var st = {}; boxes.forEach(function(x){ if (x.checked) st[x.id] = 1; });
+        localStorage.setItem(KEY, JSON.stringify(st));
+      } catch(e){}
+    });
+  });
+})();
+</script>
+</body>
+</html>
