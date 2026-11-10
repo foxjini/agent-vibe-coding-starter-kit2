@@ -5,6 +5,9 @@
  *   센서 임계값 / 비전 감지 / 정해진 시각  →  액추에이터 제어 / 알림
  *
  * 라운드·승수가 있는 게임 로직은 규칙으로 만들지 말고 시나리오 SDK로 쓰세요 (부록F 7-4절).
+ *
+ * 비전 감지에는 "사람 수 범위"(이상·미만)를, RGB/네오픽셀 켜기에는 "색"을 함께 줄 수 있습니다
+ * — 예: car_1 사람 2~3명 → 1번 칸 LED 노랑 (subway). 비워 두면 예전과 같은 규칙이 만들어집니다.
  */
 "use client";
 
@@ -60,7 +63,19 @@ export function describeRule(
     trigger = `${nameOf(when.slot_id)} 값이 ${when.op} ${when.value}이면`;
   } else if (when.type === "vision_label") {
     const labels = (when.labels as string[]) ?? [when.label];
-    trigger = `카메라가 '${labels.filter(Boolean).join(", ")}'을(를) 감지하면`;
+    const lo = typeof when.count_at_least === "number" ? when.count_at_least : null;
+    const hi = typeof when.count_below === "number" ? when.count_below : null;
+    const range =
+      lo !== null && hi !== null
+        ? hi - 1 === lo
+          ? ` (${lo}명)`
+          : ` (${lo}~${hi - 1}명)`
+        : lo !== null
+          ? ` (${lo}명 이상)`
+          : hi !== null
+            ? ` (${hi}명 미만)`
+            : "";
+    trigger = `카메라가 '${labels.filter(Boolean).join(", ")}'을(를) 감지하면${range}`;
   } else if (when.type === "schedule") {
     trigger = `매일 ${when.at}이 되면`;
   }
@@ -68,7 +83,8 @@ export function describeRule(
   const actions = ((def.then as Record<string, unknown>[]) ?? []).map((action) => {
     const delay = action.after_seconds ? `${action.after_seconds}초 뒤 ` : "";
     if (action.action === "set_actuator") {
-      return `${delay}${nameOf(action.slot_id)}을(를) ${action.state}`;
+      const color = (action.value as Record<string, unknown> | undefined)?.color;
+      return `${delay}${nameOf(action.slot_id)}을(를) ${action.state}${color ? ` ${color}` : ""}`;
     }
     return `${delay}"${action.message}" 알림`;
   });
@@ -92,6 +108,11 @@ export default function RuleEditor({ slots }: { slots: Slot[] }) {
   const [operator, setOperator] = useState(">");
   const [threshold, setThreshold] = useState("28");
   const [label, setLabel] = useState("person");
+  // 사람 수 범위 (비우면 조건 없음) — 예: 2 이상 4 미만 = 2~3명
+  const [countMin, setCountMin] = useState("");
+  const [countBelow, setCountBelow] = useState("");
+  // RGB·네오픽셀을 켤 때 줄 색
+  const [color, setColor] = useState("#00c853");
   const [at, setAt] = useState("07:30");
   const [actionKind, setActionKind] = useState<"set_actuator" | "notify">("set_actuator");
   const [pickedActuatorId, setActuatorId] = useState("");
@@ -137,6 +158,15 @@ export default function RuleEditor({ slots }: { slots: Slot[] }) {
   const actuatorState =
     pickedActuatorState ??
     (selectedActuator ? onStateFor(controlTypeOf(selectedActuator)) : "on");
+  const colorable =
+    !!selectedActuator && controlTypeOf(selectedActuator) === "rgb" && actuatorState === "on";
+
+  /** 빈칸이면 null, 아니면 0 이상의 정수 (잘못 쓰면 NaN) */
+  const countValue = (text: string): number | null => {
+    if (text.trim() === "") return null;
+    const n = Number(text);
+    return Number.isInteger(n) && n >= 0 ? n : Number.NaN;
+  };
 
   const buildDefinition = () => {
     const when =
@@ -148,7 +178,13 @@ export default function RuleEditor({ slots }: { slots: Slot[] }) {
             value: Number(threshold),
           }
         : trigger === "vision_label"
-          ? { type: "vision_label", label: label.trim().toLowerCase(), min_confidence: 0.6 }
+          ? {
+              type: "vision_label",
+              label: label.trim().toLowerCase(),
+              min_confidence: 0.6,
+              ...(countValue(countMin) !== null ? { count_at_least: countValue(countMin) } : {}),
+              ...(countValue(countBelow) !== null ? { count_below: countValue(countBelow) } : {}),
+            }
           : { type: "schedule", at };
 
     const delay = Number(afterSeconds) || 0;
@@ -158,6 +194,7 @@ export default function RuleEditor({ slots }: { slots: Slot[] }) {
             action: "set_actuator",
             slot_id: actuatorId,
             state: actuatorState,
+            ...(colorable ? { value: { color } } : {}),
             ...(delay > 0 ? { after_seconds: delay } : {}),
           }
         : {
@@ -175,6 +212,18 @@ export default function RuleEditor({ slots }: { slots: Slot[] }) {
     if (trigger === "sensor_threshold" && !sensorId) {
       setError("센서 슬롯이 없습니다. 먼저 하드웨어 구성에서 센서를 켜 주세요.");
       return;
+    }
+    if (trigger === "vision_label") {
+      const lo = countValue(countMin);
+      const hi = countValue(countBelow);
+      if (Number.isNaN(lo) || Number.isNaN(hi)) {
+        setError("사람 수는 0 이상의 정수로 적거나 비워 두세요.");
+        return;
+      }
+      if (lo !== null && hi !== null && hi <= lo) {
+        setError("'미만' 칸은 '이상' 칸보다 커야 합니다 (예: 2 이상 4 미만 = 2~3명).");
+        return;
+      }
     }
     if (actionKind === "set_actuator" && !actuatorId) {
       setError("액추에이터 슬롯이 없습니다. 먼저 하드웨어 구성에서 액추에이터를 켜 주세요.");
@@ -336,6 +385,33 @@ export default function RuleEditor({ slots }: { slots: Slot[] }) {
                   ))}
                 </div>
               )}
+              <div className="mt-2 flex flex-wrap items-center gap-1.5 text-sm text-slate-600">
+                <span>사람 수</span>
+                <input
+                  type="number"
+                  min="0"
+                  value={countMin}
+                  placeholder="0"
+                  aria-label="사람 수 이상"
+                  onChange={(e) => setCountMin(e.target.value)}
+                  className="w-16 rounded-md border border-slate-200 px-2 py-1.5 text-sm focus:border-sky-400 focus:outline-none"
+                />
+                <span>명 이상</span>
+                <input
+                  type="number"
+                  min="1"
+                  value={countBelow}
+                  placeholder="∞"
+                  aria-label="사람 수 미만"
+                  onChange={(e) => setCountBelow(e.target.value)}
+                  className="w-16 rounded-md border border-slate-200 px-2 py-1.5 text-sm focus:border-sky-400 focus:outline-none"
+                />
+                <span>명 미만</span>
+              </div>
+              <p className="mt-1 text-xs text-slate-500">
+                선택 — 비우면 감지될 때마다 실행. 적으면 그 범위에 <strong>들어올 때 한 번</strong> 실행합니다
+                (예: 2 이상 4 미만 = 2~3명).
+              </p>
             </Field>
           )}
 
@@ -387,6 +463,19 @@ export default function RuleEditor({ slots }: { slots: Slot[] }) {
                 <option value="move">이동 (서보)</option>
                 <option value="off">끄기</option>
               </select>
+              {colorable && (
+                <label className="col-span-2 flex items-center gap-2 text-sm text-slate-600">
+                  색
+                  <input
+                    type="color"
+                    value={color}
+                    onChange={(e) => setColor(e.target.value)}
+                    aria-label="켤 색"
+                    className="h-9 w-14 cursor-pointer rounded border border-slate-200 bg-white p-0.5"
+                  />
+                  <code className="text-xs text-slate-500">{color}</code>
+                </label>
+              )}
             </div>
           ) : (
             <input

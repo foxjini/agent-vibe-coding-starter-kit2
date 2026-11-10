@@ -78,6 +78,7 @@ class Driver(ActuatorDriver):
                     f"[{slot_id}] 네오픽셀 라이브러리가 없어 색을 로그로만 표시합니다 (PC에서는 정상)."
                 )
         self._state = "off"
+        self._color: Optional[Tuple[int, int, int]] = None   # 마지막으로 낸 색 (로그용)
 
     def apply(self, state: Optional[str], value: Any = None) -> str:
         if self.is_on(state):
@@ -96,9 +97,11 @@ class Driver(ActuatorDriver):
                 logger.warning(f"[{self.slot_id}] 색 반영 실패: {exc}")
                 return self._state
 
-        if self._state != result:
+        # 켜짐/꺼짐뿐 아니라 색이 바뀔 때도 남깁니다 (예: 혼잡도 단계마다 색이 바뀜)
+        if self._state != result or self._color != color:
             logger.info(f"[{self.slot_id}] {self.label} → {result} RGB{color}")
         self._state = result
+        self._color = color
         return result
 
     def close(self) -> None:

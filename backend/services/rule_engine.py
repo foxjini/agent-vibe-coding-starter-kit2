@@ -6,7 +6,11 @@
 
 트리거 3종
   - sensor_threshold : {"slot_id","field","op",">=","value",28,"for_seconds":5}
-  - vision_label     : {"label":"person" 또는 "labels":[...], "min_confidence":0.6, "count_at_least":1}
+  - vision_label     : {"label":"person" 또는 "labels":[...], "min_confidence":0.6,
+                        "count_at_least":2, "count_below":4}
+                       사람 수(count) 조건은 넣은 것만 봅니다 (2 이상 4 미만 → 2·3명).
+                       사람 수 조건이 있는 규칙은 **범위에 막 들어올 때 한 번만** 발동합니다
+                       (subway 칸 혼잡도 → LED 색처럼, 이벤트가 2.5초마다 와도 같은 명령을 반복하지 않게).
   - schedule         : {"at":"07:30"}  (PLATFORM_TIMEZONE 기준, 하루 한 번)
 
 액션 2종
@@ -83,6 +87,11 @@ def validate_definition(definition: Dict[str, Any]) -> Optional[str]:
     elif trigger == "vision_label":
         if not (when.get("label") or when.get("labels")):
             return "vision_label에는 label 또는 labels가 필요합니다."
+        for key in ("count_at_least", "count_below"):
+            if key in when and (isinstance(when[key], bool) or not isinstance(when[key], int) or when[key] < 0):
+                return f"vision_label의 {key}는 0 이상의 정수여야 합니다."
+        if "count_at_least" in when and "count_below" in when and when["count_below"] <= when["count_at_least"]:
+            return "vision_label의 count_below는 count_at_least보다 커야 합니다 (예: 2 이상 4 미만)."
     elif trigger == "schedule":
         at = when.get("at")
         if not isinstance(at, str) or ":" not in at:
@@ -123,6 +132,7 @@ class RuleEngine:
         self._condition_since: Dict[int, float] = {}  # for_seconds 측정
         self._last_fired_at: Dict[int, float] = {}    # cooldown 측정
         self._schedule_done: Dict[int, str] = {}      # 규칙별 '오늘 발동했는지'
+        self._vision_matched: Dict[int, bool] = {}    # 사람 수 조건 규칙: 지난번 범위 안이었나
         self._timers: List[asyncio.Task] = []
         self._lock = asyncio.Lock()
 
@@ -171,15 +181,27 @@ class RuleEngine:
             targets = {str(t).strip().lower() for t in targets if t}
             if label not in targets:
                 continue
-            if not detected:
-                continue
-            if confidence is not None and confidence < float(when.get("min_confidence", 0.0)):
-                continue
-            if count and count < int(when.get("count_at_least", 1)):
+            has_range = "count_at_least" in when or "count_below" in when
+            matched = detected and not (
+                confidence is not None and confidence < float(when.get("min_confidence", 0.0))
+            )
+            if has_range:
+                # 사람 수 조건은 넣은 것만, 0명도 그대로 비교합니다
+                n = int(count or 0)
+                if "count_at_least" in when and n < int(when["count_at_least"]):
+                    matched = False
+                if "count_below" in when and n >= int(when["count_below"]):
+                    matched = False
+                rule_id = int(rule["id"])
+                was = self._vision_matched.get(rule_id, False)
+                self._vision_matched[rule_id] = matched
+                if not matched or was:
+                    continue  # 범위에 막 들어온 때만 (같은 단계가 이어지면 다시 보내지 않음)
+            elif not matched:
                 continue
 
             await self._fire(rule, definition, branch="then",
-                             context={"label": label, "confidence": confidence})
+                             context={"label": label, "confidence": confidence, "count": count})
 
     async def tick(self) -> None:
         """스케줄 트리거 점검 (백그라운드에서 주기적으로 호출)."""
@@ -372,6 +394,7 @@ class RuleEngine:
         self._condition_since.clear()
         self._last_fired_at.clear()
         self._schedule_done.clear()
+        self._vision_matched.clear()
 
 
 rule_engine = RuleEngine()

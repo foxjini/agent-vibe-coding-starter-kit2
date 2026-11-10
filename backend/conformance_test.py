@@ -346,7 +346,40 @@ def main_test() -> int:
             check("notify 액션이 대시보드로 전달됨",
                   bool(notified) and notified.get("level") == "warn", str(notified))
 
-        for rid in (vision_rule_id, res_sched.json().get("data", {}).get("id")
+        # 사람 수 범위(count_at_least ≤ 사람 수 < count_below) — subway 칸 혼잡도 → LED 색
+        res_range = client.post("/api/rules", json={
+            "name": "적합성 검사용 사람 수 범위 규칙",
+            "definition": {
+                "when": {"type": "vision_label", "label": "car_1", "count_at_least": 2, "count_below": 4},
+                "then": [{"action": "set_actuator", "slot_id": "actuator_01",
+                          "state": "move", "value": {"angle": 30}}],
+            },
+        })
+        res_bad_range = client.post("/api/rules", json={
+            "name": "범위가 거꾸로인 규칙",
+            "definition": {
+                "when": {"type": "vision_label", "label": "car_1", "count_at_least": 4, "count_below": 2},
+                "then": [{"action": "notify", "message": "x"}],
+            },
+        })
+        range_rule_id = res_range.json().get("data", {}).get("id") if res_range.status_code == 200 else None
+        check("사람 수 범위가 거꾸로면 400", res_bad_range.status_code == 400, res_bad_range.text[:160])
+        if db_on:
+            check("사람 수 범위 규칙 생성 200", range_rule_id is not None, res_range.text[:160])
+        if db_on and range_rule_id:
+            def car_event(n: int) -> None:
+                client.post("/api/v1/vision/events", headers=HEADERS, json={
+                    "event_type": "car_crowd", "label": "car_1", "detected": True,
+                    "confidence": None, "count": n, "extra": {"people": n},
+                })
+            car_event(7)   # 범위 밖
+            angle = client.get("/api/devices/actuator_01").json()["data"].get("desired_value", {}).get("angle")
+            check("범위 밖(7명)이면 발동하지 않음", angle != 30, str(angle))
+            car_event(3)   # 범위 안 (2 이상 4 미만)
+            angle = client.get("/api/devices/actuator_01").json()["data"].get("desired_value", {}).get("angle")
+            check("범위 안(3명)이면 발동", angle == 30, str(angle))
+
+        for rid in (vision_rule_id, range_rule_id, res_sched.json().get("data", {}).get("id")
                     if res_sched.status_code == 200 else None):
             if rid:
                 client.delete(f"/api/rules/{rid}")

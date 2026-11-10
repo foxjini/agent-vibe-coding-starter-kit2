@@ -58,6 +58,7 @@ class Driver(ActuatorDriver):
             simulated = simulated or sim
         self.simulated = simulated
         self._state = "off"
+        self._color: Optional[Tuple[int, int, int]] = None   # 마지막으로 낸 색 (로그용)
 
     def _write(self, color: Tuple[int, int, int]) -> None:
         for name, value in zip(("r", "g", "b"), color):
@@ -79,9 +80,11 @@ class Driver(ActuatorDriver):
             return self._state
 
         result = self.reflected(state)
-        if self._state != result:
+        # 켜짐/꺼짐뿐 아니라 색이 바뀔 때도 남깁니다 (예: 혼잡도 단계마다 색이 바뀜)
+        if self._state != result or self._color != color:
             logger.info(f"[{self.slot_id}] {self.label} → {result} RGB{color}")
         self._state = result
+        self._color = color
         return result
 
     def close(self) -> None:

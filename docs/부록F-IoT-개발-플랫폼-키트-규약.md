@@ -377,7 +377,7 @@ XAMPP를 켜지 않아도 키트는 멈추지 않습니다. 슬롯 목록·배�
 |---|---|---|
 | `schedule` | `at: "07:30"` 또는 `in_seconds: 5` | 알람 시각, 수업 시작 시각 |
 | `sensor_threshold` | `slot_id`, `field`(기본 `value`), `op`(`>` `>=` `<` `<=` `==` `!=`), `value`, `for_seconds` | 온도·압력·거리 자동 제어 |
-| `vision_label` | `label`, `min_confidence`, `count_at_least` | 사람 감지 시 조명 on |
+| `vision_label` | `label`, `min_confidence`, `count_at_least`(이상), `count_below`(미만) | 사람 감지 시 조명 on · 칸 사람 수 2~3명이면 LED 노랑 (사람 수 조건이 있으면 범위에 들어올 때 한 번만 발동) |
 
 ### 7-3. 액션 2종 + 지연 옵션
 
