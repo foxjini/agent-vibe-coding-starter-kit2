@@ -305,33 +305,45 @@ body.all .deck-foot,body.all .more{display:none!important}
 <!-- 4 ─────────────────────────────────────────── -->
 <section class="slide" data-title="0. 키트 받기">
   <p class="tag">STEP 0 · 팀 PC</p>
-  <h2>0. 바뀐 키트 받기 — 규칙 편집기에 "사람 수 범위"와 "색"</h2>
+  <h2>0. 바뀐 키트 받기 — 내가 고친 화면은 지키면서</h2>
   <div class="grid g2">
     <div>
-      <div class="cmd"><div class="cmd-h"><span class="where">팀 PC · PowerShell · 저장소 맨 위</span><button class="copy" type="button">복사</button></div>
+      <ol class="steps">
+        <li><b>내 작업부터 저장(커밋)</b>
+          <div class="cmd"><div class="cmd-h"><span class="where">팀 PC · PowerShell · 저장소 맨 위</span><button class="copy" type="button">복사</button></div>
 <pre>git status
 git add -A
-git commit -m "[작업] 키트 받기 전 저장"
-git pull --no-rebase --no-edit origin platform</pre></div>
-      <p class="small"><code>nothing to commit</code>이면 셋째 줄은 건너뜁니다. 막히면 12번 매뉴얼 1단계의 표를 봅니다.</p>
-      <h3>받은 뒤 다시 켜기</h3>
-      <ol class="small">
-        <li><strong>백엔드</strong>: uvicorn 창 <kbd>Ctrl</kbd>+<kbd>C</kbd> → 다시 실행 (규칙 엔진이 바뀜)</li>
-        <li><strong>화면</strong>: <code>cd frontend; npm run build; npm run start</code> (개발 중이면 <code>npm run dev</code> 다시)</li>
-        <li><strong>파이</strong>(선택): <code>pi/drivers</code> 폴더를 WinSCP로 파이에 덮어쓰고 데몬 다시 켜기 → LED 색이 바뀔 때마다 로그에 남음</li>
+git commit -m "[작업] 키트 받기 전 저장"</pre></div>
+          <p class="small"><code>nothing to commit</code>이 나오면 이미 깨끗한 것 → ②로.</p></li>
+        <li><b>겹치는 파일이 있는지 미리 보기</b>
+          <div class="cmd"><div class="cmd-h"><span class="where">같은 창</span><button class="copy" type="button">복사</button></div>
+<pre>git fetch origin platform
+$base = git merge-base HEAD origin/platform
+$mine = git diff --name-only $base HEAD
+$theirs = git diff --name-only $base origin/platform
+$mine | Where-Object { $theirs -contains $_ }</pre></div>
+          <p class="small"><strong>아무것도 안 나오면</strong> 내가 고친 파일과 키트가 바꾼 파일이 겹치지 않음 → 안전. 파일 이름이 나오면 그 파일을 양쪽이 고친 것 → 받기 전에 선생님께.</p></li>
+        <li><b>받기</b>
+          <div class="cmd"><div class="cmd-h"><span class="where">같은 창</span><button class="copy" type="button">복사</button></div>
+<pre>git pull --no-rebase --no-edit origin platform</pre></div>
+          <p class="small"><code>CONFLICT</code>가 나오면 <code>git merge --abort</code>로 되돌리고 선생님께. <code>--no-rebase</code>는 빼지 않습니다(예전에 GitHub 기록이 한 번 바뀌어서 없으면 멈춤).</p></li>
+        <li><b>다시 켜기</b>: 백엔드(uvicorn) <kbd>Ctrl</kbd>+<kbd>C</kbd> → 다시 실행 · 화면 <code>cd frontend; npm run build; npm run start</code> · 파이(선택) <code>pi/drivers</code> 폴더를 WinSCP로 덮어쓰고 데몬 다시 켜기</li>
       </ol>
     </div>
     <div>
-      <h3>무엇이 더해졌나</h3>
+      <h3>이번에 바뀐 키트 파일 (공통 파일만)</h3>
       <div class="tw"><table>
-        <thead><tr><th>곳</th><th>예전</th><th>지금</th></tr></thead>
+        <thead><tr><th>파일</th><th>무엇이</th></tr></thead>
         <tbody>
-          <tr><td class="nw">감지 조건</td><td>"car_2가 보이면" — 사람 수와 상관없이 매번</td><td><strong>사람 수 □명 이상 □명 미만</strong> — 그 범위에 들어올 때 <strong>한 번</strong></td></tr>
-          <tr><td class="nw">LED 동작</td><td>켜기 / 끄기만</td><td>RGB·네오픽셀이면 <strong>색</strong>도 고름</td></tr>
-          <tr><td class="nw">0명</td><td>조건을 건너뛰고 실행됨</td><td>0명도 범위대로 비교</td></tr>
+          <tr><td><code>frontend/components/kit/RuleEditor.tsx</code></td><td>규칙 편집기: 사람 수 범위·LED 색</td></tr>
+          <tr><td><code>backend/services/rule_engine.py</code> · <code>backend/conformance_test.py</code></td><td>규칙 엔진·자가 점검</td></tr>
+          <tr><td><code>vision/main.py</code> · <code>vision/detectors/objects.py</code> · <code>vision/.env.example</code></td><td>PC 부하 줄이기(<code>DETECT_FPS</code>·<code>ORT_THREADS</code>)</td></tr>
+          <tr><td><code>pi/drivers/neopixel_out.py</code> · <code>rgb_out.py</code></td><td>LED 색이 바뀔 때도 로그</td></tr>
+          <tr><td><code>docs/</code> (11.4 · 11.5 · README · 부록F)</td><td>매뉴얼</td></tr>
         </tbody>
       </table></div>
-      <div class="box ok"><b class="k">확인</b><p><code>/kit</code> → 자동화 규칙 → 규칙 추가 → 트리거 "카메라가 무언가를 감지하면"을 고르면 <strong>사람 수 □명 이상 □명 미만</strong> 칸이 보이면 성공. 다른 팀 규칙·화면은 그대로입니다.</p></div>
+      <div class="box ok"><b class="k">우리 팀 화면 파일은 바뀌지 않았습니다</b><p><code>frontend/app/page.tsx</code> · <code>frontend/components/team/</code> · <code>frontend/scenarios/</code> · <code>vision/detectors/subway_cars.py</code>는 키트가 건드리지 않았습니다 → 바이브 코딩으로 고친 내용이 그대로 남습니다. 위 표의 공통 파일을 우리가 고쳤을 때만 ②에서 이름이 나옵니다.</p></div>
+      <div class="box"><b class="k">확인</b><p><code>/kit</code> → 자동화 규칙 → 규칙 추가 → "카메라가 무언가를 감지하면"에 <strong>사람 수 □명 이상 □명 미만</strong> 칸이 보이면 성공. 이전 규칙·화면은 그대로 동작합니다.</p></div>
     </div>
   </div>
 </section>
