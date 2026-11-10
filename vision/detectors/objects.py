@@ -81,12 +81,17 @@ class Detector(FrameDetector):
 
             options = ort.SessionOptions()
             options.graph_optimization_level = ort.GraphOptimizationLevel.ORT_ENABLE_ALL
+            # 창을 여러 개 켤 때(웹캠 2대) 창마다 CPU 코어를 다 쓰지 않게 — 값이 없으면 기존과 같음
+            threads = int(os.getenv("ORT_THREADS", "0") or 0)
+            if threads > 0:
+                options.intra_op_num_threads = threads
+                options.inter_op_num_threads = 1
             self.session = ort.InferenceSession(
                 model_path, options, providers=["CPUExecutionProvider"]
             )
             self.input_name = self.session.get_inputs()[0].name
             self.output_name = self.session.get_outputs()[0].name
-            self.engine_name = "ONNX Runtime (CPU)"
+            self.engine_name = "ONNX Runtime (CPU)" + (f", 스레드 {threads}" if threads > 0 else "")
         except Exception as exc:
             logger.warning(f"onnxruntime 로드 실패 ({exc}), OpenCV DNN으로 폴백합니다.")
             try:

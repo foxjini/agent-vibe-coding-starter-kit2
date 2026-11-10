@@ -53,6 +53,17 @@ CAMERA_INDEX = int(os.getenv("CAMERA_INDEX", "0"))
 CAMERA_SOURCE = os.getenv("CAMERA_SOURCE", "auto")
 # 감지 설정을 몇 초마다 다시 받아올지 (대시보드에서 바꾼 대상이 반영되는 주기)
 CONFIG_POLL_SECONDS = float(os.getenv("CONFIG_POLL_SECONDS", "5"))
+# 감지를 1초에 몇 번까지 할지 (0 = 제한 없음, 프레임마다 — 기본값).
+# 웹캠 2대처럼 창을 여러 개 켜서 PC가 뜨거우면 2 정도로 (화면은 계속 매끄럽게 보이고,
+# 검출기만 그 횟수로 돕니다). subway 칸 사람 수처럼 천천히 바뀌는 것에 알맞습니다.
+DETECT_FPS = max(0.0, float(os.getenv("DETECT_FPS", "0") or 0))
+
+
+def detect_due(now: float, last_at: float, fps: float) -> bool:
+    """이번 프레임에 검출기를 돌릴 차례인지. fps가 0 이하면 항상 돌립니다."""
+    if fps <= 0:
+        return True
+    return now - last_at >= 1.0 / fps
 
 #: 사물 탐지 검출기의 이름. 공통층이 아는 유일한 검출기 이름입니다 —
 #: `object_labels` 설정을 받는 주인이기 때문입니다(부록F 10장).
@@ -335,6 +346,7 @@ def main() -> int:
     print(" [IoT 플랫폼 키트 - 영상인식 클라이언트]")
     print(f" * 카메라   : {camera.description}")
     print(f" * 백엔드   : {BACKEND_URL}")
+    print(f" * 감지 주기: {'초당 %g번 (DETECT_FPS)' % DETECT_FPS if DETECT_FPS > 0 else '제한 없음 (프레임마다)'}")
     print(f" * 감지 대상: {backend.config['object_labels']}  ({backend.config_source})")
     print("   └ 대상을 바꾸려면 코드가 아니라 대시보드 /kit → 영상인식 설정에서 바꾸세요.")
     print(" * 검출기:")
@@ -350,6 +362,9 @@ def main() -> int:
     fps_time = time.time()
     fps_count = 0
     fps_display = 0.0
+    #: DETECT_FPS용 — 마지막으로 검출기를 돌린 시각과 그때 결과(쉬는 프레임에 다시 그립니다)
+    last_detect_at = 0.0
+    last_found: Dict[str, List[DetectionEvent]] = {}
 
     try:
         while True:
@@ -373,17 +388,25 @@ def main() -> int:
 
             enabled = set(config.get("detectors") or detectors.keys())
 
-            # ---- 검출기 실행 ----
+            # ---- 검출기 실행 (DETECT_FPS를 정했으면 초당 그 횟수만, 나머지 프레임은 지난 결과를 그리기만) ----
+            run_now = detect_due(now, last_detect_at, DETECT_FPS)
+            if run_now:
+                last_detect_at = now
             events: List[DetectionEvent] = []
             status_lines: List[str] = []
             for name, detector in detectors.items():
                 if not detector.available or name in muted or name not in enabled:
                     continue
-                try:
-                    found = detector.detect(frame, config)
-                except Exception as exc:
-                    logger.warning(f"검출기 '{name}' 실행 중 오류 (건너뜁니다): {exc}")
-                    continue
+                if run_now:
+                    try:
+                        found = detector.detect(frame, config)
+                    except Exception as exc:
+                        logger.warning(f"검출기 '{name}' 실행 중 오류 (건너뜁니다): {exc}")
+                        continue
+                    last_found[name] = found
+                    events.extend(found)
+                else:
+                    found = last_found.get(name, [])
                 try:
                     detector.draw(frame, found)
                 except Exception:
@@ -391,7 +414,6 @@ def main() -> int:
                 text = detector.status_text()
                 if text:
                     status_lines.append(text)
-                events.extend(found)
 
             # ---- 백엔드로 전송 ----
             cooldown = float(config.get("cooldown_seconds") or 2.5)

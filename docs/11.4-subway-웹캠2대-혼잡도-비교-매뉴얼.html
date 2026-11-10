@@ -674,6 +674,7 @@ cd ..</pre></div>
       <tr><td>감지 로그에 <code>person</code>·<code>seat_…</code>가 계속 쌓임</td><td>6단계: <code>objects</code>·<code>study_seats</code> 체크 빼기</td></tr>
       <tr><td>오른쪽 위 <code>백엔드 응답없음</code></td><td>백엔드(uvicorn) 켜기 · <code>vision/.env</code>의 <code>DEVICE_API_KEY</code>가 <code>backend/.env</code>와 같은지</td></tr>
       <tr><td>한쪽 영상이 검거나 멈춤 · FPS가 아주 낮음</td><td>USB 대역폭 → 서로 다른 포트 · <code>CAMERA_WIDTH=320</code>·<code>CAMERA_HEIGHT=240</code></td></tr>
+      <tr><td>PC 팬이 시끄럽고 느려짐 (창 2개)</td><td>창마다 프레임마다 감지를 돌려서 → <code>vision/.env</code>에 <code>DETECT_FPS=2</code>와 <code>ORT_THREADS=2</code> 두 줄 → 두 창 다시 켜기 (창 1개 실측: CPU 코어 3.4개 → 0.5개)</td></tr>
       <tr><td>사람 수가 늦게 바뀜</td><td>정상 — 같은 상태면 "보고 간격"(기본 2.5초)마다. 더 자주: <code>/kit</code> 영상인식 설정 → 감지 민감도 → 보고 간격</td></tr>
       <tr><td>화면이 계속 "카메라 소식 없음"</td><td>비전 창이 꺼짐 · 8단계 가짜 시험이면 두 줄을 10초 안에 · 화면 코드가 <code>car_1</code>·<code>car_2</code> 라벨을 받는지(15번 슬라이드)</td></tr>
       <tr><td>사람 수가 실제보다 적음/많음</td><td>웹캠 위치·각도 · <code>MIN_PERSON_CONFIDENCE</code> 0.4(적을 때) / 0.6(많을 때)</td></tr>
