@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="color-scheme" content="light dark">
-<meta name="description" content="라즈베리파이를 처음 맡은 학생이 혼자서 끝까지 갈 수 있도록 — 시스템 속 역할, 파이 준비·접속, PC 연결, 배선 기초, 배치표(pi/slot_map.py) 고치기, 드라이버 13종, 오류 사전, AI 활용, 전시 준비까지 순서대로 정리한 매뉴얼.">
+<meta name="description" content="라즈베리파이를 처음 맡은 학생이 혼자서 끝까지 갈 수 있도록 — 시스템 속 역할, 파이 준비·접속, PC 연결, 배선 기초, 배치표(pi/slot_map.py) 고치기, 드라이버 14종, 오류 사전, AI 활용, 전시 준비까지 순서대로 정리한 매뉴얼.">
 <title>라즈베리파이 하드웨어 매뉴얼</title>
 <style>
 :root{
@@ -432,7 +432,7 @@ tr.group td{
     <span><b>대상</b> 마이스터고 2학년 · 라즈베리파이 담당</span>
     <span><b>보드</b> Raspberry Pi 5</span>
     <span><b>고치는 파일</b> pi/slot_map.py</span>
-    <span><b>드라이버</b> 13종</span>
+    <span><b>드라이버</b> 14종</span>
     <span><b>확인 명령</b> python daemon.py --check</span>
   </div>
 
@@ -619,7 +619,7 @@ tr.group td{
     <div><dt>센서 <small>sensor</small></dt><dd>무언가를 재서 알려 주는 부품 — 버튼, 터치, 온도, 거리, 압력.</dd></div>
     <div><dt>슬롯</dt><dd>부품이 들어갈 고정 자리. <code>actuator_01</code>~<code>10</code>, <code>sensor_01</code>~<code>10</code> 모두 20칸. 이름은 바꿀 수 없습니다.</dd></div>
     <div><dt>배치표 <small>slot_map.py</small></dt><dd>"어느 슬롯에, 어떤 부품을, 몇 번 핀에 꽂았나"를 적은 표. 내가 고치는 유일한 코드입니다.</dd></div>
-    <div><dt>드라이버</dt><dd>부품 종류별로 "어떻게 다루는지"를 담은 파일(<code>pi/drivers/</code>). 13종이 들어 있어 <strong>이름만 고르면</strong> 됩니다.</dd></div>
+    <div><dt>드라이버</dt><dd>부품 종류별로 "어떻게 다루는지"를 담은 파일(<code>pi/drivers/</code>). 14종이 들어 있어 <strong>이름만 고르면</strong> 됩니다.</dd></div>
     <div><dt>데몬 <small>daemon.py</small></dt><dd>켜 두면 끝없이 돌면서 백엔드와 주고받는 프로그램. 끄려면 <kbd>Ctrl</kbd>+<kbd>C</kbd>. 고치지 않습니다.</dd></div>
     <div><dt>내린 명령 · 하드웨어 보고</dt><dd>대시보드 카드의 두 칸. 명령(desired)은 대시보드·규칙이 정하고, 보고(current)는 <strong>파이가 실제로 반영한 뒤에만</strong> 바뀝니다.</dd></div>
     <div><dt>폴링 <small>polling</small></dt><dd>정해진 간격(1초)마다 "할 일 있나요?" 하고 물어보는 방식.</dd></div>
@@ -1528,7 +1528,7 @@ python daemon.py</pre>
 
 <!-- ══════════════════════════════════════════════════════ -->
 <section id="s12">
-  <h2><span class="num">12</span>드라이버 13종 — 부품에 맞는 것을 고르세요</h2>
+  <h2><span class="num">12</span>드라이버 14종 — 부품에 맞는 것을 고르세요</h2>
   <p class="lede">
     <code>driver</code>에 적는 이름입니다. 부품에 맞는 카드를 찾아 코드를 복사해 쓰세요.
     <span style="color:var(--danger); font-weight:600">빨간 항목은 반드시 적어야 하는 것</span>이고,
@@ -1621,7 +1621,7 @@ python daemon.py</pre>
         <span class="drv-role act">액추에이터</span>
         <span class="drv-ct">control_type: servo</span>
       </div>
-      <p class="drv-use">각도를 지정하는 부품 — 서보모터(SG90 등). 자동문, 차단기.</p>
+      <p class="drv-use">각도를 지정하는 부품 — 서보모터(SG90 등). 자동문, 차단기. <strong>힘이 걸리는 곳(MG996R)은 <code>servo_hold</code></strong>, 360도 회전형은 <code>servo360</code>.</p>
       <dl>
         <dt>필수</dt><dd class="req"><code>pin</code></dd>
         <dt>선택</dt><dd><code>min_angle</code> 기본 <code>0</code> · <code>max_angle</code> 기본 <code>180</code> · <code>rest_angle</code>(끄면 돌아갈 각도) · <code>value_schema</code> · <code>min_pulse_ms</code>·<code>max_pulse_ms</code>·<code>full_range</code>(아래) · <code>detach_after</code>(멈춰 있을 때 떨림 없애기 — 예: <code>0.5</code>초 뒤 신호 끊기, 대신 힘으로 버티지 않음)</dd>
@@ -1672,6 +1672,33 @@ python daemon.py</pre>
            <code>servo360</code>은 <strong>끄기·속도 0에서 펄스를 끊어</strong> 확실히 멈춥니다.
            대시보드: 세기 50 → 정방향 절반 속도, -50 → 역방향, 끄기 → 정지. 규칙에서는 켜기(값 없으면 <code>default_speed</code>) · 끄기.</p>
         <p style="margin-top:8px">켜 둔 채 속도 0 근처에서 조금씩 기어가면 <code>"stop_pulse_ms": 1.47</code>처럼 1.45~1.55 사이로 맞춥니다. 방향이 반대면 <code>"reverse": True</code>.</p>
+      </div>
+    </article>
+    <article class="drv" data-role="actuator" data-keys="servo_hold MG996R MG995 고토크 서보 힘 유지 버팀 문 뚜껑 차단봉 로봇 팔 각도">
+      <div class="drv-head">
+        <span class="drv-name">servo_hold</span>
+        <span class="drv-role act">액추에이터</span>
+        <span class="drv-ct">control_type: servo</span>
+      </div>
+      <p class="drv-use">힘을 유지하는 각도 서보 — MG996R 등 고토크 서보. <strong>멈춘 뒤에도 신호를 계속 보내 그 각도를 힘으로 버팁니다.</strong> 문, 뚜껑, 차단봉, 로봇 팔.</p>
+      <dl>
+        <dt>필수</dt><dd class="req"><code>pin</code></dd>
+        <dt>선택</dt><dd><code>value_schema</code> · <code>rest_angle</code>(끄면 가서 버틸 각도) · <code>speed</code>(1초에 몇 도씩, 기본 <code>0</code> = 바로) · <code>start_angle</code>(데몬이 켜질 때 잡을 각도, 기본 <code>rest_angle</code>) · <code>min_pulse_ms</code>·<code>max_pulse_ms</code> 기본 <code>0.5</code>·<code>2.5</code></dd>
+        <dt>배선</dt><dd class="wire">갈색 → GND, 빨강 → <strong>별도 5~6V 전원(2A 이상)</strong>, 주황 → GPIO. 별도 전원의 GND를 파이 GND와 이어 줍니다. <strong>파이 5V에 꽂으면 움직일 때 파이가 재부팅됩니다.</strong></dd>
+      </dl>
+      <figure class="code"><button class="copy" type="button">복사</button>
+<pre>    <span class="s">"actuator_01"</span>: {
+        <span class="s">"label"</span>: <span class="s">"자동문"</span>, <span class="s">"kind"</span>: <span class="s">"servo"</span>,
+        <span class="s">"driver"</span>: <span class="s">"servo_hold"</span>, <span class="s">"pin"</span>: <span class="k">12</span>, <span class="s">"control_type"</span>: <span class="s">"servo"</span>,
+        <span class="s">"value_schema"</span>: {<span class="s">"min"</span>: <span class="k">0</span>, <span class="s">"max"</span>: <span class="k">120</span>, <span class="s">"step"</span>: <span class="k">5</span>},
+        <span class="s">"rest_angle"</span>: <span class="k">0</span>, <span class="s">"speed"</span>: <span class="k">90</span>,
+    },</pre></figure>
+      <div class="note" style="margin-bottom:0">
+        <span class="tag">servo · servo_hold 고르기</span>
+        <p>힘이 안 걸리는 SG90(커튼·표시판)은 <code>servo</code> — 떨리면 <code>"detach_after": 0.5</code>로 신호를 끊습니다.
+           힘이 걸리는 MG996R(문·뚜껑)은 <code>servo_hold</code> — 신호를 끊지 않아 밀려도 버팁니다.
+           <code>speed</code>를 주면 천천히 움직여 순간 전류와 충격이 줄어듭니다.</p>
+        <p style="margin-top:8px">파이 5는 서보 신호를 소프트웨어로 만들어, 버티는 동안 '지잉' 소리가 조금 날 수 있습니다. 힘은 그대로 유지됩니다.</p>
       </div>
     </article>
 

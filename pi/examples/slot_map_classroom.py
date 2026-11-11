@@ -16,6 +16,7 @@ SLOTS = {
         # 문이 열리는 각도 범위. 대시보드 슬라이더 범위가 이 값으로 정해집니다.
         "value_schema": {"min": 0, "max": 120, "step": 5},
         "rest_angle": 0,        # 평소(닫힘) 각도
+        # 문이 무거워 밀리면(MG996R 등) "driver": "servo_hold" — 멈춘 뒤에도 힘으로 버팀
     },
     "actuator_02": {
         "label": "좌석 안내 LED",

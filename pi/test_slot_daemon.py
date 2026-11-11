@@ -140,7 +140,7 @@ def main_test() -> int:
     # 드라이버는 파일을 넣으면 늘어납니다. 개수를 고정하지 말고 '있어야 할 것'만 확인합니다.
     required = {
         "digital_out", "pwm_out", "tonal_buzzer", "servo", "neopixel_out", "rgb_out",
-        "level_out", "button_in", "analog_in", "dht_in", "distance_in", "servo360", "aht20_in",
+        "level_out", "button_in", "analog_in", "dht_in", "distance_in", "servo360", "aht20_in", "servo_hold",
     }
     check(f"기본 드라이버가 모두 있음 (현재 {len(names)}종)", required <= set(names),
           f"빠진 것: {sorted(required - set(names))}")
@@ -264,6 +264,32 @@ def main_test() -> int:
     calm.apply("move", {"angle": 90})
     check("신호를 끊은 뒤에도 다음 명령으로 다시 움직임", calm._angle == 90.0, str(calm._angle))
     calm.close()
+
+    # 힘을 유지하는 서보 (MG996R) — detach_after를 적어도 신호를 끊지 않음, 천천히 이동
+    strong = create_driver("actuator_08", {"driver": "servo_hold", "pin": 18, "control_type": "servo",
+                                           "detach_after": 0.1, "rest_angle": 0})
+    check("servo_hold는 시작할 때 rest_angle(0도)로 잡고 버팀", strong._angle == 0.0, str(strong._angle))
+    check("servo_hold 'move'를 그대로 보고", strong.apply("move", {"angle": 90}) == "move")
+    _time.sleep(0.3)
+    check("servo_hold는 detach_after를 적어도 신호를 유지 (힘 유지)",
+          strong.device.value is not None and strong._angle == 90.0, f"value={strong.device.value}")
+    strong.apply("off")
+    check("servo_hold 끄기 → rest_angle로 가서 버팀", strong._angle == 0.0, str(strong._angle))
+    strong.close()
+    slow = create_driver("actuator_08", {"driver": "servo_hold", "pin": 18, "control_type": "servo",
+                                         "speed": 300, "rest_angle": 0})
+    slow.apply("move", {"angle": 120})
+    _time.sleep(0.15)
+    middle = slow._angle
+    check("servo_hold speed 300 → 0.15초 뒤 아직 가는 중 (한 번에 휙 돌지 않음)",
+          middle is not None and 0 < middle < 120, str(middle))
+    slow.apply("move", {"angle": 0})
+    _time.sleep(0.7)
+    check("이동 중 새 명령 → 그 자리에서 방향을 바꿔 새 목표(0도)에 도착", slow._angle == 0.0, str(slow._angle))
+    slow.apply("move", {"angle": 60})
+    _time.sleep(0.5)
+    check("servo_hold 천천히 이동해 목표(60도)에 정확히 도착", slow._angle == 60.0, str(slow._angle))
+    slow.close()
 
     # DHT 하나로 온도·습도 슬롯 2개 — 센서를 한 번만 열고, 한 번 잰 값을 나눠 써야 합니다
     import types as _types
