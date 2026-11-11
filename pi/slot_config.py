@@ -89,7 +89,11 @@ def validate_slots(slots: Dict[str, Any]) -> Tuple[Dict[str, Dict[str, Any]], Li
                 )
                 return
             owner = pins_in_use.get(pin)
-            if owner and owner != slot_id:
+            owner_config = slots.get(owner) if owner else None
+            if (owner and driver_name == "dht_in" and isinstance(owner_config, dict)
+                    and owner_config.get("driver") == "dht_in"):
+                pass  # DHT 하나를 온도·습도 두 슬롯이 함께 씀 — 정상 (센서도 하나만 엽니다)
+            elif owner and owner != slot_id:
                 problems.append(
                     f"GPIO {pin}번을 {owner}와 {slot_id}가 같이 쓰고 있습니다. "
                     "핀 하나에 부품 하나만 연결하세요."

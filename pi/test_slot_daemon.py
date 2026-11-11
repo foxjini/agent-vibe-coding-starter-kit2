@@ -247,6 +247,81 @@ def main_test() -> int:
     check("I2C 핀(GPIO 2)을 다른 부품이 쓰면 알려 줌",
           len(problems) == 1 and "I2C" in problems[0], str(problems))
 
+    # 서보 떨림 — detach_after를 적으면 움직인 뒤 신호를 끊음 (안 적으면 예전처럼 계속 잡음)
+    import time as _time
+    hold = create_driver("actuator_07", {"driver": "servo", "pin": 19, "control_type": "servo"})
+    hold.apply("move", {"angle": 45})
+    _time.sleep(0.15)
+    check("servo 기본: 움직인 뒤에도 신호를 유지 (예전과 같음)",
+          hold.device.value is not None and hold._detach_timer is None, f"value={hold.device.value}")
+    hold.close()
+    calm = create_driver("actuator_07", {"driver": "servo", "pin": 19, "control_type": "servo",
+                                         "detach_after": 0.1})
+    calm.apply("move", {"angle": 45})
+    _time.sleep(0.3)
+    check("servo detach_after 0.1 → 움직이고 0.1초 뒤 신호 끊음 (떨림 방지)",
+          calm.device.value is None and calm._angle == 45.0, f"value={calm.device.value}")
+    calm.apply("move", {"angle": 90})
+    check("신호를 끊은 뒤에도 다음 명령으로 다시 움직임", calm._angle == 90.0, str(calm._angle))
+    calm.close()
+
+    # DHT 하나로 온도·습도 슬롯 2개 — 센서를 한 번만 열고, 한 번 잰 값을 나눠 써야 합니다
+    import types as _types
+    opened, measured = [], []
+
+    class _FakeDHT:
+        def __init__(self, pin, **kwargs):
+            opened.append(pin)
+            self.exited = False
+
+        @property
+        def temperature(self):
+            measured.append("t")
+            return 21.5
+
+        @property
+        def humidity(self):
+            return 44.0
+
+        def exit(self):
+            self.exited = True
+
+    saved = {name: sys.modules.get(name) for name in ("adafruit_dht", "board")}
+    sys.modules["adafruit_dht"] = _types.SimpleNamespace(DHT11=_FakeDHT, DHT22=_FakeDHT)
+    sys.modules["board"] = _types.SimpleNamespace(D4="D4")
+    try:
+        dht_t = create_driver("sensor_07", {"driver": "dht_in", "pin": 4, "model": "DHT11",
+                                            "label": "온도", "unit": "°C"})
+        dht_h = create_driver("sensor_08", {"driver": "dht_in", "pin": 4, "model": "DHT11",
+                                            "measure": "humidity", "label": "습도", "unit": "%"})
+        check("DHT 같은 핀 두 슬롯 → 센서는 한 번만 엶", opened == ["D4"] and not dht_h.simulated,
+              str(opened))
+        t_val, h_val = dht_t.read(), dht_h.read()
+        check("DHT 온도·습도가 한 번 잰 값을 나눠 씀 (21.5℃ · 44%)",
+              t_val == {"value": 21.5} and h_val == {"value": 44.0} and measured == ["t"],
+              f"{t_val} {h_val} 측정 {len(measured)}번")
+        sensor = dht_t.sensor
+        dht_t.close()
+        check("한 슬롯을 닫아도 다른 슬롯이 쓰는 동안 센서를 닫지 않음", not sensor.exited)
+        dht_h.close()
+        check("마지막 슬롯을 닫으면 센서를 닫음", sensor.exited)
+    finally:
+        for name, module in saved.items():
+            if module is None:
+                sys.modules.pop(name, None)
+            else:
+                sys.modules[name] = module
+    _, problems = validate_slots({
+        "sensor_07": {"driver": "dht_in", "pin": 4, "kind": "temperature", "unit": "°C"},
+        "sensor_08": {"driver": "dht_in", "pin": 4, "measure": "humidity", "kind": "humidity", "unit": "%"},
+    })
+    check("DHT 온도·습도 두 슬롯의 같은 핀은 경고하지 않음", not problems, str(problems))
+    _, problems = validate_slots({
+        "sensor_07": {"driver": "dht_in", "pin": 4, "kind": "temperature", "unit": "°C"},
+        "actuator_01": {"driver": "digital_out", "pin": 4, "control_type": "onoff"},
+    })
+    check("DHT 핀을 다른 부품이 쓰면 여전히 알려 줌", len(problems) == 1, str(problems))
+
     pulse = create_driver("actuator_03", {"driver": "digital_out", "pin": 26,
                                           "control_type": "pulse"})
     pulse.apply("on", {"on_time": 0.25, "off_time": 0.15})

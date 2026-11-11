@@ -494,7 +494,7 @@ python daemon.py</pre></div></li>
       <tr><td><code>digital_out</code></td><td>LED · 릴레이 · 능동 부저 (켜기/끄기)</td><td><code>pin</code></td><td><code>active_high</code>, 점멸은 <code>control_type: "pulse"</code></td><td>actuator</td></tr>
       <tr><td><code>pwm_out</code></td><td>진동 모터 · LED 밝기 · 모터 속도</td><td><code>pin</code></td><td><code>frequency</code></td><td>actuator</td></tr>
       <tr><td><code>tonal_buzzer</code></td><td>피에조 부저 (음 높이)</td><td><code>pin</code></td><td><code>buzzer_type</code>: <code>"passive"</code> / <code>"active"</code></td><td>actuator</td></tr>
-      <tr><td><code>servo</code></td><td>서보모터 (각도)</td><td><code>pin</code></td><td><code>value_schema</code>, <code>rest_angle</code>, SG90이면 <code>min_pulse_ms</code> 0.5 · <code>max_pulse_ms</code> 2.4</td><td>actuator</td></tr>
+      <tr><td><code>servo</code></td><td>서보모터 (각도)</td><td><code>pin</code></td><td><code>value_schema</code>, <code>rest_angle</code>, SG90이면 <code>min_pulse_ms</code> 0.5 · <code>max_pulse_ms</code> 2.4, 멈춰서 떨리면 <code>detach_after</code> 0.5</td><td>actuator</td></tr>
       <tr><td><code>servo360</code></td><td>360도 연속 회전 서보 (MG-90 360° 등)</td><td><code>pin</code></td><td><code>control_type</code> <code>"pwm"</code>, <code>value_schema</code> -100~100, <code>stop_pulse_ms</code>(멈춤 맞추기), <code>reverse</code></td><td>actuator</td></tr>
       <tr><td><code>neopixel_out</code></td><td>네오픽셀 (데이터선 1개)</td><td><code>pin</code></td><td><code>count</code></td><td>actuator</td></tr>
       <tr><td><code>rgb_out</code></td><td>3색 LED (다리 4개)</td><td><code>pins</code> <code>{"r","g","b"}</code></td><td><code>common_anode</code></td><td>actuator</td></tr>
@@ -710,7 +710,7 @@ sensor_01의 푸시버튼을 정전식 터치센서 모듈(TTP223)로 바꿨어.
       <tr><td><code>'actuator_1'는 슬롯 이름이 아닙니다</code></td><td>두 자리·소문자로: <code>actuator_01</code></td></tr>
       <tr><td><code>드라이버 'led_out'을(를) 찾을 수 없습니다</code></td><td>9번 슬라이드의 이름으로 (대소문자까지 똑같이)</td></tr>
       <tr><td><code>sensor_02는 sensor 슬롯인데 드라이버 '…'은(는) actuator용입니다</code></td><td>슬롯 번호를 <code>actuator_NN</code>으로</td></tr>
-      <tr><td><code>GPIO 17번을 actuator_02와 actuator_03가 같이 쓰고 있습니다</code></td><td>한쪽 <code>pin</code>을 다른 번호로 (DHT 온도·습도 두 슬롯은 예외 — 정상)</td></tr>
+      <tr><td><code>GPIO 17번을 actuator_02와 actuator_03가 같이 쓰고 있습니다</code></td><td>한쪽 <code>pin</code>을 다른 번호로 (DHT 온도·습도 두 슬롯이 같은 핀이면 경고가 나오지 않습니다 — 센서 하나를 함께 씀)</td></tr>
       <tr><td><code>'pin'에 적은 핀 번호가 숫자가 아닙니다 ('17')</code></td><td>따옴표 빼기: <code>"pin": 17</code></td></tr>
       <tr><td><code>'pin'에는 핀 번호 하나만 적습니다</code></td><td>여러 핀은 <code>pins</code>에</td></tr>
       <tr><td><code>slot_map.py를 읽지 못했습니다: invalid syntax. Perhaps you forgot a comma?</code></td><td>그 줄과 <strong>윗줄 끝</strong>의 쉼표</td></tr>
@@ -742,6 +742,7 @@ sensor_01의 푸시버튼을 정전식 터치센서 모듈(TTP223)로 바꿨어.
       <tr><td>버튼을 <strong>안 눌렀는데 눌림</strong></td><td><code>pull_up</code> 뒤집기 (버튼 True · 터치/PIR False)</td></tr>
       <tr><td>버튼이 카드에 <strong>가끔만</strong> 보임</td><td>1~2초 꾹 누르기. 로그의 <code>눌림 감지</code>로 확인</td></tr>
       <tr><td>서보가 떨리거나 <strong>파이가 재부팅</strong></td><td>전원 부족 → 서보 별도 5V, GND 공통</td></tr>
+      <tr><td>서보가 <strong>멈춰 있을 때</strong> 지지직 떨림</td><td>파이 5는 서보 신호를 소프트웨어로 만들어 생김 → 배치표에 <code>"detach_after": 0.5</code> (움직이고 0.5초 뒤 신호 끊기). 무거운 문처럼 힘으로 버텨야 하는 서보에는 쓰지 않기</td></tr>
       <tr><td>SG90에 180°를 보내도 <strong>절반 정도만</strong> 돈다</td><td>배치표 서보 줄에 <code>"min_pulse_ms": 0.5, "max_pulse_ms": 2.4</code> 추가 → 데몬 재시작. 0°·180° 끝에서 <strong>드르륵 떨거나 뜨거우면</strong> 0.6 / 2.3처럼 조금 좁힙니다.</td></tr>
       <tr><td>센서 카드에 <strong>차트가 없음</strong></td><td><code>unit</code>을 적었나</td></tr>
       <tr><td>고쳤는데 <strong>반영이 안 됨</strong></td><td>WinSCP로 <strong>파이의 그 폴더</strong>에 덮어썼나? 데몬을 다시 켰나? 파이에서 <code>cat ~/iot-kit/pi/slot_map.py</code>로 확인</td></tr>
