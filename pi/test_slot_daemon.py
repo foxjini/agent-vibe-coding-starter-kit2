@@ -141,6 +141,7 @@ def main_test() -> int:
     required = {
         "digital_out", "pwm_out", "tonal_buzzer", "servo", "neopixel_out", "rgb_out",
         "level_out", "button_in", "analog_in", "dht_in", "distance_in", "servo360", "aht20_in", "servo_hold",
+        "speaker_out",
     }
     check(f"기본 드라이버가 모두 있음 (현재 {len(names)}종)", required <= set(names),
           f"빠진 것: {sorted(required - set(names))}")
@@ -290,6 +291,66 @@ def main_test() -> int:
     _time.sleep(0.5)
     check("servo_hold 천천히 이동해 목표(60도)에 정확히 도착", slow._angle == 60.0, str(slow._angle))
     slow.close()
+
+    # 스피커 알람 (speaker_out) — 부저와 같은 값을 받아 스피커로 반복 재생
+    import tempfile as _tempfile
+    import wave as _wave
+    from drivers import speaker_out as _spk
+    with _tempfile.TemporaryDirectory() as tmp:
+        tone = os.path.join(tmp, "t.wav")
+        _spk.make_alarm_wav(tone, 1000, 100)
+        with _wave.open(tone) as w:
+            frames = w.readframes(w.getnframes())
+            seconds = w.getnframes() / w.getframerate()
+        import array as _array
+        samples = _array.array("h", frames)
+        beep = samples[: int(_spk.SAMPLE_RATE * _spk.BEEP_SECONDS)]
+        crossings = sum(1 for a, b in zip(beep, beep[1:]) if a < 0 <= b)
+        check("경보음 wav: 삐-삐-삐 한 묶음 약 1.65초", abs(seconds - 1.65) < 0.05, f"{seconds:.2f}초")
+        check("경보음 wav: 1000Hz (0.25초에 약 250번 진동)", 240 <= crossings <= 260, str(crossings))
+        _spk.make_alarm_wav(tone, 1000, 50)
+        with _wave.open(tone) as w:
+            half = max(_array.array("h", w.readframes(w.getnframes())))
+        check("볼륨 50이면 소리 크기(진폭)가 절반", abs(half / max(samples) - 0.5) < 0.02, f"{half}/{max(samples)}")
+
+        quiet = create_driver("actuator_09", {"driver": "speaker_out", "control_type": "tonal",
+                                              "player": "없는-재생기"})
+        check("재생 프로그램이 없으면 흉내내기로 동작 (죽지 않음)",
+              quiet.simulated and quiet.apply("on", {"frequency": 880}) == "on" and quiet.apply("off") == "off")
+        quiet.close()
+
+        # 가짜 재생기: 재생할 때마다 한 줄 기록하고 0.2초 '재생'
+        log = os.path.join(tmp, "played.txt")
+        fake = os.path.join(tmp, "aplay")
+        with open(fake, "w") as f:
+            f.write(f"#!/bin/sh\necho \"$@\" >> {log}\nsleep 0.2\n")
+        os.chmod(fake, 0o755)
+        spk = create_driver("actuator_09", {"driver": "speaker_out", "control_type": "tonal", "player": fake})
+        played = lambda: open(log).read().splitlines() if os.path.exists(log) else []  # noqa: E731
+        check("재생기가 있으면 실제로 재생 (흉내내기 아님)", not spk.simulated)
+        check("켜기 → 'on' 보고", spk.apply("on", {"frequency": 1200, "volume": 90}) == "on")
+        _time.sleep(0.7)
+        n = len(played())
+        check("켜져 있는 동안 소리를 반복 재생", n >= 2, str(played()))
+        spk.apply("on", {"frequency": 1200, "volume": 90})     # 데몬이 같은 값을 다시 보냄
+        check("같은 값을 다시 받아도 처음부터 다시 틀지 않음", spk._thread is not None and spk._playing == (1200.0, 90.0))
+        check("끄기 → 'off'", spk.apply("off") == "off")
+        _time.sleep(0.4)
+        stopped = len(played())
+        _time.sleep(0.5)
+        check("끄면 바로 멈추고 더 재생하지 않음", len(played()) == stopped, f"{stopped} → {len(played())}")
+        spk.close()
+
+        song = os.path.join(tmp, "my.wav")
+        _spk.make_alarm_wav(song, 600, 100)
+        own = create_driver("actuator_09", {"driver": "speaker_out", "control_type": "tonal",
+                                            "player": fake, "sound_file": song})
+        own.apply("on", {"volume": 70})
+        _time.sleep(0.3)
+        own.close()
+        check("sound_file을 적으면 그 파일을 재생", any(song in line for line in played()), str(played()[-1:]))
+        check("pw-play로 파일을 틀 때는 볼륨을 재생 옵션으로 넘김",
+              _spk.player_command("/usr/bin/pw-play", song, 70, None)[1:3] == ["--volume", "0.70"])
 
     # DHT 하나로 온도·습도 슬롯 2개 — 센서를 한 번만 열고, 한 번 잰 값을 나눠 써야 합니다
     import types as _types

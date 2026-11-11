@@ -92,7 +92,7 @@ def check_libraries(slot_configs: Dict[str, Dict[str, Any]]) -> List[str]:
         driver = config.get("driver")
         if driver in NEEDS:
             used.setdefault(driver, []).append(slot_id)
-    if not used or not on_raspberry_pi():
+    if not on_raspberry_pi():
         return []
 
     problems: List[str] = []
@@ -110,6 +110,17 @@ def check_libraries(slot_configs: Dict[str, Dict[str, Any]]) -> List[str]:
             )
             if importlib.util.find_spec(module) is None:
                 install.append(package)
+
+    speaker_slots = [sid for sid, cfg in slot_configs.items() if cfg.get("driver") == "speaker_out"]
+    if speaker_slots:
+        import shutil
+        wanted = {cfg.get("player") for sid, cfg in slot_configs.items() if sid in speaker_slots} - {None}
+        names = sorted(wanted) if wanted else ["pw-play", "paplay", "aplay"]
+        if not any(shutil.which(name) for name in names):
+            problems.append(
+                f"{', '.join(speaker_slots)} 스피커: 재생 프로그램({' / '.join(names)})이 없어 소리 없이 흉내만 냅니다 → "
+                "sudo apt install -y pipewire-bin alsa-utils"
+            )
 
     if any(driver in used for driver in I2C_DRIVERS):
         buses = {int(cfg.get("i2c_bus", 1)) for cfg in slot_configs.values() if cfg.get("driver") in I2C_DRIVERS}

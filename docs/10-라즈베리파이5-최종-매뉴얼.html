@@ -446,6 +446,7 @@ git commit -m "[hardware] 경보 LED 추가 (GPIO 23)"</pre></div>
     <tbody>
       <tr><td>LED</td><td>긴 다리 → 저항 → GPIO, 짧은 다리 → GND</td><td>저항 220~330Ω 필수</td></tr>
       <tr><td>부저 (2핀 / 3핀 모듈)</td><td><code>+</code> → GPIO, <code>−</code> → GND · 모듈: <code>S</code> → GPIO, VCC → 3V3, GND</td><td>소리가 안 나면 <code>buzzer_type</code> 바꾸기</td></tr>
+      <tr><td>스피커 (USB · HDMI 모니터)</td><td>파이 USB 단자 또는 HDMI 모니터 — <strong>파이 5에는 3.5mm 이어폰 단자가 없음</strong></td><td>바탕화면 스피커 아이콘 우클릭 → 출력 장치 선택 → <code>speaker-test -c2 -t wav -l 1</code>로 소리 확인 · 데몬은 <strong>바탕화면에 로그인한 사용자</strong>로 켜기(sudo 금지) · 드라이버 <code>speaker_out</code></td></tr>
       <tr><td>푸시 버튼</td><td>대각선 다리 2개 → GPIO와 GND</td><td>저항 없이 <code>"pull_up": True</code></td></tr>
       <tr><td>터치 모듈 (TTP223 등)</td><td>VCC → 3V3, GND, SIG → GPIO</td><td><code>"pull_up": False</code></td></tr>
       <tr><td>PIR (HC-SR501)</td><td>VCC → 5V, GND, OUT → GPIO</td><td>출력 3.3V · <code>"pull_up": False</code> · 화면에는 버튼과 같은 <code>pressed</code>로 전달</td></tr>
@@ -487,7 +488,7 @@ python daemon.py</pre></div></li>
 
 <!-- 9 ─────────────────────────────────────────── -->
 <section class="slide" data-title="드라이버 고르기">
-  <p class="tag">DRIVERS · 14종</p>
+  <p class="tag">DRIVERS · 15종</p>
   <h2>드라이버 고르기 — <code>"driver"</code>에 적는 이름</h2>
   <div class="tw"><table>
     <thead><tr><th>driver</th><th>쓰는 부품</th><th>꼭 적을 것</th><th>자주 쓰는 옵션</th><th>슬롯</th></tr></thead>
@@ -495,6 +496,7 @@ python daemon.py</pre></div></li>
       <tr><td><code>digital_out</code></td><td>LED · 릴레이 · 능동 부저 (켜기/끄기)</td><td><code>pin</code></td><td><code>active_high</code>, 점멸은 <code>control_type: "pulse"</code></td><td>actuator</td></tr>
       <tr><td><code>pwm_out</code></td><td>진동 모터 · LED 밝기 · 모터 속도</td><td><code>pin</code></td><td><code>frequency</code></td><td>actuator</td></tr>
       <tr><td><code>tonal_buzzer</code></td><td>피에조 부저 (음 높이)</td><td><code>pin</code></td><td><code>buzzer_type</code>: <code>"passive"</code> / <code>"active"</code></td><td>actuator</td></tr>
+      <tr><td><code>speaker_out</code></td><td>스피커로 알람음 (USB·HDMI 스피커, 부저 대신)</td><td>— (핀 없음)</td><td><code>control_type</code> <code>"tonal"</code>, <code>sound_file</code>(wav, 없으면 삐-삐-삐 경보음)</td><td>actuator</td></tr>
       <tr><td><code>servo</code></td><td>서보모터 (각도)</td><td><code>pin</code></td><td><code>value_schema</code>, <code>rest_angle</code>, SG90이면 <code>min_pulse_ms</code> 0.5 · <code>max_pulse_ms</code> 2.4, 멈춰서 떨리면 <code>detach_after</code> 0.5</td><td>actuator</td></tr>
       <tr><td><code>servo360</code></td><td>360도 연속 회전 서보 (MG-90 360° 등)</td><td><code>pin</code></td><td><code>control_type</code> <code>"pwm"</code>, <code>value_schema</code> -100~100, <code>stop_pulse_ms</code>(멈춤 맞추기), <code>reverse</code></td><td>actuator</td></tr>
       <tr><td><code>servo_hold</code></td><td>힘을 유지하는 서보 (MG996R 등, 각도)</td><td><code>pin</code></td><td><code>value_schema</code>, <code>rest_angle</code>, <code>speed</code>(초당 각도, 천천히), 펄스 기본 0.5~2.5ms</td><td>actuator</td></tr>

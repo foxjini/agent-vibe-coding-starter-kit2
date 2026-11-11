@@ -7,15 +7,25 @@
 
 SLOTS = {
     # --- 액추에이터 ---
+    # 알람 소리 — 파이에 연결한 USB/HDMI 스피커로 냅니다 (핀 배선 없음).
+    # 화면·규칙은 부저와 똑같이 {"frequency", "volume"}을 보내므로 그대로 동작합니다.
     "actuator_01": {
-        "label": "알람 부저",
-        "kind": "buzzer",
-        "driver": "tonal_buzzer",
-        "pin": 18,
+        "label": "알람 스피커",
+        "kind": "speaker",
+        "driver": "speaker_out",
         "control_type": "tonal",
-        # 소리가 안 나면 여기를 바꿔 보세요: passive(수동 피에조) / active(능동 부저)
-        "buzzer_type": "passive",
+        # "sound_file": "sounds/alarm.wav",   # 원하는 알람음 파일 (없으면 '삐-삐-삐' 경보음)
     },
+    # 스피커 대신 피에조 부저를 쓰려면 위 actuator_01을 지우고 아래 주석을 푸세요.
+    # "actuator_01": {
+    #     "label": "알람 부저",
+    #     "kind": "buzzer",
+    #     "driver": "tonal_buzzer",
+    #     "pin": 18,
+    #     "control_type": "tonal",
+    #     # 소리가 안 나면 여기를 바꿔 보세요: passive(수동 피에조) / active(능동 부저)
+    #     "buzzer_type": "passive",
+    # },
     "actuator_02": {
         "label": "커튼",
         "kind": "servo",

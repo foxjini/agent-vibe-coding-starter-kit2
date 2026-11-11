@@ -432,7 +432,7 @@ tr.group td{
     <span><b>대상</b> 마이스터고 2학년 · 라즈베리파이 담당</span>
     <span><b>보드</b> Raspberry Pi 5</span>
     <span><b>고치는 파일</b> pi/slot_map.py</span>
-    <span><b>드라이버</b> 14종</span>
+    <span><b>드라이버</b> 15종</span>
     <span><b>확인 명령</b> python daemon.py --check</span>
   </div>
 
@@ -619,7 +619,7 @@ tr.group td{
     <div><dt>센서 <small>sensor</small></dt><dd>무언가를 재서 알려 주는 부품 — 버튼, 터치, 온도, 거리, 압력.</dd></div>
     <div><dt>슬롯</dt><dd>부품이 들어갈 고정 자리. <code>actuator_01</code>~<code>10</code>, <code>sensor_01</code>~<code>10</code> 모두 20칸. 이름은 바꿀 수 없습니다.</dd></div>
     <div><dt>배치표 <small>slot_map.py</small></dt><dd>"어느 슬롯에, 어떤 부품을, 몇 번 핀에 꽂았나"를 적은 표. 내가 고치는 유일한 코드입니다.</dd></div>
-    <div><dt>드라이버</dt><dd>부품 종류별로 "어떻게 다루는지"를 담은 파일(<code>pi/drivers/</code>). 14종이 들어 있어 <strong>이름만 고르면</strong> 됩니다.</dd></div>
+    <div><dt>드라이버</dt><dd>부품 종류별로 "어떻게 다루는지"를 담은 파일(<code>pi/drivers/</code>). 15종이 들어 있어 <strong>이름만 고르면</strong> 됩니다.</dd></div>
     <div><dt>데몬 <small>daemon.py</small></dt><dd>켜 두면 끝없이 돌면서 백엔드와 주고받는 프로그램. 끄려면 <kbd>Ctrl</kbd>+<kbd>C</kbd>. 고치지 않습니다.</dd></div>
     <div><dt>내린 명령 · 하드웨어 보고</dt><dd>대시보드 카드의 두 칸. 명령(desired)은 대시보드·규칙이 정하고, 보고(current)는 <strong>파이가 실제로 반영한 뒤에만</strong> 바뀝니다.</dd></div>
     <div><dt>폴링 <small>polling</small></dt><dd>정해진 간격(1초)마다 "할 일 있나요?" 하고 물어보는 방식.</dd></div>
@@ -1528,7 +1528,7 @@ python daemon.py</pre>
 
 <!-- ══════════════════════════════════════════════════════ -->
 <section id="s12">
-  <h2><span class="num">12</span>드라이버 14종 — 부품에 맞는 것을 고르세요</h2>
+  <h2><span class="num">12</span>드라이버 15종 — 부품에 맞는 것을 고르세요</h2>
   <p class="lede">
     <code>driver</code>에 적는 이름입니다. 부품에 맞는 카드를 찾아 코드를 복사해 쓰세요.
     <span style="color:var(--danger); font-weight:600">빨간 항목은 반드시 적어야 하는 것</span>이고,
@@ -1610,8 +1610,32 @@ python daemon.py</pre>
     },</pre></figure>
       <div class="note" style="margin-bottom:0">
         <span class="tag">스피커는 이 드라이버가 아닙니다</span>
-        <p>음악·음성을 내는 스피커(3.5mm·USB·블루투스)는 키트 드라이버에 없습니다. 꼭 필요하면 부록F 8-3절의 방법으로
-          <code>drivers/</code>에 파일을 하나 추가해야 하니 먼저 선생님과 상의하세요.</p>
+        <p>파이에 연결한 USB·HDMI 스피커로 알람음을 내려면 바로 아래 <code>speaker_out</code>을 쓰세요.
+          받는 값이 같아서 <code>driver</code>만 바꾸면 화면 코드는 그대로 동작합니다.</p>
+      </div>
+    </article>
+
+    <article class="drv" data-role="actuator" data-keys="speaker_out 스피커 알람음 소리 USB HDMI wav 오디오 speaker 부저 대신">
+      <div class="drv-head">
+        <span class="drv-name">speaker_out</span>
+        <span class="drv-role act">액추에이터</span>
+        <span class="drv-ct">control_type: tonal</span>
+      </div>
+      <p class="drv-use">스피커로 알람음 — 파이에 연결한 USB·HDMI 스피커. <code>tonal_buzzer</code>와 같은 값(<code>frequency</code>·<code>volume</code>)을 받아, <strong>켜져 있는 동안 소리를 반복</strong>하고 끄면 바로 멈춥니다.</p>
+      <dl>
+        <dt>필수</dt><dd class="req">없음 (핀 배선 없음)</dd>
+        <dt>선택</dt><dd><code>sound_file</code>(pi 폴더 기준 wav 경로 — 없으면 <code>frequency</code> Hz '삐-삐-삐' 경보음을 직접 만듦) · <code>player</code>(기본 <code>pw-play</code> → <code>paplay</code> → <code>aplay</code>) · <code>device</code>(특정 스피커로 고정)</dd>
+        <dt>준비</dt><dd class="wire"><strong>파이 5에는 3.5mm 단자가 없습니다</strong> → USB 스피커나 HDMI 모니터 스피커. 바탕화면 스피커 아이콘 우클릭 → 출력 장치 선택 → <code>speaker-test -c2 -t wav -l 1</code>로 소리 확인. 데몬은 <strong>바탕화면에 로그인한 사용자</strong>로 켭니다(sudo로 켜면 소리가 안 남).</dd>
+      </dl>
+      <figure class="code"><button class="copy" type="button">복사</button>
+<pre>    <span class="s">"actuator_01"</span>: {
+        <span class="s">"label"</span>: <span class="s">"알람 스피커"</span>, <span class="s">"kind"</span>: <span class="s">"speaker"</span>,
+        <span class="s">"driver"</span>: <span class="s">"speaker_out"</span>, <span class="s">"control_type"</span>: <span class="s">"tonal"</span>,
+        <span class="c"># "sound_file": "sounds/alarm.wav",</span>
+    },</pre></figure>
+      <div class="note" style="margin-bottom:0">
+        <span class="tag">왜 화면(브라우저)이 아니라 데몬이 소리를 내나요?</span>
+        <p>브라우저는 아무도 화면을 만지지 않으면 소리를 막고, 새로고침·화면 꺼짐에도 끊깁니다. 데몬은 화면과 상관없이 울려서 알람에 맞습니다.</p>
       </div>
     </article>
 

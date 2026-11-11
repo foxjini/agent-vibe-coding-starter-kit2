@@ -75,6 +75,7 @@ export const COMMON_SENSOR_KINDS = [
 
 export const COMMON_ACTUATOR_KINDS = [
   "buzzer",
+  "speaker",
   "led",
   "relay",
   "servo",
@@ -266,7 +267,7 @@ export function controlTypeOf(slot: Slot): ControlType {
   if (CONTROL_TYPES.includes(declared as ControlType)) return declared as ControlType;
 
   const kind = String(slot.kind ?? "").trim().toLowerCase();
-  if (kind === "buzzer") return "tonal";
+  if (kind === "buzzer" || kind === "speaker") return "tonal";
   if (kind === "servo") return "servo";
   if (kind === "neopixel" || kind === "rgb_led") return "rgb";
   if (kind === "vibration_motor" || kind === "motor") return "pwm";
@@ -284,6 +285,7 @@ export function iconNameFor(slot: Slot): string {
   const kind = String(slot.kind ?? "").trim().toLowerCase();
   const byKind: Record<string, string> = {
     buzzer: "volume",
+    speaker: "volume",
     led: "lightbulb",
     relay: "power",
     servo: "rotate",
