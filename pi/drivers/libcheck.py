@@ -1,8 +1,8 @@
 """
 부품 라이브러리 점검 (pi/drivers/libcheck.py) — 키트 제공, 수정하지 마세요.
 =============================================================================
-네오픽셀(neopixel_out)·온습도(dht_in)는 gpiozero가 아니라 Adafruit 라이브러리(Blinka)로
-움직입니다. 라이브러리가 없으면 데몬은 멈추지 않고 그 슬롯만 '흉내내기'로 돌아가는데,
+네오픽셀(neopixel_out)·온습도(dht_in)는 gpiozero가 아니라 Adafruit 라이브러리(Blinka)로,
+AHT20 온습도(aht20_in)는 smbus2(I2C)로 움직입니다. 라이브러리가 없으면 데몬은 멈추지 않고 그 슬롯만 '흉내내기'로 돌아가는데,
 실제 파이에서는 "대시보드는 동작 중인데 부품은 가만히 있는" 헷갈리는 상태가 됩니다.
 
 그래서 실제 라즈베리파이에서는 시작할 때(그리고 `--check`에서) 미리 확인하고,
@@ -23,7 +23,12 @@ os.environ.setdefault("BLINKA_SKIP_DEPENDENCY_CHECK", "1")
 NEEDS = {
     "neopixel_out": ("네오픽셀", "neopixel", "adafruit-circuitpython-neopixel"),
     "dht_in": ("온습도", "adafruit_dht", "adafruit-circuitpython-dht"),
+    "aht20_in": ("온습도(AHT20)", "smbus2", "smbus2"),
 }
+#: Blinka(adafruit) 라이브러리를 쓰는 드라이버 — 이것을 쓸 때만 Blinka 의존성을 봅니다
+BLINKA_DRIVERS = ("neopixel_out", "dht_in")
+#: I2C를 쓰는 드라이버 — 파이에서 I2C가 켜져 있는지 봅니다
+I2C_DRIVERS = ("aht20_in",)
 
 #: Blinka가 함께 권하지만 이 키트의 드라이버에는 필요 없는 것 (파이에서 컴파일이 필요할 수 있음)
 _NOT_NEEDED = ("adafruit-blinka-raspberry-pi-pwm", "rpi_ws281x", "rpi-ws281x")
@@ -106,7 +111,17 @@ def check_libraries(slot_configs: Dict[str, Dict[str, Any]]) -> List[str]:
             if importlib.util.find_spec(module) is None:
                 install.append(package)
 
-    for requirement in _blinka_missing():
+    if any(driver in used for driver in I2C_DRIVERS):
+        buses = {int(cfg.get("i2c_bus", 1)) for cfg in slot_configs.values() if cfg.get("driver") in I2C_DRIVERS}
+        for bus in sorted(buses):
+            if not os.path.exists(f"/dev/i2c-{bus}"):
+                problems.append(
+                    f"I2C: /dev/i2c-{bus}이 없습니다 (I2C가 꺼져 있음) → "
+                    "sudo raspi-config → Interface Options → I2C → Yes → sudo reboot"
+                )
+
+    blinka_missing = _blinka_missing() if any(d in used for d in BLINKA_DRIVERS) else []
+    for requirement in blinka_missing:
         low = requirement.lower()
         if low.startswith(_NOT_NEEDED):
             continue
@@ -133,7 +148,7 @@ def check_libraries(slot_configs: Dict[str, Dict[str, Any]]) -> List[str]:
 
     install = list(dict.fromkeys(install))
     if (install or install_pre) and not problems:
-        problems.append("네오픽셀·온습도 라이브러리 중 없거나 오래된 것이 있습니다 (아래 명령으로 설치)")
+        problems.append("네오픽셀·온습도(DHT·AHT20) 라이브러리 중 없거나 오래된 것이 있습니다 (아래 명령으로 설치)")
     if install:
         problems.append(f"설치 — (venv)가 켜진 파이 터미널에서: {_pip(install)}")
     if install_pre:

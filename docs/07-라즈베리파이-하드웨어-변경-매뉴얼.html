@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="color-scheme" content="light dark">
-<meta name="description" content="라즈베리파이를 처음 맡은 학생이 혼자서 끝까지 갈 수 있도록 — 시스템 속 역할, 파이 준비·접속, PC 연결, 배선 기초, 배치표(pi/slot_map.py) 고치기, 드라이버 11종, 오류 사전, AI 활용, 전시 준비까지 순서대로 정리한 매뉴얼.">
+<meta name="description" content="라즈베리파이를 처음 맡은 학생이 혼자서 끝까지 갈 수 있도록 — 시스템 속 역할, 파이 준비·접속, PC 연결, 배선 기초, 배치표(pi/slot_map.py) 고치기, 드라이버 13종, 오류 사전, AI 활용, 전시 준비까지 순서대로 정리한 매뉴얼.">
 <title>라즈베리파이 하드웨어 매뉴얼</title>
 <style>
 :root{
@@ -432,7 +432,7 @@ tr.group td{
     <span><b>대상</b> 마이스터고 2학년 · 라즈베리파이 담당</span>
     <span><b>보드</b> Raspberry Pi 5</span>
     <span><b>고치는 파일</b> pi/slot_map.py</span>
-    <span><b>드라이버</b> 11종</span>
+    <span><b>드라이버</b> 13종</span>
     <span><b>확인 명령</b> python daemon.py --check</span>
   </div>
 
@@ -619,7 +619,7 @@ tr.group td{
     <div><dt>센서 <small>sensor</small></dt><dd>무언가를 재서 알려 주는 부품 — 버튼, 터치, 온도, 거리, 압력.</dd></div>
     <div><dt>슬롯</dt><dd>부품이 들어갈 고정 자리. <code>actuator_01</code>~<code>10</code>, <code>sensor_01</code>~<code>10</code> 모두 20칸. 이름은 바꿀 수 없습니다.</dd></div>
     <div><dt>배치표 <small>slot_map.py</small></dt><dd>"어느 슬롯에, 어떤 부품을, 몇 번 핀에 꽂았나"를 적은 표. 내가 고치는 유일한 코드입니다.</dd></div>
-    <div><dt>드라이버</dt><dd>부품 종류별로 "어떻게 다루는지"를 담은 파일(<code>pi/drivers/</code>). 11종이 들어 있어 <strong>이름만 고르면</strong> 됩니다.</dd></div>
+    <div><dt>드라이버</dt><dd>부품 종류별로 "어떻게 다루는지"를 담은 파일(<code>pi/drivers/</code>). 13종이 들어 있어 <strong>이름만 고르면</strong> 됩니다.</dd></div>
     <div><dt>데몬 <small>daemon.py</small></dt><dd>켜 두면 끝없이 돌면서 백엔드와 주고받는 프로그램. 끄려면 <kbd>Ctrl</kbd>+<kbd>C</kbd>. 고치지 않습니다.</dd></div>
     <div><dt>내린 명령 · 하드웨어 보고</dt><dd>대시보드 카드의 두 칸. 명령(desired)은 대시보드·규칙이 정하고, 보고(current)는 <strong>파이가 실제로 반영한 뒤에만</strong> 바뀝니다.</dd></div>
     <div><dt>폴링 <small>polling</small></dt><dd>정해진 간격(1초)마다 "할 일 있나요?" 하고 물어보는 방식.</dd></div>
@@ -1528,7 +1528,7 @@ python daemon.py</pre>
 
 <!-- ══════════════════════════════════════════════════════ -->
 <section id="s12">
-  <h2><span class="num">12</span>드라이버 11종 — 부품에 맞는 것을 고르세요</h2>
+  <h2><span class="num">12</span>드라이버 13종 — 부품에 맞는 것을 고르세요</h2>
   <p class="lede">
     <code>driver</code>에 적는 이름입니다. 부품에 맞는 카드를 찾아 코드를 복사해 쓰세요.
     <span style="color:var(--danger); font-weight:600">빨간 항목은 반드시 적어야 하는 것</span>이고,
@@ -1615,7 +1615,7 @@ python daemon.py</pre>
       </div>
     </article>
 
-    <article class="drv" data-role="actuator" data-keys="servo 서보 각도 문 자동문 모터 회전 SG90 MG90S 차단기">
+    <article class="drv" data-role="actuator" data-keys="servo 서보 각도 문 자동문 모터 SG90 MG90S 차단기">
       <div class="drv-head">
         <span class="drv-name">servo</span>
         <span class="drv-role act">액추에이터</span>
@@ -1645,6 +1645,33 @@ python daemon.py</pre>
            <code>value_schema</code>는 움직일 수 있는 범위만 정합니다(예: 0~120이면 120°에서 멈춤).</p>
         <p style="margin-top:6px"><code>"min_pulse_ms": 0.5, "max_pulse_ms": 2.4</code> — 서보 설명서의 값. 끝에서 드르륵 떨거나 뜨거우면 0.6 / 2.3처럼 조금 좁힙니다.
            <code>"full_range"</code>(기본 180)는 그 펄스 범위가 덮는 실제 각도입니다. 적지 않으면 예전과 똑같이 동작합니다.</p>
+      </div>
+    </article>
+    <article class="drv" data-role="actuator" data-keys="servo360 360 연속 회전 서보 MG90 MG-90 MG90S FS90R 바퀴 컨베이어 회전대 속도">
+      <div class="drv-head">
+        <span class="drv-name">servo360</span>
+        <span class="drv-role act">액추에이터</span>
+        <span class="drv-ct">control_type: pwm</span>
+      </div>
+      <p class="drv-use">360도 <strong>연속 회전</strong> 서보 — MG-90 360°, FS90R 등. 각도가 아니라 <strong>속도·방향</strong>(-100~100)을 정합니다. 회전대, 바퀴, 컨베이어.</p>
+      <dl>
+        <dt>필수</dt><dd class="req"><code>pin</code></dd>
+        <dt>선택</dt><dd><code>value_schema</code> <code>{"min": -100, "max": 100, "step": 10}</code>(대시보드 '세기' 슬라이더) · <code>default_speed</code> 기본 <code>50</code> · <code>stop_pulse_ms</code> 기본 <code>1.5</code> · <code>pulse_span_ms</code> 기본 <code>0.5</code> · <code>reverse</code> · <code>deadband</code> 기본 <code>5</code> · <code>hold_stop</code></dd>
+        <dt>배선</dt><dd class="wire">SG90과 같음: 갈색 → GND, 빨강 → 5V, 주황 → GPIO. 2개 이상이면 별도 5V(GND는 파이와 공통).</dd>
+      </dl>
+      <figure class="code"><button class="copy" type="button">복사</button>
+<pre>    <span class="s">"actuator_06"</span>: {
+        <span class="s">"label"</span>: <span class="s">"회전 진열대"</span>, <span class="s">"kind"</span>: <span class="s">"servo360"</span>,
+        <span class="s">"driver"</span>: <span class="s">"servo360"</span>, <span class="s">"pin"</span>: <span class="k">13</span>,
+        <span class="s">"control_type"</span>: <span class="s">"pwm"</span>,
+        <span class="s">"value_schema"</span>: {<span class="s">"min"</span>: <span class="k">-100</span>, <span class="s">"max"</span>: <span class="k">100</span>, <span class="s">"step"</span>: <span class="k">10</span>},
+    },</pre></figure>
+      <div class="note warn" style="margin-bottom:0">
+        <span class="tag">servo로 쓰면 멈추지 않습니다</span>
+        <p>360도 서보에 <code>servo</code> 드라이버를 쓰면 "각도 0도"가 "한쪽으로 최고 속도"라서 끄면 오히려 계속 돕니다.
+           <code>servo360</code>은 <strong>끄기·속도 0에서 펄스를 끊어</strong> 확실히 멈춥니다.
+           대시보드: 세기 50 → 정방향 절반 속도, -50 → 역방향, 끄기 → 정지. 규칙에서는 켜기(값 없으면 <code>default_speed</code>) · 끄기.</p>
+        <p style="margin-top:8px">켜 둔 채 속도 0 근처에서 조금씩 기어가면 <code>"stop_pulse_ms": 1.47</code>처럼 1.45~1.55 사이로 맞춥니다. 방향이 반대면 <code>"reverse": True</code>.</p>
       </div>
     </article>
 
@@ -1781,6 +1808,34 @@ python daemon.py</pre>
           <code>--check</code>가 핀 중복을 경고하는데, <strong>이 경우는 센서가 하나이므로 정상</strong>입니다.
           실기기에서는 두 값이 모두 갱신되는지 확인하세요.
         </p>
+      </div>
+    </article>
+    <article class="drv" data-role="sensor" data-keys="aht20_in AHT20 AHT21 AHT10 온도 습도 온습도 I2C temperature humidity">
+      <div class="drv-head">
+        <span class="drv-name">aht20_in</span>
+        <span class="drv-role sen">센서</span>
+        <span class="drv-ct">숫자 — 차트가 그려집니다</span>
+      </div>
+      <p class="drv-use">온도·습도 센서 — AHT20 / AHT21 (I2C, 주소 0x38). DHT보다 빠르고 정확합니다.</p>
+      <dl>
+        <dt>필수</dt><dd class="req">없음 (I2C라 <code>pin</code>을 적지 않습니다)</dd>
+        <dt>선택</dt><dd><code>measure</code> 기본 <code>"temperature"</code> (<code>"humidity"</code> 가능) · <code>interval</code> 기본 <code>2.0</code> · <code>address</code> 기본 <code>0x38</code> · <code>i2c_bus</code> 기본 <code>1</code> · <code>decimals</code> 기본 <code>1</code></dd>
+        <dt>배선</dt><dd class="wire">VIN(VCC) → 3V3(물리 1번), GND → GND(물리 6번), <strong>SDA → GPIO 2(물리 3번), SCL → GPIO 3(물리 5번)</strong>. GPIO 2·3은 다른 부품에 쓰지 않습니다(<code>--check</code>가 알려 줌).</dd>
+        <dt>설치</dt><dd class="wire">처음 한 번 <code>sudo raspi-config</code> → Interface Options → I2C → Yes → 재부팅. 가상환경에서 <code>pip install smbus2</code>. 연결 확인: <code>sudo apt install -y i2c-tools</code> → <code>i2cdetect -y 1</code> 표에 <code>38</code>.</dd>
+      </dl>
+      <figure class="code"><button class="copy" type="button">복사</button>
+<pre>    <span class="s">"sensor_01"</span>: {
+        <span class="s">"label"</span>: <span class="s">"교실 온도"</span>, <span class="s">"kind"</span>: <span class="s">"temperature"</span>, <span class="s">"unit"</span>: <span class="s">"°C"</span>,
+        <span class="s">"driver"</span>: <span class="s">"aht20_in"</span>, <span class="s">"interval"</span>: <span class="k">2.0</span>,
+    },
+    <span class="s">"sensor_02"</span>: {
+        <span class="s">"label"</span>: <span class="s">"교실 습도"</span>, <span class="s">"kind"</span>: <span class="s">"humidity"</span>, <span class="s">"unit"</span>: <span class="s">"%"</span>,
+        <span class="s">"driver"</span>: <span class="s">"aht20_in"</span>, <span class="s">"measure"</span>: <span class="s">"humidity"</span>, <span class="s">"interval"</span>: <span class="k">2.0</span>,
+    },</pre></figure>
+      <div class="note" style="margin-bottom:0">
+        <span class="tag">온도·습도 둘 다</span>
+        <p>슬롯 2개로 나누고 한쪽에 <code>"measure": "humidity"</code>. 센서는 하나라 한 번 잰 값을 나눠 씁니다(핀 중복 경고도 없음).
+           라이브러리나 I2C가 없으면 흉내낸 값을 보고하므로, 파이에서 <code>python daemon.py --check</code>로 "고쳐야 할 것"이 없는지 꼭 확인합니다.</p>
       </div>
     </article>
 

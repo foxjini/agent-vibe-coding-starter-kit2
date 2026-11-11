@@ -50,10 +50,21 @@ SLOTS = {
         "active_high": True,
     },
 
+    # 360도 연속 회전 서보(MG-90 360°)는 servo가 아니라 servo360 — 각도 대신 속도(-100~100), 끄면 정지
+    # "actuator_06": {
+    #     "label": "회전 서보", "kind": "servo360", "driver": "servo360", "pin": 13,
+    #     "control_type": "pwm", "value_schema": {"min": -100, "max": 100, "step": 10},
+    # },
+
     # --- 센서 (필요해지면 주석을 풀어 쓰세요) ---
+    # 온습도 AHT20(I2C: SDA=GPIO 2, SCL=GPIO 3) — 온도·습도를 슬롯 2개로. I2C 켜기 + pip install smbus2
     # "sensor_01": {
     #     "label": "교실 온도", "kind": "temperature", "unit": "°C",
-    #     "driver": "dht_in", "pin": 4, "interval": 5.0,
+    #     "driver": "aht20_in", "interval": 2.0,
+    # },
+    # "sensor_03": {
+    #     "label": "교실 습도", "kind": "humidity", "unit": "%",
+    #     "driver": "aht20_in", "measure": "humidity", "interval": 2.0,
     # },
     # "sensor_02": {
     #     "label": "출입문 거리", "kind": "distance", "unit": "cm",

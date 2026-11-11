@@ -42,6 +42,7 @@ def validate_slots(slots: Dict[str, Any]) -> Tuple[Dict[str, Dict[str, Any]], Li
         return {}, ["slot_map.py의 SLOTS는 딕셔너리여야 합니다."]
 
     pins_in_use: Dict[Any, str] = {}
+    i2c_slots: List[str] = []   # I2C를 쓰는 슬롯 (GPIO 2·3 = SDA·SCL을 함께 씀)
 
     for slot_id, config in slots.items():
         role = slot_role(slot_id)
@@ -123,7 +124,19 @@ def validate_slots(slots: Dict[str, Any]) -> Tuple[Dict[str, Dict[str, Any]], Li
         for pin in pin_list:
             claim(pin, "'pins'")
 
+        if getattr(driver_class, "uses_i2c", False):
+            i2c_slots.append(slot_id)
         usable[slot_id] = dict(config)
+
+    # I2C 부품(AHT20 등)은 GPIO 2(SDA)·3(SCL)을 씁니다 — 다른 부품이 그 핀을 쓰면 둘 다 안 됩니다.
+    if i2c_slots:
+        for pin in (2, 3):
+            owner = pins_in_use.get(pin)
+            if owner:
+                problems.append(
+                    f"GPIO {pin}번은 I2C({'SDA' if pin == 2 else 'SCL'})로 {', '.join(i2c_slots)}가 쓰는 핀인데 "
+                    f"{owner}도 쓰고 있습니다. {owner}를 다른 핀으로 옮기세요."
+                )
 
     return usable, problems
 

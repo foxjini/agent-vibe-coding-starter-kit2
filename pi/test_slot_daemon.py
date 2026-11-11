@@ -140,7 +140,7 @@ def main_test() -> int:
     # 드라이버는 파일을 넣으면 늘어납니다. 개수를 고정하지 말고 '있어야 할 것'만 확인합니다.
     required = {
         "digital_out", "pwm_out", "tonal_buzzer", "servo", "neopixel_out", "rgb_out",
-        "level_out", "button_in", "analog_in", "dht_in", "distance_in",
+        "level_out", "button_in", "analog_in", "dht_in", "distance_in", "servo360", "aht20_in",
     }
     check(f"기본 드라이버가 모두 있음 (현재 {len(names)}종)", required <= set(names),
           f"빠진 것: {sorted(required - set(names))}")
@@ -195,6 +195,57 @@ def main_test() -> int:
     check("pwm이 {'duty': 70}을 세기 70%로 반영", abs(pwm.device.value - 0.7) < 0.001,
           str(pwm.device.value))
     pwm.close()
+
+    # 360도 연속 회전 서보 (MG-90 360° 등) — 각도가 아니라 속도, 끄면 확실히 멈춤
+    spin = create_driver("actuator_05", {"driver": "servo360", "pin": 13, "control_type": "pwm",
+                                         "value_schema": {"min": -100, "max": 100, "step": 10}})
+    check("servo360 켜기(속도 60)는 'on'으로 보고", spin.apply("on", {"duty": 60}) == "on")
+    check("servo360 속도 60 → 정방향 0.6", spin.device.value == 0.6, str(spin.device.value))
+    spin.apply("on", {"duty": -40})
+    check("servo360 속도 -40 → 역방향 -0.4", spin.device.value == -0.4, str(spin.device.value))
+    spin.apply("on", {"duty": 3})
+    check("servo360 아주 작은 속도(3)는 정지 — 펄스를 끊음", spin.device.value is None,
+          str(spin.device.value))
+    spin.apply("on", {"duty": 80})
+    check("servo360 끄기 → 정지 (펄스를 끊음)",
+          spin.apply("off") == "off" and spin.device.value is None, str(spin.device.value))
+    spin.close()
+    reverse = create_driver("actuator_06", {"driver": "servo360", "pin": 12, "reverse": True,
+                                            "control_type": "pwm"})
+    reverse.apply("on", {"speed": 50})
+    check("servo360 reverse: True면 방향 반대 ({'speed': 50} → -0.5)",
+          reverse.device.value == -0.5, str(reverse.device.value))
+    reverse.close()
+
+    # AHT20 (I2C 온습도) — 변환식은 데이터시트 계산과 같아야 합니다
+    from drivers.aht20_in import crc8, parse_measurement
+    sample = bytes([0x1C, 0x66, 0x66, 0x65, 0x99, 0x9A])   # 습도 40% · 온도 20℃가 되도록 만든 값
+    temperature, humidity = parse_measurement(sample)
+    check("AHT20 측정값 변환 (습도 40% · 온도 20℃)",
+          abs(humidity - 40.0) < 0.01 and abs(temperature - 20.0) < 0.01,
+          f"temperature={temperature:.3f}, humidity={humidity:.3f}")
+    check("AHT20 CRC-8 (데이터시트 예: 0xBE·0xEF → 0x92)", crc8(bytes([0xBE, 0xEF])) == 0x92,
+          hex(crc8(bytes([0xBE, 0xEF]))))
+    aht_t = create_driver("sensor_05", {"driver": "aht20_in", "label": "교실 온도", "unit": "°C"})
+    aht_h = create_driver("sensor_06", {"driver": "aht20_in", "label": "교실 습도", "unit": "%",
+                                        "measure": "humidity"})
+    t_read, h_read = aht_t.read(), aht_h.read()
+    check("AHT20 온도·습도 슬롯 2개가 PC에서도 숫자를 보고 (흉내내기)",
+          isinstance(t_read, dict) and isinstance(h_read, dict) and 15 < t_read["value"] < 30
+          and 30 < h_read["value"] < 70, f"{t_read} {h_read}")
+    aht_t.close()
+    aht_h.close()
+    _, problems = validate_slots({
+        "sensor_05": {"driver": "aht20_in", "kind": "temperature", "unit": "°C"},
+        "sensor_06": {"driver": "aht20_in", "kind": "humidity", "unit": "%", "measure": "humidity"},
+    })
+    check("AHT20 온도·습도 두 슬롯은 핀 충돌 없이 통과", not problems, str(problems))
+    _, problems = validate_slots({
+        "sensor_05": {"driver": "aht20_in", "kind": "temperature", "unit": "°C"},
+        "actuator_01": {"driver": "digital_out", "pin": 2, "control_type": "onoff"},
+    })
+    check("I2C 핀(GPIO 2)을 다른 부품이 쓰면 알려 줌",
+          len(problems) == 1 and "I2C" in problems[0], str(problems))
 
     pulse = create_driver("actuator_03", {"driver": "digital_out", "pin": 26,
                                           "control_type": "pulse"})

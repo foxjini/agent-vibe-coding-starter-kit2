@@ -23,6 +23,11 @@ python-dotenv>=1.0.1
 #   온습도 센서 (drivers/dht_in.py) — venv가 켜진 파이 터미널에서
 #     pip install adafruit-circuitpython-dht "gpiod>=2.2.2,<3"
 #
+#   온습도 AHT20 · I2C (drivers/aht20_in.py) — I2C를 켠 뒤(sudo raspi-config → I2C) venv에서
+#     pip install smbus2
+#
+#   360도 연속 회전 서보 MG-90 360° 등 (drivers/servo360.py) — 추가 설치 없음 (gpiozero)
+#
 #   네오픽셀 RGB 스트립 (drivers/neopixel_out.py) — 라즈베리파이 5 전용 방법 (sudo 불필요)
 #     ls -l /dev/pio0      # 없으면: sudo apt update && sudo apt full-upgrade -y
 #                          #         sudo rpi-eeprom-update -a && sudo reboot
