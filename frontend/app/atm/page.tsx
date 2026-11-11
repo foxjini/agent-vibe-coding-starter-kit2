@@ -30,7 +30,7 @@ export default function AtmScreen() {
   const [notice, setNotice] = useState<string | null>(null);
   // '처음으로'가 거절당했을 때만 직원 해제 버튼을 꺼내 놓는다 (평소에는 없다)
   const [askStaff, setAskStaff] = useState(false);
-  // 실기기에서는 배출에 1.4초가 걸린다(게이트 열고·밀고·닫고). Mock에서는 즉시라
+  // 실기기에서는 배출에 1.4초가 걸린다(그 금액의 배출구 덮개를 열고·기다리고·닫고). Mock에서는 즉시라
   // 눈치채지 못했지만, 파이에서는 그동안 화면이 아무 말도 하지 않으면 관람객이
   // 버튼을 다시 누른다.
   const [busy, setBusy] = useState(false);
@@ -88,13 +88,16 @@ export default function AtmScreen() {
     // 나올지 안 나올지 아직 모르므로 결과를 앞질러 말하지 않는다
     setNotice("잠시만 기다려 주세요");
     try {
-      const next = await atmDaemon.post<AtmDaemonState & { dispensed: boolean }>("/withdraw", {
-        amount,
-      });
+      const next = await atmDaemon.post<AtmDaemonState & { dispensed: boolean; outlet: number | null }>(
+        "/withdraw",
+        { amount },
+      );
       setState(next);
       setNotice(
         next.dispensed
-          ? `${amount.toLocaleString("ko-KR")}원을 배출했습니다.`
+          ? // 금액별 배출구가 4개라 어디서 나오는지까지 말해 준다 (노약자가 덮개를 찾지 않게)
+            `${amount.toLocaleString("ko-KR")}원을 배출했습니다.` +
+              (next.outlet ? ` ${next.outlet}번 배출구에서 꺼내 주세요.` : "")
           : "현금이 나오지 않습니다. 보이스피싱 위험으로 출금이 멈춰 있습니다.",
       );
     } catch (err) {

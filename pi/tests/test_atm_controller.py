@@ -75,6 +75,16 @@ def test_safe_qr_enables_withdrawal_and_dispenses(
     assert provider.dispense_count == 1
 
 
+def test_withdraw_tells_which_outlet_opened(
+    controller: AtmController, provider: MockDeviceProvider
+) -> None:
+    """금액별 배출구 4개 — 화면이 "N번 배출구"를 안내할 수 있게 번호를 돌려준다."""
+    asyncio.run(controller.handle_qr(f'{{"session_id": "{SAFE_SESSION}"}}'))
+    assert asyncio.run(controller.request_withdraw(100000))["outlet"] == 2
+    assert asyncio.run(controller.request_withdraw(500000))["outlet"] == 4
+    assert provider.outlet_counts == {1: 0, 2: 1, 3: 0, 4: 1}
+
+
 # ── FR-09 위험 상태 출금 차단 (핵심 구현 조건) ──────────────────────────────
 def test_danger_qr_blocks_withdrawal_and_never_moves_servo(
     controller: AtmController, provider: MockDeviceProvider, backend: FakeBackend
@@ -607,7 +617,7 @@ class SlowDispenser(MockDeviceProvider):
             self.active += 1
             self.max_active = max(self.max_active, self.active)
             try:
-                await asyncio.sleep(0.05)  # 게이트 열고 밀대 밀고 닫는 시간
+                await asyncio.sleep(0.05)  # 배출구 덮개를 열고 기다렸다 닫는 시간
                 return await super().set_actuator_state(device_id, desired_state, value, operator)
             finally:
                 self.active -= 1
@@ -637,7 +647,7 @@ def test_warning_beep_always_ends_silent(
 def test_double_tap_does_not_overlap_dispensing(backend: FakeBackend) -> None:
     """출금 버튼을 빠르게 두 번 눌러도 배출 동작이 겹치면 안 된다.
 
-    겹치면 게이트가 열린 채로 다른 쪽이 닫아 버려서, 화면에는 '배출했습니다'가
+    겹치면 덮개가 열린 채로 다른 쪽이 닫아 버려서, 화면에는 '배출했습니다'가
     두 번 뜨는데 지폐는 한 번만 제대로 나간다. 실기기 시뮬레이션에서 재현됐다.
     """
     provider = SlowDispenser()

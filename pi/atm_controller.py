@@ -180,7 +180,7 @@ class AtmController:
         )
         self._last_touch: float = time.monotonic()
         # 배출은 한 번에 하나씩. 화면을 두 번 빠르게 누르면 배출 동작 두 개가
-        # 겹쳐서, 게이트가 열린 채로 다른 쪽이 닫아 버린다 (실제로 재현된다).
+        # 겹쳐서, 덮개가 열린 채로 다른 쪽이 닫아 버린다 (실제로 재현된다).
         # 그러면 '배출했습니다'는 두 번 뜨는데 지폐는 한 번만 제대로 나간다.
         self._dispense_lock = asyncio.Lock()
         self.state: str = STATE_READY
@@ -444,20 +444,24 @@ class AtmController:
         self.touch()
         # 판단과 배출을 한 덩어리로 묶는다. 기다리는 동안 상담원이 다시 막았다면
         # 그 결정이 이깁니다 — 잠금 안에서 다시 확인하는 이유다.
+        outlet = None
         async with self._dispense_lock:
             dispensed = self.can_dispense
             if dispensed:
-                await self._provider.set_actuator_state(
+                # 금액별 배출구(SG-90 4개) 중 그 금액의 덮개만 열린다. 몇 번이 열렸는지는
+                # Provider가 알려 준다 — 화면이 "N번 배출구"를 안내할 수 있게
+                result = await self._provider.set_actuator_state(
                     CASH_DISPENSER_DEVICE_ID, DISPENSER_DISPENSING, value=amount, operator="user"
                 )
-                logger.info("현금 배출 (session=%s, amount=%s)", self.session_id, amount)
+                outlet = (result or {}).get("outlet")
+                logger.info("현금 배출 (session=%s, amount=%s, 배출구=%s)", self.session_id, amount, outlet)
             else:
                 # 액추에이터를 아예 건드리지 않는다 — 배출 장치는 움직이지 않는다
                 logger.info("출금 차단 (state=%s, session=%s)", self.state, self.session_id)
 
         # 서버 보고는 잠금 밖에서 한다 — 백엔드가 느릴 때 다음 사람이 그만큼 기다리게 된다
         await self._report_withdraw(dispensed=dispensed)
-        return {"dispensed": dispensed, **self.snapshot()}
+        return {"dispensed": dispensed, "outlet": outlet, **self.snapshot()}
 
     # ── 콜센터 확인 폴링 ────────────────────────────────────────────────────
     async def enter_call_center(self) -> dict[str, Any]:

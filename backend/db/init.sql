@@ -115,7 +115,7 @@ CREATE TABLE IF NOT EXISTS control_log (
 
 -- ── 시드: AGENTS.md '팀 정보' 표의 제어 대상 ─────────────────────────────────
 INSERT INTO devices (id, name, kind) VALUES
-  ('cash_dispenser_1', '현금 배출 시연 장치 (MG996R x2)', 'cash_dispenser'),
+  ('cash_dispenser_1', '현금 배출 시연 장치 (SG-90 x4, 금액별 배출구)', 'cash_dispenser'),
   ('qr_scanner_1',     'QR 인식 카메라',                  'qr_scanner'),
   ('buzzer_1',         '경고 부저 (선택)',                'buzzer')
 ON DUPLICATE KEY UPDATE name = VALUES(name), kind = VALUES(kind);  -- MySQL-only

@@ -7,6 +7,7 @@ import logging
 from typing import Any, Optional
 
 from .base import DeviceProvider
+from .outlets import OUTLET_AMOUNTS, outlet_number
 
 logger = logging.getLogger("mock_provider")
 
@@ -22,7 +23,8 @@ class MockDeviceProvider(DeviceProvider):
         self._states: dict[str, dict[str, Any]] = {
             "cash_dispenser_1": {
                 "device_id": "cash_dispenser_1",
-                "name": "현금 배출 시연 장치 (MG996R x2)",
+                "name": "현금 배출 시연 장치 (SG-90 x4, 금액별 배출구)",
+                "outlet": None,
                 "kind": "cash_dispenser",
                 "state": DISPENSER_IDLE,
                 "last_operator": None,
@@ -42,8 +44,10 @@ class MockDeviceProvider(DeviceProvider):
                 "last_operator": None,
             },
         }
-        # 시연 검증용 — 실제로 배출 동작이 몇 번 일어났는지 센다
+        # 시연 검증용 — 실제로 배출 동작이 몇 번 일어났는지, 어느 배출구가 열렸는지 센다
         self.dispense_count: int = 0
+        self.outlet_counts: dict[int, int] = {n: 0 for n in range(1, len(OUTLET_AMOUNTS) + 1)}
+        self.last_outlet: Optional[int] = None
 
     async def get_device_status(self, device_id: str) -> Optional[dict[str, Any]]:
         return self._states.get(device_id)
@@ -59,11 +63,17 @@ class MockDeviceProvider(DeviceProvider):
         if device is None:
             raise KeyError(f"등록되지 않은 디바이스입니다: {device_id}")
 
+        if device_id == "cash_dispenser_1" and desired_state == DISPENSER_DISPENSING:
+            # 실기기와 같은 표로 금액을 확인한다 — 없는 금액은 상태를 바꾸기 전에 거절
+            number = outlet_number(value)
+            self.dispense_count += 1
+            self.outlet_counts[number] += 1
+            self.last_outlet = number
+            device["outlet"] = number
+            logger.info("[MOCK] %s원 배출구(%d번) 덮개 열고 닫음 (누적 %d회)",
+                        f"{value:,}", number, self.dispense_count)
         device["state"] = desired_state
         device["last_operator"] = operator
-        if device_id == "cash_dispenser_1" and desired_state == DISPENSER_DISPENSING:
-            self.dispense_count += 1
-            logger.info("[MOCK] 현금 배출 동작 (누적 %d회)", self.dispense_count)
         return device
 
     async def read_sensor_value(self, device_id: str) -> dict[str, Any]:
