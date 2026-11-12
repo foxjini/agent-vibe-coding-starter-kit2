@@ -67,7 +67,7 @@ DEMO_CHATS: list[tuple[str, list[tuple[str, str]]]] = [
 
 # AGENTS.md '팀 정보' 표의 제어 대상 (db-integration 스킬: devices 시드)
 DEMO_DEVICES = [
-    ("cash_dispenser_1", "현금 배출 시연 장치 (SG-90 x4, 금액별 배출구)", "cash_dispenser"),
+    ("cash_dispenser_1", "현금 배출 시연 장치 (SG-90 x1)", "cash_dispenser"),
     ("qr_scanner_1", "QR 인식 카메라", "qr_scanner"),
     ("buzzer_1", "경고 부저 (선택)", "buzzer"),
 ]

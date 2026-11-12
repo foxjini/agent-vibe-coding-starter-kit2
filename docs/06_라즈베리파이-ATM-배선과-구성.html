@@ -352,7 +352,7 @@
           <text x="562" y="143" text-anchor="middle" fill="var(--ok)" font-weight="600">HardwareDeviceProvider</text>
           <text x="562" y="162" text-anchor="middle" font-size="11" fill="var(--ink-muted)">라즈베리파이 · gpiozero</text>
           <text x="562" y="177" text-anchor="middle" font-size="11" fill="var(--ink-muted)">GPIO 핀에 진짜 신호가 나간다</text>
-          <text x="562" y="192" text-anchor="middle" font-size="11" fill="var(--ink-muted)">SG-90 덮개 4개가 움직인다</text>
+          <text x="562" y="192" text-anchor="middle" font-size="11" fill="var(--ink-muted)">SG-90 배출구 덮개가 움직인다</text>
         </g>
         <g stroke-width="1.5" fill="none" marker-end="url(#ar)">
           <path d="M392 82 L446 56" stroke="var(--line-strong)" color="var(--line-strong)" stroke-dasharray="4 3"/>
@@ -400,7 +400,7 @@
         <h3>PC에서 먼저 통과시킵니다</h3>
         <p>여기서 실패하면 파이 문제가 아닙니다. 파이에서 헤맬 이유가 없습니다.</p>
         <div class="term"><pre>$ pytest
-<span class="out">115 passed, 1 warning in 8.2s</span></pre></div>
+<span class="out">112 passed, 1 warning in 8.2s</span></pre></div>
         <p><code>failed</code>라는 단어가 없으면 성공입니다. 나오면 멈추고 팀에 알리세요.</p>
       </div>
     </li>
@@ -463,7 +463,7 @@ $ pip install -r requirements.txt</pre></div>
               <tr><td><code>GPIOZERO_PIN_FACTORY</code></td><td><code>lgpio</code></td><td>파이 5는 GPIO 칩이 달라(RP1) 필요합니다</td></tr>
               <tr><td><code>BACKEND_URL</code></td><td><code>http://&lt;PC의 IP&gt;:8000</code></td><td><code>localhost</code>는 파이 자신을 뜻합니다</td></tr>
               <tr><td><code>DEVICE_API_KEY</code></td><td>백엔드와 같은 값</td><td>한 글자만 달라도 401이 납니다</td></tr>
-              <tr><td><code>OUTLET_SERVO_PINS</code></td><td>실제 배선한 번호 4개</td><td>기본 <code>12,13,18,19</code> — <strong>5만·10만·30만·50만 원 순서</strong></td></tr>
+              <tr><td><code>SERVO_PIN</code></td><td>실제 배선한 번호</td><td>기본 <code>18</code> (물리 핀 12)</td></tr>
               <tr><td><code>SERVO_MIN_PULSE_US</code> / <code>_MAX_</code></td><td><code>500</code> / <code>2400</code></td><td>SG-90이 0~180도를 쓰는 펄스 폭. 끝에서 "드르륵"하면 좁힙니다</td></tr>
               <tr><td><code>CAMERA_INDEX</code></td><td>보통 <code>0</code></td><td>추측하지 말고 6단계가 알려 주는 번호를 넣으세요</td></tr>
             </tbody>
@@ -519,10 +519,9 @@ $ pip install -r requirements.txt</pre></div>
         <h3>서보를 확인합니다 — 교사 입회 하에</h3>
         <p>여기서 처음으로 서보가 실제로 움직입니다. 손이 배출구에 없는지 확인하세요.</p>
         <div class="term"><pre>$ python check_hardware.py <span class="hi">--servo</span></pre></div>
-        <p>1번(5만 원)부터 4번(50만 원)까지 덮개가 <strong>하나씩</strong> 90도로 열렸다가 1초 뒤 닫힙니다. <strong>눈과 귀로 확인할 것:</strong></p>
+        <p>배출구 덮개가 90도로 열렸다가 1초 뒤 닫힙니다. <strong>눈과 귀로 확인할 것:</strong></p>
         <ul>
-          <li>화면에 찍힌 번호와 <strong>실제로 움직인 덮개가 같은가</strong> — 다르면 배선 순서나 <code>OUTLET_SERVO_PINS</code> 순서</li>
-          <li>한 번에 <strong>하나만</strong> 움직였는가</li>
+          <li>덮개가 <strong>실제로 열렸다 닫혔는가</strong></li>
           <li>닫힌 뒤 <strong>조용해지는가</strong> — 계속 "지지직" 하면 <code>SERVO_HOLD</code>를 확인</li>
           <li>파이가 재부팅되지 않았는가 — 재부팅됐다면 전원이 부족한 것입니다</li>
         </ul>
@@ -537,7 +536,7 @@ $ pip install -r requirements.txt</pre></div>
 
 <span class="cm">PWMSoftwareFallback: To reduce servo jitter, use the pigpio pin factory
   ↑ 오류가 아닙니다. 파이 5에서는 pigpio를 쓸 수 없어 소프트웨어 PWM으로 돕니다.</span>
-<span class="out">하드웨어 Provider 시작 (배출구 5만원=GPIO12, 10만원=GPIO13, 30만원=GPIO18, 50만원=GPIO19, 대기 시 펄스=끊음)
+<span class="out">하드웨어 Provider 시작 (배출구 서보=GPIO18, 대기 시 펄스=끊음)
 카메라 열림 (index=0, backend=</span><span class="hi">v4l2</span><span class="out">, 640x480)
 QR 스캔 시작 (camera_index=0)
 ATM 데몬 시작 — DEVICE_MODE=</span><span class="hi">hardware</span><span class="out">, port=8100</span></pre></div>
@@ -580,9 +579,9 @@ ATM 데몬 시작 — DEVICE_MODE=</span><span class="hi">hardware</span><span c
   <h3>손으로 확인하는 체크리스트</h3>
   <p>표시는 이 브라우저에만 저장됩니다. 다른 기기에서는 다시 체크해야 합니다.</p>
   <ul class="checklist" id="handcheck">
-    <li><input type="checkbox" id="hc1"><label for="hc1">화면에서 5만원 → <strong>1번 덮개만</strong> 열리고 “50,000원을 배출했습니다. 1번 배출구에서 꺼내 주세요” (10만·30만·50만도 2·3·4번)</label></li>
+    <li><input type="checkbox" id="hc1"><label for="hc1">화면에서 5만원 → 덮개가 열렸다 닫히고 “50,000원을 배출했습니다” (10만·30만·50만도 같은 덮개)</label></li>
     <li><input type="checkbox" id="hc2"><label for="hc2">위험 QR을 카메라에 → 화면이 빨갛게 바뀌고 부저가 “삑삑” 두 번</label></li>
-    <li><input type="checkbox" id="hc3"><label for="hc3"><strong>그 상태에서 50만원 → 덮개 4개 모두 전혀 움직이지 않는다</strong></label></li>
+    <li><input type="checkbox" id="hc3"><label for="hc3"><strong>그 상태에서 50만원 → 덮개가 전혀 움직이지 않는다</strong></label></li>
     <li><input type="checkbox" id="hc4"><label for="hc4">“상담원 확인 요청하기” → 콜센터에서 해제 → 다시 배출됨</label></li>
     <li><input type="checkbox" id="hc5"><label for="hc5">배출이 끝난 뒤 서보가 조용해진다 (지지직 소리가 없다)</label></li>
   </ul>
@@ -598,61 +597,34 @@ ATM 데몬 시작 — DEVICE_MODE=</span><span class="hi">hardware</span><span c
 
   <figure>
     <div class="fig-box">
-      <svg viewBox="0 0 700 400" role="img" aria-label="파이 GPIO12, 13, 18, 19가 금액별 배출구 SG-90 서보 4개의 신호선에 하나씩 연결되고, 서보 전원은 외부 5V에서, 접지는 파이와 외부 전원을 함께 묶는다">
+      <svg viewBox="0 0 700 300" role="img" aria-label="파이 GPIO18(핀 12)이 배출구 덮개 SG-90의 신호선에, 서보 전원은 외부 5V에, GND는 파이(핀 6)와 외부 전원이 함께 쓴다">
         <g fill="none" stroke="var(--line-strong)" stroke-width="1.5">
-          <rect x="20" y="24" width="160" height="290" rx="6"/>
-          <rect x="430" y="50" width="200" height="48" rx="6"/>
-          <rect x="430" y="112" width="200" height="48" rx="6"/>
-          <rect x="430" y="174" width="200" height="48" rx="6"/>
-          <rect x="430" y="236" width="200" height="48" rx="6"/>
-          <rect x="430" y="290" width="200" height="56" rx="6" stroke="var(--danger)" stroke-width="2"/>
+          <rect x="20" y="24" width="170" height="190" rx="6"/>
+          <rect x="430" y="56" width="200" height="64" rx="6"/>
+          <rect x="430" y="180" width="200" height="60" rx="6" stroke="var(--danger)" stroke-width="2"/>
         </g>
         <g font-family="IBM Plex Sans KR, sans-serif" font-size="13" fill="var(--ink)">
-          <text x="100" y="48" text-anchor="middle" font-weight="600">라즈베리파이 5</text>
-          <text x="530" y="71" text-anchor="middle">1번 배출구 · 5만원</text>
-          <text x="530" y="88" text-anchor="middle" font-size="11" fill="var(--ink-faint)">SG-90 덮개</text>
-          <text x="530" y="133" text-anchor="middle">2번 배출구 · 10만원</text>
-          <text x="530" y="150" text-anchor="middle" font-size="11" fill="var(--ink-faint)">SG-90 덮개</text>
-          <text x="530" y="195" text-anchor="middle">3번 배출구 · 30만원</text>
-          <text x="530" y="212" text-anchor="middle" font-size="11" fill="var(--ink-faint)">SG-90 덮개</text>
-          <text x="530" y="257" text-anchor="middle">4번 배출구 · 50만원</text>
-          <text x="530" y="274" text-anchor="middle" font-size="11" fill="var(--ink-faint)">SG-90 덮개</text>
-          <text x="530" y="314" text-anchor="middle" fill="var(--danger)" font-weight="600">외부 5V 전원 (2A 이상)</text>
-          <text x="530" y="332" text-anchor="middle" font-size="11" fill="var(--danger)">파이 5V 핀이 아님</text>
+          <text x="105" y="50" text-anchor="middle" font-weight="600">라즈베리파이 5</text>
+          <text x="530" y="84" text-anchor="middle">배출구 덮개</text>
+          <text x="530" y="104" text-anchor="middle" font-size="11" fill="var(--ink-faint)">SG-90 서보 1개</text>
+          <text x="530" y="206" text-anchor="middle" fill="var(--danger)" font-weight="600">외부 5V 전원 (1A 이상)</text>
+          <text x="530" y="224" text-anchor="middle" font-size="11" fill="var(--danger)">파이 5V 핀이 아님</text>
         </g>
-        <g font-family="IBM Plex Mono, monospace" font-size="12" fill="var(--ink-muted)">
-          <text x="168" y="78" text-anchor="end">GPIO12 (핀 32)</text>
-          <text x="168" y="140" text-anchor="end">GPIO13 (핀 33)</text>
-          <text x="168" y="202" text-anchor="end">GPIO18 (핀 12)</text>
-          <text x="168" y="264" text-anchor="end">GPIO19 (핀 35)</text>
-          <text x="168" y="290" text-anchor="end">GND (핀 34)</text>
+        <g font-family="IBM Plex Mono, monospace" font-size="12" fill="var(--ink-muted)" text-anchor="end">
+          <text x="178" y="92">GPIO18 (핀 12)</text>
+          <text x="178" y="176">GND (핀 6)</text>
         </g>
         <g stroke-width="2" fill="none">
-          <path d="M180 74 L430 74" stroke="var(--warn)"/>
-          <path d="M180 136 L430 136" stroke="var(--warn)"/>
-          <path d="M180 198 L430 198" stroke="var(--warn)"/>
-          <path d="M180 260 L430 260" stroke="var(--warn)"/>
-          <path d="M652 300 L652 66" stroke="var(--danger)"/>
-          <path d="M630 300 L652 300" stroke="var(--danger)"/>
-          <path d="M672 336 L672 82" stroke="var(--ink-muted)"/>
-          <path d="M630 336 L672 336" stroke="var(--ink-muted)"/>
-          <path d="M630 66 L652 66" stroke="var(--danger)"/>
-          <path d="M630 82 L672 82" stroke="var(--ink-muted)"/>
-          <path d="M630 128 L652 128" stroke="var(--danger)"/>
-          <path d="M630 144 L672 144" stroke="var(--ink-muted)"/>
-          <path d="M630 190 L652 190" stroke="var(--danger)"/>
-          <path d="M630 206 L672 206" stroke="var(--ink-muted)"/>
-          <path d="M630 252 L652 252" stroke="var(--danger)"/>
-          <path d="M630 268 L672 268" stroke="var(--ink-muted)"/>
-          <path d="M180 286 L300 286 L300 372 L672 372 L672 336" stroke="var(--ink-muted)"/>
+          <path d="M190 88 L430 88" stroke="var(--warn)"/>
+          <path d="M652 190 L652 72 M630 72 L652 72 M630 190 L652 190" stroke="var(--danger)"/>
+          <path d="M672 228 L672 104 M630 104 L672 104 M630 228 L672 228" stroke="var(--ink-muted)"/>
+          <path d="M190 172 L300 172 L300 270 L672 270 L672 228" stroke="var(--ink-muted)"/>
         </g>
         <g font-family="IBM Plex Sans KR, sans-serif" font-size="11">
-          <text x="305" y="18" text-anchor="middle" fill="var(--warn)">신호선 (주황) — 서보마다 하나</text>
-          <text x="652" y="18" text-anchor="middle" fill="var(--danger)">5V (빨강)</text>
-          <text x="672" y="386" text-anchor="end" fill="var(--ink-muted)">GND (갈색)</text>
-          <text x="300" y="394" text-anchor="middle" fill="var(--ink)" font-weight="600">
-            접지는 파이와 외부 전원을 함께 묶는다
-          </text>
+          <text x="310" y="78" text-anchor="middle" fill="var(--warn)">신호선 (주황)</text>
+          <text x="652" y="50" text-anchor="middle" fill="var(--danger)">5V (빨강)</text>
+          <text x="672" y="290" text-anchor="end" fill="var(--ink-muted)">GND (갈색)</text>
+          <text x="300" y="292" text-anchor="middle" fill="var(--ink)" font-weight="600">접지는 파이와 외부 전원을 함께 묶는다</text>
         </g>
       </svg>
     </div>
@@ -664,9 +636,8 @@ ATM 데몬 시작 — DEVICE_MODE=</span><span class="hi">hardware</span><span c
 
   <h3>핀 번호가 다르면 코드가 아니라 <code>.env</code>를 고칩니다</h3>
   <p>
-    배선을 먼저 하고, <code>.env</code>의 <code>OUTLET_SERVO_PINS</code>를 실제로 꽂은 번호로
-    <strong>5만·10만·30만·50만 원 순서</strong>대로 맞추면 됩니다. 기본값 12·13·18·19는 파이 5에서
-    하드웨어 PWM이 되는 네 핀이라, 나중에 하드웨어 PWM으로 바꿔도 배선을 다시 할 필요가 없습니다.
+    배선을 먼저 하고, <code>.env</code>의 <code>SERVO_PIN</code>을 실제로 꽂은 번호로 맞추면 됩니다.
+    기본값 18은 파이 5에서 하드웨어 PWM이 되는 핀이라, 나중에 하드웨어 PWM으로 바꿔도 배선을 다시 할 필요가 없습니다.
     <strong>코드는 건드리지 않습니다.</strong>
   </p>
 
@@ -704,7 +675,7 @@ ATM 데몬 시작 — DEVICE_MODE=</span><span class="hi">hardware</span><span c
     <p>
       서보를 다른 핀에 꽂았거나 부저를 새로 달았을 때입니다. <strong>코드는 한 줄도 고치지 않습니다.</strong>
     </p>
-    <div class="term"><pre>OUTLET_SERVO_PINS=<span class="hi">12,13,18,19</span>   <span class="cm"># 5만·10만·30만·50만 원 순서</span>
+    <div class="term"><pre>SERVO_PIN=<span class="hi">19</span>          <span class="cm"># 서보를 다른 핀(GPIO19 = 물리 핀 35)에 꽂았다면</span>
 BUZZER_PIN=<span class="hi">20</span>      <span class="cm"># 비워 두면 부저를 안 쓴다</span></pre></div>
     <p>고친 뒤에는 <strong>데몬을 껐다 다시 켜야 합니다.</strong> <code>.env</code>는 시작할 때 한 번만 읽습니다.</p>
   </div>
@@ -717,7 +688,7 @@ BUZZER_PIN=<span class="hi">20</span>      <span class="cm"># 비워 두면 부�
     </div>
     <p>
       각도가 부족해서 지폐가 안 나오거나, 너무 빨리 닫혀 걸릴 때입니다.
-      파일 맨 위의 상수 네 개만 고치면 됩니다. 덮개 4개에 똑같이 적용됩니다.
+      파일 맨 위의 상수 네 개만 고치면 됩니다.
     </p>
     <div class="table-scroll">
       <table>
@@ -758,7 +729,7 @@ BUZZER_PIN=<span class="hi">20</span>      <span class="cm"># 비워 두면 부�
       제어하면 기록을 남길 때 오류가 납니다.
     </p>
     <div class="term"><pre>DEMO_DEVICES = [
-    ("cash_dispenser_1", "현금 배출 시연 장치 (SG-90 x4, 금액별 배출구)", "cash_dispenser"),
+    ("cash_dispenser_1", "현금 배출 시연 장치 (SG-90 x1)", "cash_dispenser"),
     ("qr_scanner_1", "QR 인식 카메라", "qr_scanner"),
     ("buzzer_1", "경고 부저 (선택)", "buzzer"),
 <span class="hi">    ("warning_lamp_1", "경고등", "lamp"),          # ← 추가</span>
@@ -963,7 +934,7 @@ async def read_sensor_value(self, device_id):
         <tr><td><code>PWMSoftwareFallback</code> 경고</td><td><strong>오류가 아닙니다.</strong> 파이 5에서는 pigpio를 쓸 수 없어 소프트웨어 PWM으로 돕니다. 경고가 권하는 pigpio로 바꾸려 하지 마세요</td></tr>
         <tr><td>서보가 떨리기만 하고 안 움직인다</td><td>전원이 부족하거나 접지가 따로 놀고 있습니다 (안전 수칙 1·2)</td></tr>
         <tr><td>서보가 움직일 때 파이가 재부팅</td><td>서보를 파이 5V에 직결했습니다. 별도 전원으로 분리하세요</td></tr>
-        <tr><td>출금 버튼을 눌러도 1~2초 반응 없음</td><td><strong>정상입니다.</strong> 그 금액의 덮개를 열고·기다리고·닫는 실제 시간(약 1.4초)입니다. 그동안 화면은 “잠시만 기다려 주세요”를 띄웁니다</td></tr>
+        <tr><td>출금 버튼을 눌러도 1~2초 반응 없음</td><td><strong>정상입니다.</strong> 덮개를 열고·기다리고·닫는 실제 시간(약 1.4초)입니다. 그동안 화면은 “잠시만 기다려 주세요”를 띄웁니다</td></tr>
         <tr><td>ATM API가 401</td><td><code>DEVICE_API_KEY</code>가 다릅니다. 양쪽 <code>.env</code>를 맞추고 <strong>둘 다 재시작</strong></td></tr>
       </tbody>
     </table>

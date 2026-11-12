@@ -75,16 +75,6 @@ def test_safe_qr_enables_withdrawal_and_dispenses(
     assert provider.dispense_count == 1
 
 
-def test_withdraw_tells_which_outlet_opened(
-    controller: AtmController, provider: MockDeviceProvider
-) -> None:
-    """금액별 배출구 4개 — 화면이 "N번 배출구"를 안내할 수 있게 번호를 돌려준다."""
-    asyncio.run(controller.handle_qr(f'{{"session_id": "{SAFE_SESSION}"}}'))
-    assert asyncio.run(controller.request_withdraw(100000))["outlet"] == 2
-    assert asyncio.run(controller.request_withdraw(500000))["outlet"] == 4
-    assert provider.outlet_counts == {1: 0, 2: 1, 3: 0, 4: 1}
-
-
 # ── FR-09 위험 상태 출금 차단 (핵심 구현 조건) ──────────────────────────────
 def test_danger_qr_blocks_withdrawal_and_never_moves_servo(
     controller: AtmController, provider: MockDeviceProvider, backend: FakeBackend

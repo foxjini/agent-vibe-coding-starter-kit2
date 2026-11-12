@@ -100,7 +100,6 @@ def scenario_safe(user: dict[str, str]) -> None:
 
     withdrawn = atm_post("/withdraw", {"amount": 50000})
     check("현금이 실제로 배출됨 (FR-08)", withdrawn["dispensed"] is True)
-    check("5만 원은 1번 배출구 덮개가 열림 (SG-90 4개 중 하나만)", withdrawn.get("outlet") == 1)
 
 
 def scenario_danger(user: dict[str, str], agent: dict[str, str]) -> None:

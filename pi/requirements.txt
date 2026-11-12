@@ -9,7 +9,7 @@ python-dotenv>=1.0.1
 pydantic>=2.6.0
 
 # gpiozero는 PC에도 설치한다 — 순수 파이썬이라 Windows에서도 깔리고, 가짜 핀(MockFactory)으로
-# 금액별 배출구 서보 4개 코드를 PC에서 시험한다 (pi/tests/test_outlet_servos.py).
+# 배출구 덮개 서보 코드를 PC에서 시험한다 (pi/tests/test_dispenser_servo.py).
 gpiozero>=2.0
 # lgpio는 실기기(라즈베리파이 5)에서만 필요하다. Pi 5는 GPIO 칩이 달라(RP1) lgpio 핀 팩토리가
 # 필요하다 — hardware-integration 스킬 참고. 파이에서는 apt의 python3-lgpio를 venv가 보게 한다.

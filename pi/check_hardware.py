@@ -10,7 +10,7 @@
 
     cd pi
     python check_hardware.py           # 확인만 한다 (안전)
-    python check_hardware.py --servo   # 배출구 덮개 4개를 하나씩 여닫아 본다
+    python check_hardware.py --servo   # 배출구 덮개를 한 번 여닫아 본다
 """
 import os
 import sys
@@ -171,28 +171,26 @@ def check_env() -> None:
         report(OK if factory == "lgpio" else WARN, f"GPIOZERO_PIN_FACTORY={factory or '(없음)'}",
                fix="" if factory == "lgpio" else "파이 5(RP1 칩)에서는 lgpio가 필요합니다.")
 
-    check_outlet_pins()
+    check_servo_pin()
 
 
-def check_outlet_pins() -> None:
-    """금액별 배출구 서보 핀 4개(OUTLET_SERVO_PINS)를 확인한다. 서보는 움직이지 않는다."""
-    from iot.outlets import OUTLET_AMOUNTS, outlet_pins_from_env
+def check_servo_pin() -> None:
+    """배출구 덮개 서보 핀(SERVO_PIN)을 확인한다. 서보는 움직이지 않는다."""
+    from iot.outlets import servo_pin_from_env
 
-    old = [k for k in ("SERVO_GATE_PIN", "SERVO_PUSHER_PIN") if os.getenv(k, "").strip()]
+    old = [k for k in ("SERVO_GATE_PIN", "SERVO_PUSHER_PIN", "OUTLET_SERVO_PINS") if os.getenv(k, "").strip()]
     if old:
         report(WARN, f"예전 설정 {', '.join(old)}이 남아 있음", "이제 쓰지 않습니다",
-               fix="게이트·밀대(MG996R 2개) 구성에서 금액별 배출구(SG-90 4개)로 바뀌었습니다.\n"
-                   "OUTLET_SERVO_PINS=12,13,18,19 처럼 핀 4개를 5만·10만·30만·50만 순서로 적으세요.")
+               fix="배출구 덮개 서보는 SG-90 1개입니다. 그 줄을 지우고\n"
+                   "SERVO_PIN=18 처럼 실제로 꽂은 GPIO 번호 하나만 적으세요.")
     try:
-        pins = outlet_pins_from_env()
+        pin = servo_pin_from_env()
     except ValueError as exc:
-        report(FAIL, "OUTLET_SERVO_PINS 형식 오류", str(exc),
-               fix="예: OUTLET_SERVO_PINS=12,13,18,19  (5만·10만·30만·50만 원 순서, 서로 다른 핀)")
+        report(FAIL, "SERVO_PIN 형식 오류", str(exc), fix="예: SERVO_PIN=18")
         return
-    pairs = ", ".join(f"{a // 10_000}만=GPIO{p}" for a, p in zip(OUTLET_AMOUNTS, pins))
-    report(OK, "배출구 서보 핀", pairs)
+    report(OK, "배출구 서보 핀", f"GPIO{pin}")
     buzzer = os.getenv("BUZZER_PIN", "").strip()
-    if buzzer and buzzer.isdigit() and int(buzzer) in pins:
+    if buzzer and buzzer.isdigit() and int(buzzer) == pin:
         report(FAIL, f"BUZZER_PIN={buzzer}이 배출구 서보 핀과 겹침",
                fix="부저는 서보와 다른 핀에 연결하고 BUZZER_PIN을 바꾸세요.")
 
@@ -246,42 +244,35 @@ def check_gpio(move_servo: bool) -> None:
         report(OK, "서보는 움직이지 않음", "실제 동작은 --servo 를 붙였을 때만 합니다")
         return
 
-    move_outlets()
+    move_servo_once()
 
 
-def move_outlets() -> None:
-    """배출구 덮개 4개를 **하나씩** 열었다 닫는다 (한꺼번에 움직이면 순간 전류가 몰린다)."""
+def move_servo_once() -> None:
+    """배출구 덮개를 한 번 열었다 닫는다."""
     import time
 
     from iot import hardware_provider as hp
-    from iot.outlets import OUTLET_AMOUNTS, outlet_pins_from_env
+    from iot.outlets import servo_pin_from_env
 
     try:
         from gpiozero import AngularServo
-        pins = outlet_pins_from_env()
+        pin = servo_pin_from_env()
         min_pulse = int(os.getenv("SERVO_MIN_PULSE_US", str(hp.DEFAULT_MIN_PULSE_US))) / 1_000_000
         max_pulse = int(os.getenv("SERVO_MAX_PULSE_US", str(hp.DEFAULT_MAX_PULSE_US))) / 1_000_000
+        servo = AngularServo(pin, min_angle=0, max_angle=180,
+                             min_pulse_width=min_pulse, max_pulse_width=max_pulse)
+        print(f"         GPIO{pin} 배출구 덮개를 {hp.SERVO_OPEN_ANGLE}도로 엽니다...")
+        servo.angle = hp.SERVO_OPEN_ANGLE
+        time.sleep(hp.DISPENSE_HOLD_SECONDS)
+        servo.angle = hp.SERVO_CLOSED_ANGLE
+        time.sleep(hp.SERVO_SETTLE_SECONDS)
+        servo.close()
+        report(OK, f"배출구 덮개 동작 명령 보냄 (GPIO{pin})", "실제로 열렸다 닫혔는지 눈으로 확인하세요")
     except Exception as exc:  # noqa: BLE001
-        report(FAIL, "서보 설정을 읽지 못함", f"{type(exc).__name__}: {exc}")
-        return
-
-    for number, (amount, pin) in enumerate(zip(OUTLET_AMOUNTS, pins), start=1):
-        label = f"{number}번 배출구 ({amount:,}원, GPIO{pin})"
-        try:
-            servo = AngularServo(pin, min_angle=0, max_angle=180,
-                                 min_pulse_width=min_pulse, max_pulse_width=max_pulse)
-            print(f"         {label} 덮개를 {hp.SERVO_OPEN_ANGLE}도로 엽니다...")
-            servo.angle = hp.SERVO_OPEN_ANGLE
-            time.sleep(hp.DISPENSE_HOLD_SECONDS)
-            servo.angle = hp.SERVO_CLOSED_ANGLE
-            time.sleep(hp.SERVO_SETTLE_SECONDS)
-            servo.close()
-            report(OK, f"{label} 동작 명령 보냄", "그 덮개만 열렸다 닫혔는지 눈으로 확인하세요")
-        except Exception as exc:  # noqa: BLE001
-            report(FAIL, f"{label} 서보를 움직이지 못함", f"{type(exc).__name__}: {exc}",
-                   fix="SG-90 4개는 별도 5V 전원(2A 이상 권장)에서 받습니다. 파이 5V 핀으로 직접\n"
-                       "구동하면 전압이 떨어져 파이가 재부팅되거나 서보가 떨리기만 합니다.\n"
-                       "접지(GND)를 파이와 외부 전원이 **함께** 쓰는지도 확인하세요.")
+        report(FAIL, "서보를 움직이지 못함", f"{type(exc).__name__}: {exc}",
+               fix="SG-90은 별도 5V 전원에서 받는 것을 권장합니다. 파이 5V 핀으로 직접\n"
+                   "구동하면 전압이 떨어져 파이가 재부팅되거나 서보가 떨리기만 할 수 있습니다.\n"
+                   "접지(GND)를 파이와 외부 전원이 **함께** 쓰는지도 확인하세요.")
 
 
 # ── 5. 카메라 ───────────────────────────────────────────────────────────────

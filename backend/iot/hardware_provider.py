@@ -1,12 +1,12 @@
-"""라즈베리파이 5 하드웨어 Provider — gpiozero로 SG-90 서보 4개(금액별 배출구 덮개)를 제어한다.
+"""라즈베리파이 5 하드웨어 Provider — gpiozero로 SG-90 서보 1개(현금 배출구 덮개)를 제어한다.
 
 hardware-rules.md:
 - gpiozero를 우선 사용한다
 - Mock과 동일한 DeviceProvider 인터페이스를 구현한다 (전환은 DEVICE_MODE만 바꾼다)
 
-배출구는 금액별로 4개다(5만·10만·30만·50만 원, outlets.py). 출금하면 그 금액의 덮개만
-열렸다가 닫힌다. 핀 번호는 .env의 OUTLET_SERVO_PINS로 분리해 두었다(PRD 5.4).
-SG-90 4개는 별도 5V 전원을 쓰고 파이는 신호만 준다.
+배출구는 1개다. 출금하면 금액(5만·10만·30만·50만 원, outlets.py)과 상관없이 같은 덮개가
+열렸다가 닫힌다. 핀 번호는 .env의 SERVO_PIN으로 분리해 두었다(PRD 5.4).
+SG-90은 별도 5V 전원을 쓰고 파이는 신호만 준다.
 
 파이 5에서는 pigpio를 쓸 수 없다. gpiozero가 lgpio로 소프트웨어 PWM을 내보내는데,
 펄스를 계속 내면 SG-90이 떨린다("지지직"). 그래서 자세를 잡은 뒤 펄스를 끊는다(아래 SERVO_HOLD).
@@ -19,7 +19,7 @@ from typing import Any, Optional
 
 from .base import DeviceProvider
 from .mock_provider import DISPENSER_DISPENSING, DISPENSER_IDLE
-from .outlets import OUTLET_AMOUNTS, outlet_number, outlet_pins_from_env
+from .outlets import check_amount, servo_pin_from_env
 
 logger = logging.getLogger("hardware_provider")
 
@@ -40,7 +40,7 @@ DEFAULT_MAX_PULSE_US = 2400
 #
 # gpiozero는 각도를 준 뒤에도 펄스를 계속 내보낸다. 서보는 그동안 자세를 유지하느라
 # 전류를 계속 먹고, 소프트웨어 PWM의 흔들림 때문에 미세하게 떨린다("지지직" 소리).
-# 덮개는 잠깐만 움직이면 되는데 몇 시간짜리 전시 내내 4개가 그러고 있으면 발열과
+# 덮개는 잠깐만 움직이면 되는데 몇 시간짜리 전시 내내 그러고 있으면 발열과
 # 전압 강하로 이어진다.
 #
 # 그래서 기본값은 '쉬게 한다'이다. 다만 덮개가 제 무게로 열린다면
@@ -63,57 +63,47 @@ class HardwareDeviceProvider(DeviceProvider):
                 "  자세한 진단:  cd pi && python check_hardware.py"
             ) from exc
 
-        pins = outlet_pins_from_env()
+        pin = servo_pin_from_env()
         buzzer_pin = os.getenv("BUZZER_PIN", "").strip()
         self._hold = os.getenv("SERVO_HOLD", "false").strip().lower() == "true"
         min_pulse = int(os.getenv("SERVO_MIN_PULSE_US", str(DEFAULT_MIN_PULSE_US))) / 1_000_000
         max_pulse = int(os.getenv("SERVO_MAX_PULSE_US", str(DEFAULT_MAX_PULSE_US))) / 1_000_000
-        if buzzer_pin and int(buzzer_pin) in pins:
-            raise RuntimeError(
-                f"BUZZER_PIN={buzzer_pin}이 배출구 서보 핀(OUTLET_SERVO_PINS={pins})과 겹칩니다."
-            )
+        if buzzer_pin and int(buzzer_pin) == pin:
+            raise RuntimeError(f"BUZZER_PIN={buzzer_pin}이 배출구 서보 핀(SERVO_PIN={pin})과 겹칩니다.")
 
-        # SG-90 4개: 금액별 배출구 덮개 (outlets.OUTLET_AMOUNTS 순서)
+        # SG-90 1개: 현금 배출구 덮개
         #
         # 여기서 나는 오류는 import 실패보다 종류가 많다 — 핀 팩토리를 못 고르거나
         # (파이 5에 lgpio가 없다), 권한이 없거나(gpio 그룹), 앞서 띄운 데몬이 같은
         # 핀을 아직 잡고 있거나. 트레이스백만 던지면 부스에서 원인을 못 찾으므로
         # 무엇을 확인해야 하는지까지 적어 준다.
-        self._outlets: list[Any] = []
         try:
-            for pin in pins:
-                self._outlets.append(AngularServo(
-                    pin, min_angle=0, max_angle=180,
-                    min_pulse_width=min_pulse, max_pulse_width=max_pulse,
-                ))
+            self._servo = AngularServo(
+                pin, min_angle=0, max_angle=180,
+                min_pulse_width=min_pulse, max_pulse_width=max_pulse,
+            )
             self._buzzer = Buzzer(int(buzzer_pin)) if buzzer_pin else None
-            # 켜질 때 덮개를 하나씩 닫는다 — 4개가 한꺼번에 움직이면 순간 전류가 몰려
-            # 전압이 떨어진다. 한 번에 하나만 움직이는 것이 이 장치의 규칙이다.
-            for servo in self._outlets:
-                servo.angle = SERVO_CLOSED_ANGLE
-                time.sleep(SERVO_SETTLE_SECONDS)
-                self._rest(servo)
+            self._servo.angle = SERVO_CLOSED_ANGLE
+            time.sleep(SERVO_SETTLE_SECONDS)
+            self._rest(self._servo)
         except Exception as exc:  # noqa: BLE001
             raise RuntimeError(
-                f"GPIO를 열지 못했습니다 (배출구 서보={','.join(f'GPIO{p}' for p in pins)}, "
-                f"buzzer={buzzer_pin or '없음'}).\n"
+                f"GPIO를 열지 못했습니다 (배출구 서보=GPIO{pin}, buzzer={buzzer_pin or '없음'}).\n"
                 f"  원인: {type(exc).__name__}: {exc}\n"
                 "  1) 핀 팩토리 — 파이 5는 lgpio가 필요합니다.\n"
                 "     .env에 GPIOZERO_PIN_FACTORY=lgpio 를 넣고, python3-lgpio를 설치하세요.\n"
                 "  2) 권한 — sudo usermod -aG gpio $USER  (그 뒤 다시 로그인)\n"
                 "  3) 핀 중복 — 앞서 띄운 ATM 데몬이 아직 떠 있으면 같은 핀을 열 수 없습니다.\n"
-                "  4) 핀 번호 — .env의 OUTLET_SERVO_PINS가 실제 배선과 같은지 (5만·10만·30만·50만 순서).\n"
+                "  4) 핀 번호 — .env의 SERVO_PIN이 실제 배선과 같은지.\n"
                 "  자세한 진단:  cd pi && python check_hardware.py"
             ) from exc
         self._dispenser_state = DISPENSER_IDLE
         self._buzzer_state = "OFF"
         self.dispense_count = 0
-        self.last_outlet: Optional[int] = None
 
         logger.info(
-            "하드웨어 Provider 시작 (배출구 %s, 대기 시 펄스=%s)",
-            ", ".join(f"{a // 10_000}만원=GPIO{p}" for a, p in zip(OUTLET_AMOUNTS, pins)),
-            "유지" if self._hold else "끊음",
+            "하드웨어 Provider 시작 (배출구 서보=GPIO%d, 대기 시 펄스=%s)",
+            pin, "유지" if self._hold else "끊음",
         )
 
     def _rest(self, servo: Any) -> None:
@@ -127,18 +117,16 @@ class HardwareDeviceProvider(DeviceProvider):
             logger.debug("서보를 쉬게 하지 못했습니다(무시): %s", exc)
 
     async def _dispense_once(self, amount: Optional[int]) -> None:
-        """그 금액의 배출구 덮개 하나만 열었다가 닫는다. 나머지 3개는 건드리지 않는다."""
-        number = outlet_number(amount)  # 없는 금액이면 어떤 서보도 움직이기 전에 거절한다
-        servo = self._outlets[number - 1]
-        servo.angle = SERVO_OPEN_ANGLE
+        """배출구 덮개를 열었다가 닫는다."""
+        check_amount(amount)  # 출금할 수 없는 금액이면 서보를 움직이기 전에 거절한다
+        self._servo.angle = SERVO_OPEN_ANGLE
         await asyncio.sleep(DISPENSE_HOLD_SECONDS)
-        servo.angle = SERVO_CLOSED_ANGLE
+        self._servo.angle = SERVO_CLOSED_ANGLE
         # 원위치까지 실제로 움직일 시간을 준 뒤에 펄스를 끊는다 —
         # 바로 끊으면 닫히다 만 자리에서 멈춘다
         await asyncio.sleep(SERVO_SETTLE_SECONDS)
-        self._rest(servo)
+        self._rest(self._servo)
         self.dispense_count += 1
-        self.last_outlet = number
 
     async def get_device_status(self, device_id: str) -> Optional[dict[str, Any]]:
         states = {
@@ -161,7 +149,7 @@ class HardwareDeviceProvider(DeviceProvider):
             if desired_state == DISPENSER_DISPENSING:
                 await self._dispense_once(value)
             self._dispenser_state = DISPENSER_IDLE
-            return {"device_id": device_id, "state": self._dispenser_state, "outlet": self.last_outlet}
+            return {"device_id": device_id, "state": self._dispenser_state}
 
         if device_id == "buzzer_1":
             if self._buzzer is None:

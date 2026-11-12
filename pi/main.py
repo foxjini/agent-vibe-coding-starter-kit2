@@ -2,7 +2,7 @@
 
 역할
   1) 카메라로 QR을 인식해 로컬에서 즉시 SAFE/CAUTION/DANGER를 판단한다
-  2) 판단 결과에 따라 금액별 배출구(SG-90 서보 4개)를 열거나 차단한다
+  2) 판단 결과에 따라 현금 배출구(SG-90 서보 1개)를 열거나 차단한다
   3) 7인치 터치 화면(Next.js /atm 라우트)이 읽을 로컬 HTTP API를 제공한다
   4) 콜센터 확인 결과를 백엔드에서 몇 초마다 폴링한다
 
@@ -42,7 +42,7 @@ from backend_client import BackendClient  # noqa: E402
 
 try:
     from iot.provider_factory import create_provider  # noqa: E402
-    from iot.outlets import OUTLET_AMOUNTS  # noqa: E402
+    from iot.outlets import WITHDRAW_AMOUNTS  # noqa: E402
 except ModuleNotFoundError as exc:  # noqa: E402
     # 파이로 옮길 때 가장 먼저 걸리는 곳이다. 'No module named iot' 한 줄만 보고는
     # 무엇을 어디에 둬야 하는지 알 수 없으므로, 폴더 구조를 그림으로 보여 준다.
@@ -178,15 +178,15 @@ class QrRequest(BaseModel):
 
 
 class WithdrawRequest(BaseModel):
-    """금액은 배출구가 있는 4가지뿐이다 (5만·10만·30만·50만 원, iot/outlets.py)."""
+    """금액은 화면의 버튼 4가지뿐이다 (5만·10만·30만·50만 원, iot/outlets.py)."""
 
     amount: int
 
     @field_validator("amount")
     @classmethod
     def _has_outlet(cls, amount: int) -> int:
-        if amount not in OUTLET_AMOUNTS:
-            raise ValueError(f"배출구가 없는 금액입니다: {amount}")
+        if amount not in WITHDRAW_AMOUNTS:
+            raise ValueError(f"출금할 수 없는 금액입니다: {amount}")
         return amount
 
 
