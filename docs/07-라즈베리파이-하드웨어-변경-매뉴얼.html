@@ -1736,7 +1736,7 @@ python daemon.py</pre>
       <dl>
         <dt>필수</dt><dd class="req"><code>pin</code></dd>
         <dt>선택</dt><dd><code>count</code> 기본 <code>8</code> (LED 알 개수) · <code>default_color</code> 기본 <code>"#ffffff"</code></dd>
-        <dt>배선</dt><dd class="wire"><code>DIN</code> → GPIO, <code>5V</code> → 5V, <code>GND</code> → GND. 알이 많으면(수십 개) 별도 5V 전원.</dd>
+        <dt>배선</dt><dd class="wire"><code>DIN</code> → <strong>330Ω</strong> → GPIO, <code>5V</code> → 5V, <code>GND</code> → GND. 알이 많으면(수십 개) 별도 5V 전원. 어떤 제품만 <strong>깜빡이거나 무작위 색</strong>이면 칩이 3.3V 신호를 못 읽는 것 → 5V와 <code>VDD</code> 사이에 다이오드 1N4001 1개(띠가 모듈 쪽). 양방향 레벨 컨버터는 효과 없음.</dd>
       </dl>
       <figure class="code"><button class="copy" type="button">복사</button>
 <pre>    <span class="s">"actuator_05"</span>: {

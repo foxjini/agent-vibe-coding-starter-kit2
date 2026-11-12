@@ -741,6 +741,7 @@ sensor_01의 푸시버튼을 정전식 터치센서 모듈(TTP223)로 바꿨어.
     <thead><tr><th style="width:36%">증상</th><th>해결 (위에서부터 하나씩)</th></tr></thead>
     <tbody>
       <tr><td>배선은 맞는데 <strong>아무 반응 없음</strong> (카드는 동작 중)</td><td>① <strong>물리 번호를 적지 않았나</strong> (6번 슬라이드) ② 점퍼선 헐거움 ③ 브레드보드 같은 줄에 다리 두 개</td></tr>
+      <tr><td>네오픽셀이 <strong>깜빡이거나 무작위 색</strong> (다른 제품은 정상, 같은 제품은 몇 개를 바꿔도 같음)</td><td>그 제품의 LED 칩이 파이의 3.3V 신호를 잘 못 읽는 것 — 코드로는 못 고침. ① 5V와 모듈 <code>VDD</code>(4-7V) 사이에 <strong>다이오드 1N4001(또는 1N4007) 1개</strong> — 띠가 있는 쪽이 모듈 쪽. 전원이 약 4.3V로 내려가 3.3V 신호를 읽게 됨 (모듈 표기 4~7V 안이라 안전) ② 그래도 안 되면 5V로 켠 <strong>74AHCT125</strong>로 신호를 5V로 올리기. <strong>양방향 레벨 컨버터(WAT-LC232-S 등)는 신호가 느려 네오픽셀에는 효과 없음</strong></td></tr>
       <tr><td>부저가 <strong>조용하거나 '틱'만</strong></td><td><code>buzzer_type</code>을 <code>"passive"</code> ↔ <code>"active"</code></td></tr>
       <tr><td>켜자마자 부저·릴레이가 <strong>계속 켜짐</strong>, 끄기가 안 먹음</td><td>LOW에서 켜지는 모듈 → <code>digital_out</code> + <code>"active_high": False</code> (control_type <code>onoff</code>, 프론트에 알림)</td></tr>
       <tr><td>버튼을 <strong>안 눌렀는데 눌림</strong></td><td><code>pull_up</code> 뒤집기 (버튼 True · 터치/PIR False)</td></tr>
