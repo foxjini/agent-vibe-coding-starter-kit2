@@ -1,0 +1,945 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>라즈베리파이 5 실기기 연동 매뉴얼</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+KR:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;600&display=swap">
+<style>
+  :root {
+    /* 계측기·실험대 톤 — 차가운 중성색에 계기판 남색 강조 */
+    --ground: #EFF1F4;
+    --surface: #FFFFFF;
+    --surface-sunk: #E6E9EE;
+    --ink: #161A20;
+    --ink-muted: #59626F;
+    --ink-faint: #8791A0;
+    --line: #D4DAE2;
+    --line-strong: #B3BCC8;
+    --accent: #1F4E79;
+    --accent-soft: #DCE6F1;
+    --ok: #1B6B45;
+    --ok-soft: #DCEFE4;
+    --warn: #8C6212;
+    --warn-soft: #FBEFD3;
+    --danger: #9E2B2B;
+    --danger-soft: #F8E1E1;
+    --term-bg: #1A1F27;
+    --term-ink: #DCE3EC;
+    --radius: 6px;
+    --measure: 68ch;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --ground: #13171D;
+      --surface: #1B2029;
+      --surface-sunk: #232934;
+      --ink: #E7EBF1;
+      --ink-muted: #A3AEBD;
+      --ink-faint: #76818F;
+      --line: #2E3642;
+      --line-strong: #414B59;
+      --accent: #7FB0DC;
+      --accent-soft: #22303E;
+      --ok: #6ECB9B;
+      --ok-soft: #1B2F26;
+      --warn: #E0B558;
+      --warn-soft: #302819;
+      --danger: #EC8C8C;
+      --danger-soft: #331D1D;
+      --term-bg: #0E1217;
+      --term-ink: #CFD8E3;
+    }
+  }
+  :root[data-theme="dark"] {
+    --ground: #13171D;
+    --surface: #1B2029;
+    --surface-sunk: #232934;
+    --ink: #E7EBF1;
+    --ink-muted: #A3AEBD;
+    --ink-faint: #76818F;
+    --line: #2E3642;
+    --line-strong: #414B59;
+    --accent: #7FB0DC;
+    --accent-soft: #22303E;
+    --ok: #6ECB9B;
+    --ok-soft: #1B2F26;
+    --warn: #E0B558;
+    --warn-soft: #302819;
+    --danger: #EC8C8C;
+    --danger-soft: #331D1D;
+    --term-bg: #0E1217;
+    --term-ink: #CFD8E3;
+  }
+
+  body {
+    background: var(--ground);
+    color: var(--ink);
+    font-family: "IBM Plex Sans KR", system-ui, -apple-system, "Malgun Gothic", sans-serif;
+    font-size: 16px;
+    line-height: 1.75;
+    word-break: keep-all;
+  }
+  .wrap { max-width: 860px; margin: 0 auto; padding: 0 20px; }
+
+  /* ── 머리말 ─────────────────────────────────────────── */
+  .masthead { padding-block: 44px 28px; border-bottom: 3px solid var(--ink); }
+  .eyebrow {
+    font-family: "IBM Plex Mono", ui-monospace, monospace;
+    font-size: 12px; letter-spacing: .14em; text-transform: uppercase;
+    color: var(--accent); margin: 0 0 10px;
+  }
+  h1 {
+    font-size: clamp(30px, 6vw, 44px); line-height: 1.2; margin: 0 0 14px;
+    font-weight: 700; letter-spacing: -.02em; text-wrap: balance;
+  }
+  .standfirst { font-size: 18px; color: var(--ink-muted); margin: 0; max-width: var(--measure); }
+  .meta {
+    display: flex; flex-wrap: wrap; gap: 8px 18px; margin-top: 18px;
+    font-size: 13px; color: var(--ink-faint);
+    font-family: "IBM Plex Mono", ui-monospace, monospace;
+  }
+
+  /* ── 목차 (작업 중 점프용) ───────────────────────────── */
+  nav.jump {
+    position: sticky; top: env(safe-area-inset-top, 0px); z-index: 20;
+    background: var(--ground); border-bottom: 1px solid var(--line);
+    margin-bottom: 8px;
+  }
+  nav.jump ol {
+    list-style: none; display: flex; gap: 4px; overflow-x: auto;
+    margin: 0; padding: 8px 20px; max-width: 860px; margin-inline: auto;
+  }
+  nav.jump a {
+    display: block; white-space: nowrap; text-decoration: none;
+    color: var(--ink-muted); font-size: 13px; font-weight: 500;
+    padding: 5px 11px; border-radius: 99px;
+  }
+  nav.jump a:hover, nav.jump a:focus-visible { background: var(--accent-soft); color: var(--accent); }
+
+  /* ── 구역 ───────────────────────────────────────────── */
+  section { padding-block: 40px; border-bottom: 1px solid var(--line); }
+  section:last-of-type { border-bottom: 0; }
+  .part-label {
+    font-family: "IBM Plex Mono", ui-monospace, monospace;
+    font-size: 12px; letter-spacing: .12em; color: var(--accent);
+    text-transform: uppercase; margin: 0 0 6px;
+  }
+  h2 { font-size: 27px; line-height: 1.3; margin: 0 0 8px; font-weight: 700; letter-spacing: -.015em; }
+  h3 { font-size: 19px; margin: 32px 0 8px; font-weight: 600; }
+  h4 { font-size: 16px; margin: 22px 0 6px; font-weight: 600; color: var(--ink-muted); }
+  p, li { max-width: var(--measure); }
+  p { margin: 0 0 14px; }
+  .lede { font-size: 17px; color: var(--ink-muted); margin-bottom: 22px; }
+  strong { font-weight: 600; }
+  code {
+    font-family: "IBM Plex Mono", ui-monospace, monospace; font-size: .88em;
+    background: var(--surface-sunk); padding: 1px 5px; border-radius: 3px;
+  }
+  a { color: var(--accent); }
+
+  /* ── 안전 ───────────────────────────────────────────── */
+  .safety {
+    background: var(--danger-soft); border: 1px solid var(--danger);
+    border-left-width: 5px; border-radius: var(--radius);
+    padding: 20px 22px; margin: 28px 0;
+  }
+  .safety h2 { font-size: 19px; color: var(--danger); margin-bottom: 10px; }
+  .safety ol { margin: 0; padding-left: 20px; }
+  .safety li { margin-bottom: 7px; }
+
+  .note {
+    background: var(--surface); border: 1px solid var(--line);
+    border-left: 4px solid var(--accent); border-radius: var(--radius);
+    padding: 14px 18px; margin: 18px 0;
+  }
+  .note.warn { border-left-color: var(--warn); }
+  .note.danger { border-left-color: var(--danger); }
+  .note p:last-child { margin-bottom: 0; }
+  .note-title { font-weight: 600; display: block; margin-bottom: 4px; }
+
+  /* ── 단계 ───────────────────────────────────────────── */
+  .steps { list-style: none; margin: 0; padding: 0; counter-reset: step; }
+  .step {
+    display: grid; grid-template-columns: 46px 1fr; gap: 0 16px;
+    padding: 22px 0; border-top: 1px solid var(--line);
+  }
+  .step:first-child { border-top: 0; }
+  .step-num {
+    counter-increment: step; grid-row: span 2;
+    font-family: "IBM Plex Mono", ui-monospace, monospace;
+    font-size: 19px; font-weight: 600; color: var(--accent);
+    display: flex; align-items: flex-start; justify-content: center;
+    padding-top: 2px;
+  }
+  .step-num::before { content: counter(step, decimal-leading-zero); }
+  .step-body { min-width: 0; }   /* 없으면 긴 터미널 줄이 칸을 화면 밖으로 밀어낸다 */
+  .step-body h3 { margin-top: 0; }
+  .step-body > :last-child { margin-bottom: 0; }
+  @media (max-width: 520px) {
+    .step { grid-template-columns: 34px 1fr; gap: 0 12px; }
+    .step-num { font-size: 16px; }
+  }
+
+  /* ── 터미널 ─────────────────────────────────────────── */
+  .term {
+    background: var(--term-bg); color: var(--term-ink); border-radius: var(--radius);
+    padding: 15px 17px; margin: 14px 0; overflow-x: auto;
+    font-family: "IBM Plex Mono", ui-monospace, monospace;
+    font-size: 13.5px; line-height: 1.65; max-width: 100%;
+  }
+  .term pre { margin: 0; }
+  .term .cm { color: #8A97A8; }
+  .term .hi { color: #F0C674; }
+  .term .out { color: #9FB4CC; }
+
+  /* 점검 도구의 표기를 그대로 쓴다 */
+  .tag {
+    font-family: "IBM Plex Mono", ui-monospace, monospace;
+    font-size: 12px; font-weight: 600; padding: 2px 7px; border-radius: 3px;
+    white-space: nowrap;
+  }
+  .tag.ok { background: var(--ok-soft); color: var(--ok); }
+  .tag.warn { background: var(--warn-soft); color: var(--warn); }
+  .tag.fail { background: var(--danger-soft); color: var(--danger); }
+
+  /* ── 표 ─────────────────────────────────────────────── */
+  .table-scroll { overflow-x: auto; margin: 16px 0; }
+  table { border-collapse: collapse; width: 100%; font-size: 14.5px; min-width: 460px; }
+  th, td { text-align: left; padding: 9px 12px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { font-weight: 600; font-size: 13px; color: var(--ink-muted); border-bottom: 2px solid var(--line-strong); }
+  td code { font-size: .92em; }
+  tbody tr:last-child td { border-bottom: 0; }
+
+  /* ── 체크리스트 ─────────────────────────────────────── */
+  .checklist { list-style: none; margin: 16px 0 0; padding: 0; }
+  .checklist li { display: flex; gap: 11px; align-items: flex-start; padding: 7px 0; max-width: none; }
+  .checklist input { margin-top: 6px; width: 17px; height: 17px; flex: none; accent-color: var(--accent); }
+  .checklist label { cursor: pointer; font-size: 15px; }
+  .checklist input:checked + label { color: var(--ink-faint); text-decoration: line-through; }
+  .reset-btn {
+    margin-top: 14px; font: inherit; font-size: 13px; cursor: pointer;
+    background: var(--surface); color: var(--ink-muted);
+    border: 1px solid var(--line-strong); border-radius: var(--radius); padding: 5px 12px;
+  }
+  .reset-btn:hover { background: var(--surface-sunk); }
+
+  /* ── 그림 ───────────────────────────────────────────── */
+  figure { margin: 22px 0; }
+  .fig-box {
+    background: var(--surface); border: 1px solid var(--line);
+    border-radius: var(--radius); padding: 18px; overflow-x: auto;
+  }
+  .fig-box svg { display: block; margin: 0 auto; max-width: 100%; height: auto; }
+  figcaption { font-size: 13.5px; color: var(--ink-muted); margin-top: 9px; }
+
+  /* ── 난이도 단계 ────────────────────────────────────── */
+  .level {
+    border: 1px solid var(--line); border-radius: var(--radius);
+    background: var(--surface); padding: 20px 22px; margin: 18px 0;
+  }
+  .level-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 10px; margin-bottom: 4px; }
+  .level-rank {
+    font-family: "IBM Plex Mono", ui-monospace, monospace; font-size: 12px;
+    letter-spacing: .1em; color: var(--accent); text-transform: uppercase;
+  }
+  .level h3 { margin: 0; font-size: 19px; }
+  .level-where { font-size: 13px; color: var(--ink-faint); font-family: "IBM Plex Mono", ui-monospace, monospace; }
+  .level > :last-child { margin-bottom: 0; }
+
+  .never {
+    background: var(--ink); color: var(--ground); border-radius: var(--radius);
+    padding: 24px 26px; margin: 26px 0;
+  }
+  .never h3 { color: var(--ground); margin: 0 0 10px; font-size: 20px; }
+  .never p { color: #C6CDD8; margin-bottom: 10px; }
+  .never code { background: rgba(255,255,255,.12); color: #F0C674; }
+  .never p:last-child { margin-bottom: 0; }
+
+  footer { padding-block: 36px 52px; color: var(--ink-faint); font-size: 13.5px; }
+  footer p { max-width: var(--measure); }
+
+  @media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
+</style>
+<style>
+  /* 08 전용 — 단계마다 "왜 / 성공하면 / 막히면"을 같은 모양으로 */
+  .why { color: var(--ink-muted); }
+  .why b, .stuck b { color: var(--ink); }
+  .ok-look {
+    background: var(--ok-soft); border: 1px solid var(--ok); border-radius: var(--radius);
+    padding: 10px 14px; margin: 14px 0; font-size: 15px; max-width: var(--measure);
+  }
+  .ok-look b { color: var(--ok); margin-right: 6px; }
+  .stuck { font-size: 15px; color: var(--ink-muted); }
+  p code, li code, label code { overflow-wrap: anywhere; }  /* 긴 주소가 휴대폰 화면을 밀어내지 않게 */
+  .steps .step-body ul, .flow { padding-left: 22px; }
+  .flow li { margin-bottom: 6px; }
+  tr.chg td { background: var(--warn-soft); }
+  table.record td:last-child { min-width: 140px; }
+  @media print {
+    nav.jump, .reset-btn { display: none; }
+    body { background: #fff; }
+    .step { break-inside: avoid; }
+  }
+</style>
+
+</head>
+<body>
+<header class="masthead">
+  <div class="wrap">
+    <p class="eyebrow">스마트 금융 보안 ATM · 라즈베리파이 담당</p>
+    <h1>Mock에서 실제 라즈베리파이 5로 — 단계별 연동 매뉴얼</h1>
+    <p class="standfirst">
+      PC의 시뮬레이션(mock)에서 잘 되던 ATM을, <strong>라즈베리파이 5 + SG-90 서보 4개 + USB 웹캠 +
+      7인치 화면</strong>으로 옮겨 <strong>PC 백엔드·휴대폰과 실제로 연동</strong>하는 과정을
+      14단계로 나눴습니다. 한 단계가 끝날 때마다 "성공하면 이렇게 보인다"를 확인하고 다음으로 넘어가세요.
+    </p>
+    <div class="meta">
+      <span>대상 · 라즈베리파이 담당 학생</span>
+      <span>소요 · 처음이면 3~4시간</span>
+      <span>준비 · 교사 입회 (7·10단계)</span>
+    </div>
+  </div>
+</header>
+
+<nav class="jump" aria-label="바로가기">
+  <ol>
+    <li><a href="#map">전체 그림</a></li>
+    <li><a href="#prep">준비물·안전</a></li>
+    <li><a href="#partA">A. PC 준비</a></li>
+    <li><a href="#partB">B. 파이 설치</a></li>
+    <li><a href="#partC">C. 배선·점검</a></li>
+    <li><a href="#partD">D. 연동</a></li>
+    <li><a href="#trouble">막혔을 때</a></li>
+    <li><a href="#check">체크리스트</a></li>
+  </ol>
+</nav>
+
+<div class="wrap">
+
+<!-- ───────────────────────── 전체 그림 ───────────────────────── -->
+<section id="map">
+  <p class="part-label">먼저 이해하기</p>
+  <h2>무엇이 바뀌고, 무엇이 그대로인가</h2>
+  <p class="lede">
+    코드는 거의 그대로입니다. 바뀌는 것은 <strong>"어느 기계에서 무엇이 도는가"</strong>와
+    <strong>"서로를 어떤 주소로 부르는가"</strong> 두 가지뿐입니다.
+  </p>
+
+  <div class="table-scroll">
+    <table>
+      <thead><tr><th>프로그램</th><th>지금 (mock, PC 1대)</th><th>목표 (실기기)</th></tr></thead>
+      <tbody>
+        <tr><td>백엔드 (FastAPI, 8000번)</td><td>PC</td><td><strong>PC 그대로</strong> — 단, 다른 기계가 들어올 수 있게 띄운다</td></tr>
+        <tr><td>프론트엔드 (Next.js, 3000번)</td><td>PC</td><td><strong>PC 그대로</strong></td></tr>
+        <tr><td>ATM 데몬 (<code>pi/main.py</code>, 8100번)</td><td>PC · <code>DEVICE_MODE=mock</code></td><td><strong>라즈베리파이</strong> · <code>DEVICE_MODE=hardware</code></td></tr>
+        <tr><td>ATM 화면 (<code>/atm</code>)</td><td>PC 브라우저</td><td><strong>파이의 7인치 화면</strong> (크로미움)</td></tr>
+        <tr><td>QR 읽기</td><td>PC 웹캠 또는 <code>POST /qr</code></td><td><strong>파이에 꽂은 USB 웹캠</strong></td></tr>
+        <tr><td>현금 배출</td><td>로그 한 줄 (가짜)</td><td><strong>SG-90 덮개 4개 중 그 금액 하나가 실제로 열림</strong></td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <figure>
+    <div class="fig-box">
+      <svg viewBox="0 0 720 340" role="img" aria-label="휴대폰은 PC 백엔드 8000번에 문자를 보내 QR을 받고, 라즈베리파이는 웹캠으로 QR을 읽어 PC 백엔드 8000번에 확인하며, 파이의 7인치 화면은 파이 자신의 8100번 데몬을 부른다">
+        <defs>
+          <marker id="ar8" markerWidth="9" markerHeight="9" refX="8" refY="4.5" orient="auto">
+            <path d="M0,0 L9,4.5 L0,9 z" fill="var(--ink-muted)"/>
+          </marker>
+        </defs>
+        <rect x="8" y="8" width="704" height="324" rx="10" fill="none" stroke="var(--line)" stroke-dasharray="5 4"/>
+        <text x="24" y="30" font-family="IBM Plex Sans KR, sans-serif" font-size="12" fill="var(--ink-faint)">같은 공유기(같은 Wi-Fi) 안 — 세 기계가 서로의 IP로 부른다</text>
+
+        <g fill="var(--surface)" stroke-width="2">
+          <rect x="30" y="70" width="170" height="110" rx="8" stroke="var(--line-strong)"/>
+          <rect x="275" y="60" width="190" height="200" rx="8" stroke="var(--accent)"/>
+          <rect x="530" y="60" width="170" height="250" rx="8" stroke="var(--ok)"/>
+        </g>
+        <g font-family="IBM Plex Sans KR, sans-serif" font-size="14" font-weight="600" fill="var(--ink)" text-anchor="middle">
+          <text x="115" y="96">휴대폰</text>
+          <text x="370" y="86" fill="var(--accent)">개발 PC</text>
+          <text x="615" y="86" fill="var(--ok)">라즈베리파이 5</text>
+        </g>
+        <g font-family="IBM Plex Sans KR, sans-serif" font-size="12" fill="var(--ink-muted)" text-anchor="middle">
+          <text x="115" y="122">문자 검사 앱</text>
+          <text x="115" y="140">결과 → QR 표시</text>
+          <text x="115" y="164" font-size="11" fill="var(--ink-faint)">서버 주소 = PC의 IP:8000</text>
+
+          <text x="370" y="114">백엔드 :8000</text>
+          <text x="370" y="132" font-size="11" fill="var(--ink-faint)">--host 0.0.0.0 으로 띄운다</text>
+          <text x="370" y="162">프론트엔드 :3000</text>
+          <text x="370" y="180" font-size="11" fill="var(--ink-faint)">/atm · /callcenter · /messages</text>
+          <text x="370" y="210">콜센터 화면</text>
+          <text x="370" y="228" font-size="11" fill="var(--ink-faint)">PC 브라우저에서 /callcenter</text>
+
+          <text x="615" y="114">ATM 데몬 :8100</text>
+          <text x="615" y="132" font-size="11" fill="var(--ink-faint)">DEVICE_MODE=hardware</text>
+          <text x="615" y="162">USB 웹캠 → QR</text>
+          <text x="615" y="190">SG-90 덮개 × 4</text>
+          <text x="615" y="208" font-size="11" fill="var(--ink-faint)">5만 · 10만 · 30만 · 50만</text>
+          <text x="615" y="238">7인치 화면</text>
+          <text x="615" y="256" font-size="11" fill="var(--ink-faint)">크로미움: PC_IP:3000/atm</text>
+          <text x="615" y="274" font-size="11" fill="var(--ink-faint)">→ 화면은 파이의 :8100을 부른다</text>
+        </g>
+        <g stroke="var(--ink-muted)" stroke-width="1.6" fill="none" marker-end="url(#ar8)">
+          <path d="M200 110 L270 110"/>
+          <path d="M526 120 L470 120"/>
+          <path d="M526 250 L470 175"/>
+        </g>
+        <g font-family="IBM Plex Mono, monospace" font-size="10.5" fill="var(--ink-faint)" text-anchor="middle">
+          <text x="236" y="103">분석 요청</text>
+          <text x="498" y="113">QR 확인</text>
+          <text x="498" y="232">화면 받기</text>
+        </g>
+        <path d="M115 180 L115 300 L530 300" stroke="var(--warn)" stroke-width="1.6" fill="none" stroke-dasharray="4 3" marker-end="url(#ar8)"/>
+        <text x="300" y="318" text-anchor="middle" font-family="IBM Plex Sans KR, sans-serif" font-size="12" fill="var(--warn)">휴대폰 화면의 QR을 파이 웹캠에 비춘다 (네트워크가 아니라 눈으로 전달)</text>
+      </svg>
+    </div>
+    <figcaption>
+      핵심은 <strong>주소 세 개</strong>입니다 — ① 파이가 백엔드를 부를 때 <code>BACKEND_URL=http://PC의IP:8000</code>,
+      ② 휴대폰이 백엔드를 부를 때 <code>http://PC의IP:8000</code>, ③ 7인치 화면이 데몬을 부를 때
+      <code>http://localhost:8100</code>(화면과 데몬이 둘 다 파이에 있으니 localhost가 맞습니다).
+    </figcaption>
+  </figure>
+
+  <div class="note">
+    <span class="note-title">'localhost'는 "지금 이 기계 자신"이라는 뜻입니다</span>
+    <p>
+      PC에서 한 대로 돌릴 때는 모든 주소가 <code>localhost</code>여서 상관없었습니다. 기계가 셋으로 나뉘면
+      <strong>파이에서 쓴 localhost는 파이</strong>, <strong>휴대폰에서 쓴 localhost는 휴대폰</strong>을 가리킵니다.
+      연동이 안 되는 원인의 대부분이 이것입니다.
+    </p>
+  </div>
+</section>
+
+<!-- ───────────────────────── 준비물·안전 ───────────────────────── -->
+<section id="prep">
+  <p class="part-label">시작 전에</p>
+  <h2>준비물과 안전 수칙</h2>
+
+  <div class="table-scroll">
+    <table>
+      <thead><tr><th>준비물</th><th>메모</th></tr></thead>
+      <tbody>
+        <tr><td>라즈베리파이 5 + 공식 27W(5V 5A) 어댑터 + microSD</td><td>라즈베리파이 OS(Bookworm 또는 Trixie) <strong>데스크톱</strong> 이미지</td></tr>
+        <tr><td>SG-90 서보 4개</td><td>1~4번 배출구 덮개 (5만·10만·30만·50만 원). 미리 <strong>번호 스티커</strong>를 붙여 두면 헷갈리지 않습니다</td></tr>
+        <tr><td><strong>서보용 별도 5V 전원 (2A 이상)</strong></td><td>파이의 5V 핀에서 서보 전원을 따지 않습니다</td></tr>
+        <tr><td>USB 웹캠</td><td>파이 카메라 모듈(CSI 리본)은 이 코드로 열리지 않습니다</td></tr>
+        <tr><td>7인치 디스플레이, 키보드·마우스</td><td>처음 설정할 때만 키보드·마우스가 필요합니다</td></tr>
+        <tr><td>브레드보드, 점퍼선(암-수, 수-수)</td><td>서보 4개의 빨강·갈색선을 전원 레일에 모읍니다</td></tr>
+        <tr><td>개발 PC, 휴대폰, <strong>공유기 또는 휴대폰 핫스팟</strong></td><td>세 기계가 같은 네트워크에 있어야 합니다 (3단계)</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="safety">
+    <h2>안전 수칙 6가지 — 먼저 읽습니다</h2>
+    <ol>
+      <li><strong>서보는 별도 5V 전원으로.</strong> 파이 5V 핀에 직결하면 서보가 움직이는 순간 전압이 떨어져 파이가 재부팅되거나 SD 카드가 상할 수 있습니다.</li>
+      <li><strong>GND는 파이와 외부 전원이 함께 씁니다.</strong> 빠지면 서보가 제멋대로 움직이거나 아예 안 움직입니다.</li>
+      <li><strong>배선은 전원을 끄고</strong> 바꿉니다.</li>
+      <li><strong>첫 연결과 서보 시험(7·10단계)은 교사 입회 하에.</strong></li>
+      <li>서보가 움직일 때 <strong>배출구에 손을 넣지 않습니다.</strong></li>
+      <li><strong>덮개는 한 번에 하나씩만</strong> 움직이게 되어 있습니다. 4개를 한꺼번에 돌리는 코드를 새로 만들지 마세요.</li>
+    </ol>
+  </div>
+</section>
+
+<!-- ───────────────────────── A. PC 준비 ───────────────────────── -->
+<section id="partA">
+  <p class="part-label">A부 · 개발 PC에서 (1~3단계)</p>
+  <h2>PC를 "다른 기계가 찾아올 수 있는 서버"로 만든다</h2>
+  <p class="lede">파이를 켜기 전에 PC 쪽부터 끝냅니다. 여기서 안 되는 것은 파이에서도 안 됩니다.</p>
+
+  <ol class="steps">
+    <li class="step" id="s1">
+      <span class="step-num" aria-hidden="true"></span>
+      <div class="step-body">
+        <h3>mock으로 한 번 더 통과시킨다</h3>
+        <p class="why"><b>왜?</b> 파이에서 문제가 나면 "코드 문제인지 기계 문제인지"를 가려야 합니다. 출발점이 깨끗해야 가릴 수 있습니다.</p>
+        <div class="term"><pre>$ pytest
+$ python scripts/demo_e2e.py      <span class="cm"># 백엔드와 ATM 데몬(mock)을 띄운 상태에서</span></pre></div>
+        <div class="ok-look"><b>성공하면</b> <code>115 passed</code>, 그리고 마지막 줄 <code>통합 시연 전 구간 통과</code></div>
+        <p class="stuck"><b>막히면</b> 파이로 넘어가지 말고 팀(백엔드 담당)과 먼저 고칩니다.</p>
+      </div>
+    </li>
+
+    <li class="step" id="s2">
+      <span class="step-num" aria-hidden="true"></span>
+      <div class="step-body">
+        <h3>PC의 IP 주소를 알아내고, 백엔드를 "밖에서도 들어오게" 띄운다</h3>
+        <p class="why"><b>왜?</b> 파이와 휴대폰은 PC를 <code>localhost</code>로 부를 수 없습니다. PC의 진짜 주소(IP)가 필요하고,
+          백엔드가 그 주소로 오는 손님도 받아 주어야 합니다.</p>
+        <p><strong>① IP 확인</strong> (Windows PowerShell)</p>
+        <div class="term"><pre>&gt; ipconfig
+<span class="out">무선 LAN 어댑터 Wi-Fi:
+   IPv4 주소 . . . . . . . . . : </span><span class="hi">192.168.0.25</span>     <span class="cm">← 이 숫자를 적어 둔다 (기계마다 다르다)</span></pre></div>
+        <p><strong>② 키 맞추기</strong> — <code>backend/.env</code>의 <code>DEVICE_API_KEY</code> 값을 확인해 둡니다. 5단계에서 파이에도 <strong>똑같이</strong> 넣습니다.
+          (키 값은 채팅·문서에 붙여 넣지 말고 USB나 직접 입력으로 옮깁니다.)</p>
+        <p><strong>③ 백엔드 실행</strong> — <code>--host 0.0.0.0</code>이 "모든 손님을 받는다"는 뜻입니다.</p>
+        <div class="term"><pre>&gt; cd backend
+&gt; uvicorn main:app <span class="hi">--host 0.0.0.0</span> --port 8000</pre></div>
+        <p>처음 실행하면 <strong>Windows 방화벽</strong> 창이 뜹니다. <strong>"개인 네트워크"에 체크하고 액세스 허용</strong>을 누릅니다.</p>
+        <div class="ok-look"><b>성공하면</b> 휴대폰 브라우저에서 <code>http://192.168.0.25:8000/health</code>를 열었을 때 응답(JSON)이 보입니다.</div>
+        <p class="stuck"><b>막히면</b> 휴대폰에서 안 열리면 → 같은 Wi-Fi인지, 방화벽을 허용했는지. 둘 다 맞는데 안 되면
+          <strong>학교 Wi-Fi가 기기끼리의 통신을 막는 것</strong>일 수 있습니다(AP 격리). 휴대폰 핫스팟이나 별도 공유기에 세 기계를 모두 붙이세요.</p>
+      </div>
+    </li>
+
+    <li class="step" id="s3">
+      <span class="step-num" aria-hidden="true"></span>
+      <div class="step-body">
+        <h3>프론트엔드를 띄우고, 휴대폰이 PC를 찾게 한다</h3>
+        <p class="why"><b>왜?</b> 파이의 7인치 화면과 휴대폰은 PC의 프론트엔드(3000번)에서 화면 파일을 받아 갑니다.</p>
+        <div class="term"><pre>&gt; cd frontend
+&gt; npm run dev
+<span class="out">  - Local:   http://localhost:3000
+  - Network: http://</span><span class="hi">192.168.0.25</span><span class="out">:3000</span>     <span class="cm">← Network 줄의 주소가 다른 기계용</span></pre></div>
+        <p><strong>휴대폰 쪽 설정</strong> — 둘 중 쓰는 쪽 하나만 하면 됩니다.</p>
+        <div class="table-scroll">
+          <table>
+            <thead><tr><th>휴대폰에서 쓰는 것</th><th>할 일</th></tr></thead>
+            <tbody>
+              <tr><td>안드로이드 사전 테스트 앱</td><td>앱 설정의 서버 주소를 <code>http://192.168.0.25:8000</code>(PC의 IP)으로 바꾼다</td></tr>
+              <tr><td>휴대폰 브라우저의 <code>/messages</code></td><td>
+                <code>frontend/.env.local</code>에 <code>NEXT_PUBLIC_API_BASE_URL=http://192.168.0.25:8000</code>,
+                <code>backend/.env</code>의 <code>CORS_ORIGINS</code>에 <code>http://192.168.0.25:3000</code>을 쉼표로 덧붙이고
+                <strong>백엔드와 프론트엔드를 둘 다 다시 켠다</strong></td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p><code>NEXT_PUBLIC_ATM_DAEMON_URL</code>은 <strong><code>http://localhost:8100</code> 그대로</strong> 둡니다. /atm 화면은 파이에서 열리고,
+          거기서 localhost는 바로 데몬이 도는 파이이기 때문입니다.</p>
+        <div class="ok-look"><b>성공하면</b> 휴대폰에서 로그인 → 보이스피싱 문자 검사 → <strong>QR이 화면에 뜬다</strong>. (이 QR을 10단계까지 아껴 둡니다)</div>
+      </div>
+    </li>
+  </ol>
+</section>
+
+<!-- ───────────────────────── B. 파이 설치 ───────────────────────── -->
+<section id="partB">
+  <p class="part-label">B부 · 라즈베리파이에서 (4~6단계)</p>
+  <h2>파이에 코드와 파이썬 환경을 갖춘다</h2>
+  <p class="lede">아직 서보는 꽂지 않습니다. 소프트웨어부터 끝내야 문제가 나도 원인을 좁힐 수 있습니다.</p>
+
+  <ol class="steps" start="4" style="counter-reset: step 3">
+    <li class="step" id="s4">
+      <span class="step-num" aria-hidden="true"></span>
+      <div class="step-body">
+        <h3>같은 네트워크에 붙이고 PC가 보이는지 확인한다</h3>
+        <p class="why"><b>왜?</b> 파이에서 PC가 안 보이면 뒤의 모든 단계가 "백엔드 연결 실패"로 끝납니다. 가장 먼저 확인합니다.</p>
+        <div class="term"><pre>$ hostname -I                                  <span class="cm"># 파이 자신의 IP (적어 둔다)</span>
+$ curl http://<span class="hi">192.168.0.25</span>:8000/health           <span class="cm"># PC의 IP로 백엔드 찾기</span></pre></div>
+        <div class="ok-look"><b>성공하면</b> <code>curl</code> 결과로 JSON 한 줄이 나온다.</div>
+        <p class="stuck"><b>막히면</b> <code>Connection refused</code> → PC에서 2단계의 <code>--host 0.0.0.0</code> 확인.
+          <code>timed out</code> → 같은 Wi-Fi인지, 방화벽, AP 격리(2단계 '막히면').</p>
+      </div>
+    </li>
+
+    <li class="step" id="s5">
+      <span class="step-num" aria-hidden="true"></span>
+      <div class="step-body">
+        <h3>저장소를 받는다 — <code>pi/</code>만 복사하지 않는다</h3>
+        <p class="why"><b>왜?</b> <code>pi/main.py</code>는 서보를 움직이는 코드를 <code>backend/iot/</code>에서 가져옵니다. <code>pi/</code>만 있으면 <code>No module named 'iot'</code>로 멈춥니다.</p>
+        <div class="term"><pre>$ git clone &lt;저장소 주소&gt;
+$ cd &lt;저장소 이름&gt;
+$ git checkout atm
+$ ls                       <span class="cm"># pi  backend  frontend ... 가 함께 보여야 한다</span></pre></div>
+        <div class="ok-look"><b>성공하면</b> <code>pi/</code>와 <code>backend/iot/</code>가 같은 상위 폴더 아래에 있다.</div>
+      </div>
+    </li>
+
+    <li class="step" id="s6">
+      <span class="step-num" aria-hidden="true"></span>
+      <div class="step-body">
+        <h3>파이썬 가상환경을 <code>--system-site-packages</code>로 만든다 <span class="tag warn">가장 많이 막히는 곳</span></h3>
+        <p class="why"><b>왜?</b> 서보 제어에 필요한 <code>gpiozero</code>와 <code>lgpio</code>는 파이 OS에 <strong>이미 깔려 있습니다</strong>.
+          그런데 보통 방식으로 만든 venv는 그것을 <strong>못 봅니다</strong>. 이 옵션이 "시스템에 깔린 것도 같이 봐라"는 뜻입니다.
+          파이 5는 GPIO 칩(RP1)이 바뀌어서 예전 <code>RPi.GPIO</code>·<code>pigpio</code>로는 동작하지 않고, <code>lgpio</code>가 필요합니다.</p>
+        <div class="term"><pre>$ /usr/bin/python3 -c "import gpiozero, lgpio; print('있음')"   <span class="cm"># 먼저 확인</span>
+<span class="out">있음</span>
+$ cd pi
+$ rm -rf venv                                        <span class="cm"># PC에서 가져온 venv가 있으면 지운다</span>
+$ python3 -m venv <span class="hi">--system-site-packages</span> venv
+$ source venv/bin/activate
+(venv) $ pip install -r requirements.txt
+(venv) $ python -c "import gpiozero, lgpio; print('venv에서도 보임')"</pre></div>
+        <div class="ok-look"><b>성공하면</b> 마지막 줄에 <code>venv에서도 보임</code></div>
+        <p class="stuck"><b>막히면</b> 처음 확인에서 <code>있음</code>이 안 나오면 그때만 <code>sudo apt install -y python3-gpiozero python3-lgpio</code>.
+          <code>pip install lgpio</code>는 하지 않습니다(빌드 실패가 잦음). opencv 설치가 몇 분째 안 끝나면
+          <code>sudo apt install -y python3-opencv</code>로 대신하고 <code>requirements.txt</code>의 <code>opencv-python</code> 줄을 빼고 설치합니다.
+          GPIO 권한 오류가 나면 <code>sudo usermod -aG gpio $USER</code> 후 <strong>다시 로그인</strong>.</p>
+      </div>
+    </li>
+  </ol>
+</section>
+
+<!-- ───────────────────────── C. 배선·점검 ───────────────────────── -->
+<section id="partC">
+  <p class="part-label">C부 · 하드웨어 (7~10단계)</p>
+  <h2><code>.env</code>를 쓰고, 배선하고, 움직이기 전에 점검한다</h2>
+
+  <ol class="steps" start="7" style="counter-reset: step 6">
+    <li class="step" id="s7">
+      <span class="step-num" aria-hidden="true"></span>
+      <div class="step-body">
+        <h3><code>pi/.env</code>를 작성한다 — mock에서 바뀌는 줄은 4개</h3>
+        <p class="why"><b>왜?</b> 같은 코드가 PC에서는 가짜 장치, 파이에서는 진짜 서보를 쓰는 것은 이 파일의 <code>DEVICE_MODE</code> 한 줄 덕분입니다.
+          주소와 핀도 코드가 아니라 여기서 바꿉니다.</p>
+        <div class="term"><pre>$ cp .env.example .env
+$ nano .env              <span class="cm"># 저장: Ctrl+O, Enter / 나가기: Ctrl+X</span></pre></div>
+        <div class="table-scroll">
+          <table>
+            <thead><tr><th>키</th><th>mock(PC)</th><th>실기기(파이)</th><th>설명</th></tr></thead>
+            <tbody>
+              <tr class="chg"><td><code>DEVICE_MODE</code></td><td><code>mock</code></td><td><code>hardware</code></td><td>진짜 서보를 쓴다</td></tr>
+              <tr class="chg"><td><code>BACKEND_URL</code></td><td><code>http://127.0.0.1:8000</code></td><td><code>http://192.168.0.25:8000</code></td><td><strong>PC의 IP</strong> (2단계에서 적은 값)</td></tr>
+              <tr class="chg"><td><code>DEVICE_API_KEY</code></td><td>—</td><td>백엔드와 <strong>같은 값</strong></td><td>한 글자만 달라도 거절(401)</td></tr>
+              <tr class="chg"><td><code>OUTLET_SERVO_PINS</code></td><td>—</td><td><code>12,13,18,19</code></td><td><strong>5만·10만·30만·50만 원 순서</strong></td></tr>
+              <tr><td><code>GPIOZERO_PIN_FACTORY</code></td><td colspan="2"><code>lgpio</code> (그대로)</td><td>파이 5에 필요</td></tr>
+              <tr><td><code>ENABLE_CAMERA</code></td><td colspan="2"><code>true</code> (그대로)</td><td>카메라 없이 먼저 보려면 <code>false</code></td></tr>
+              <tr><td><code>SERVO_MIN_PULSE_US</code> / <code>_MAX_</code></td><td colspan="2"><code>500</code> / <code>2400</code></td><td>SG-90 0~180도. 11단계에서 실측으로 조정</td></tr>
+              <tr><td><code>SERVO_HOLD</code></td><td colspan="2"><code>false</code></td><td>움직인 뒤 신호를 끊어 떨림·발열 방지</td></tr>
+              <tr><td><code>CAMERA_WIDTH</code> / <code>_HEIGHT</code></td><td colspan="2"><code>640</code> / <code>480</code></td><td><strong>키우지 않는다</strong> — QR 인식이 느려진다</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="note warn">
+          <span class="note-title"><code>.env</code>를 고치면 데몬을 껐다 켭니다</span>
+          <p>데몬은 시작할 때 한 번만 읽습니다. 고쳤는데 그대로라면 재시작을 안 한 것입니다.</p>
+        </div>
+      </div>
+    </li>
+
+    <li class="step" id="s8">
+      <span class="step-num" aria-hidden="true"></span>
+      <div class="step-body">
+        <h3>배선한다 — <strong>전원을 끄고</strong></h3>
+        <p class="why"><b>왜 이 핀?</b> GPIO12·13·18·19는 파이 5에서 하드웨어 PWM이 되는 네 핀입니다. 지금은 소프트웨어 PWM으로 돌지만,
+          나중에 바꾸더라도 배선을 다시 할 필요가 없습니다. SG-90은 3.3V 신호로 동작하니 레벨 변환기는 필요 없습니다.</p>
+
+        <figure>
+          <div class="fig-box">
+            <svg viewBox="0 0 700 400" role="img" aria-label="GPIO12, 13, 18, 19가 1~4번 배출구 SG-90의 신호선에, 서보 전원은 외부 5V에, GND는 파이와 외부 전원이 함께 쓴다">
+              <g fill="none" stroke="var(--line-strong)" stroke-width="1.5">
+                <rect x="20" y="24" width="160" height="290" rx="6"/>
+                <rect x="430" y="50" width="200" height="48" rx="6"/>
+                <rect x="430" y="112" width="200" height="48" rx="6"/>
+                <rect x="430" y="174" width="200" height="48" rx="6"/>
+                <rect x="430" y="236" width="200" height="48" rx="6"/>
+                <rect x="430" y="300" width="200" height="56" rx="6" stroke="var(--danger)" stroke-width="2"/>
+              </g>
+              <g font-family="IBM Plex Sans KR, sans-serif" font-size="13" fill="var(--ink)">
+                <text x="100" y="48" text-anchor="middle" font-weight="600">라즈베리파이 5</text>
+                <text x="530" y="71" text-anchor="middle">1번 배출구 · 5만원</text>
+                <text x="530" y="133" text-anchor="middle">2번 배출구 · 10만원</text>
+                <text x="530" y="195" text-anchor="middle">3번 배출구 · 30만원</text>
+                <text x="530" y="257" text-anchor="middle">4번 배출구 · 50만원</text>
+                <text x="530" y="324" text-anchor="middle" fill="var(--danger)" font-weight="600">외부 5V 전원 (2A 이상)</text>
+                <text x="530" y="342" text-anchor="middle" font-size="11" fill="var(--danger)">파이 5V 핀이 아님</text>
+              </g>
+              <g font-family="IBM Plex Sans KR, sans-serif" font-size="11" fill="var(--ink-faint)" text-anchor="middle">
+                <text x="530" y="88">SG-90 덮개</text><text x="530" y="150">SG-90 덮개</text>
+                <text x="530" y="212">SG-90 덮개</text><text x="530" y="274">SG-90 덮개</text>
+              </g>
+              <g font-family="IBM Plex Mono, monospace" font-size="12" fill="var(--ink-muted)" text-anchor="end">
+                <text x="168" y="78">GPIO12 (핀 32)</text>
+                <text x="168" y="140">GPIO13 (핀 33)</text>
+                <text x="168" y="202">GPIO18 (핀 12)</text>
+                <text x="168" y="264">GPIO19 (핀 35)</text>
+                <text x="168" y="300">GND (핀 34)</text>
+              </g>
+              <g stroke-width="2" fill="none">
+                <path d="M180 74 L430 74" stroke="var(--warn)"/>
+                <path d="M180 136 L430 136" stroke="var(--warn)"/>
+                <path d="M180 198 L430 198" stroke="var(--warn)"/>
+                <path d="M180 260 L430 260" stroke="var(--warn)"/>
+                <path d="M652 310 L652 66" stroke="var(--danger)"/>
+                <path d="M630 310 L652 310" stroke="var(--danger)"/>
+                <path d="M630 66 L652 66 M630 128 L652 128 M630 190 L652 190 M630 252 L652 252" stroke="var(--danger)"/>
+                <path d="M672 346 L672 82" stroke="var(--ink-muted)"/>
+                <path d="M630 346 L672 346" stroke="var(--ink-muted)"/>
+                <path d="M630 82 L672 82 M630 144 L672 144 M630 206 L672 206 M630 268 L672 268" stroke="var(--ink-muted)"/>
+                <path d="M180 296 L300 296 L300 378 L672 378 L672 346" stroke="var(--ink-muted)"/>
+              </g>
+              <g font-family="IBM Plex Sans KR, sans-serif" font-size="11">
+                <text x="305" y="18" text-anchor="middle" fill="var(--warn)">신호선 (주황) — 서보마다 하나</text>
+                <text x="652" y="18" text-anchor="middle" fill="var(--danger)">5V (빨강)</text>
+                <text x="672" y="394" text-anchor="end" fill="var(--ink-muted)">GND (갈색)</text>
+              </g>
+            </svg>
+          </div>
+          <figcaption>신호선은 서보마다 하나씩 파이로, 전원(빨강)과 GND(갈색)는 브레드보드 레일에 모아 외부 5V로.
+            <strong>파이의 GND와 외부 전원의 GND를 꼭 함께 묶습니다.</strong></figcaption>
+        </figure>
+
+        <div class="table-scroll">
+          <table>
+            <thead><tr><th>SG-90 선</th><th>어디로</th></tr></thead>
+            <tbody>
+              <tr><td>주황 (신호)</td><td>1번→GPIO12(핀 32) · 2번→GPIO13(핀 33) · 3번→GPIO18(핀 12) · 4번→GPIO19(핀 35)</td></tr>
+              <tr><td>빨강 (전원)</td><td>브레드보드 + 레일 → 외부 5V(+)</td></tr>
+              <tr><td>갈색 (GND)</td><td>브레드보드 − 레일 → 외부 전원 GND <strong>그리고</strong> 파이 GND(핀 34 등)</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p class="stuck"><b>핀이 다르게 꽂혔다면</b> 다시 꽂지 말고 <code>.env</code>의 <code>OUTLET_SERVO_PINS</code>를 실제 번호로 바꿉니다(5만·10만·30만·50만 순서). 코드는 고치지 않습니다.</p>
+      </div>
+    </li>
+
+    <li class="step" id="s9">
+      <span class="step-num" aria-hidden="true"></span>
+      <div class="step-body">
+        <h3>점검 도구를 돌린다 — 서보는 아직 움직이지 않는다</h3>
+        <p class="why"><b>왜?</b> 데몬을 바로 켜면 오류가 트레이스백 한 덩어리로 나와 원인을 찾기 어렵습니다. 이 도구는
+          파이썬 환경 · 폴더 · <code>.env</code> · GPIO · 카메라 · 백엔드 연결을 <strong>한 줄씩</strong> 확인하고, 실패하면 고치는 방법을 바로 아래에 적어 줍니다.</p>
+        <div class="term"><pre>(venv) $ python check_hardware.py
+<span class="out">[  OK  ] venv가 시스템 패키지를 함께 봄 — --system-site-packages
+[  OK  ] DEVICE_MODE=hardware — 실기기
+[  OK  ] 배출구 서보 핀 — 5만=GPIO12, 10만=GPIO13, 30만=GPIO18, 50만=GPIO19
+[  OK  ] 핀 팩토리 준비됨 — LGPIOFactory
+[  OK  ] 카메라 영상 읽기 성공 (CAMERA_INDEX=0) — 640x480
+[  OK  ] 디바이스 키 통과</span>
+<span class="cm">… (실제로는 줄이 더 많습니다)</span></pre></div>
+        <div class="ok-look"><b>성공하면</b> 마지막에 <code>전부 통과 — python main.py 로 ATM 데몬을 켜도 됩니다.</code></div>
+        <p class="stuck"><b>막히면</b> <span class="tag fail">실패</span> 줄 바로 아래 안내를 <strong>위에서부터 차례로</strong> 고칩니다.
+          <span class="tag warn">주의</span>는 읽어 보고 넘어가도 됩니다. 예전 설정 <code>SERVO_GATE_PIN</code>이 남았다는 주의가 뜨면 그 줄을 지우세요.
+          카메라 번호(<code>CAMERA_INDEX</code>)는 추측하지 말고 이 도구가 알려 주는 번호를 넣습니다.</p>
+      </div>
+    </li>
+
+    <li class="step" id="s10">
+      <span class="step-num" aria-hidden="true"></span>
+      <div class="step-body">
+        <h3>덮개 4개를 하나씩 움직여 본다 <span class="tag warn">교사 입회</span></h3>
+        <p class="why"><b>왜?</b> 처음으로 서보가 실제로 돕니다. "1번이라고 했는데 3번 덮개가 열리는" 배선 순서 실수를 여기서 잡습니다.</p>
+        <div class="term"><pre>(venv) $ python check_hardware.py <span class="hi">--servo</span>
+<span class="out">         1번 배출구 (50,000원, GPIO12) 덮개를 90도로 엽니다...
+[  OK  ] 1번 배출구 (50,000원, GPIO12) 동작 명령 보냄 — 그 덮개만 열렸다 닫혔는지 눈으로 확인하세요
+         2번 배출구 (100,000원, GPIO13) 덮개를 90도로 엽니다...
+…  (3번, 4번)</span></pre></div>
+        <p><strong>눈과 귀로 확인할 것</strong></p>
+        <ul>
+          <li>화면에 찍힌 번호와 <strong>실제로 움직인 덮개가 같은가</strong> — 다르면 배선이나 <code>OUTLET_SERVO_PINS</code> 순서</li>
+          <li>한 번에 <strong>하나만</strong> 움직였는가</li>
+          <li>닫힌 뒤 <strong>조용해지는가</strong> — 계속 "지지직" 하면 <code>SERVO_HOLD=false</code> 확인</li>
+          <li>파이가 재부팅되지 않았는가 — 재부팅되면 서보 전원이 파이에서 나가고 있거나 부족한 것</li>
+        </ul>
+        <p class="stuck"><b>OK인데 안 움직이면</b> "OK"는 <strong>명령을 보냈다</strong>는 뜻이지 움직였다는 뜻이 아닙니다.
+          외부 5V 전원이 켜져 있는지, GND가 공통인지 확인합니다.</p>
+      </div>
+    </li>
+
+    <li class="step" id="s11">
+      <span class="step-num" aria-hidden="true"></span>
+      <div class="step-body">
+        <h3>각도와 펄스 폭을 실측해 맞춘다</h3>
+        <p class="why"><b>왜?</b> SG-90은 제품마다 끝 위치가 조금씩 다르고, 배출구 덮개 모양도 팀마다 다릅니다. 숫자는 조립한 뒤에야 정해집니다.</p>
+        <div class="table-scroll">
+          <table>
+            <thead><tr><th>증상</th><th>고칠 곳</th></tr></thead>
+            <tbody>
+              <tr><td>덮개가 끝에 닿아 "드르륵" 소리</td><td><code>.env</code> — <code>SERVO_MIN_PULSE_US=600</code>, <code>SERVO_MAX_PULSE_US=2300</code>처럼 범위를 좁힌다</td></tr>
+              <tr><td>덮개가 덜 열려 지폐를 못 꺼낸다</td><td><code>backend/iot/hardware_provider.py</code> 맨 위 <code>SERVO_OPEN_ANGLE</code> (기본 90)</td></tr>
+              <tr><td>닫힌 자세가 비뚤다</td><td>같은 파일 <code>SERVO_CLOSED_ANGLE</code> (기본 0) — 또는 서보 혼(팔)을 빼서 다시 끼운다</td></tr>
+              <tr><td>너무 빨리 닫힌다</td><td>같은 파일 <code>DISPENSE_HOLD_SECONDS</code> (기본 1.0)</td></tr>
+              <tr><td>덮개가 제 무게로 스르륵 열린다</td><td><code>.env</code> — <code>SERVO_HOLD=true</code> (전류를 더 먹는다)</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p>고친 뒤 <code>python check_hardware.py --servo</code>로 다시 확인합니다. <strong>맞춘 값은 아래 <a href="#record">실측 기록표</a>에 적어 팀과 공유</strong>하세요.</p>
+      </div>
+    </li>
+  </ol>
+</section>
+
+<!-- ───────────────────────── D. 연동 ───────────────────────── -->
+<section id="partD">
+  <p class="part-label">D부 · 연동 (12~14단계)</p>
+  <h2>데몬을 켜고, 화면을 띄우고, 휴대폰 QR로 끝까지 확인한다</h2>
+
+  <ol class="steps" start="12" style="counter-reset: step 11">
+    <li class="step" id="s12">
+      <span class="step-num" aria-hidden="true"></span>
+      <div class="step-body">
+        <h3>ATM 데몬을 켠다</h3>
+        <div class="term"><pre>(venv) $ python main.py
+<span class="cm">PWMSoftwareFallback: To reduce servo jitter, use the pigpio pin factory
+  ↑ 경고일 뿐 오류가 아닙니다. 파이 5는 pigpio를 쓸 수 없어 소프트웨어 PWM으로 돕니다.</span>
+<span class="out">하드웨어 Provider 시작 (배출구 5만원=GPIO12, 10만원=GPIO13, 30만원=GPIO18, 50만원=GPIO19, 대기 시 펄스=끊음)
+카메라 열림 (index=0, ..., 640x480)
+QR 스캔 시작 (camera_index=0)
+ATM 데몬 시작 — DEVICE_MODE=</span><span class="hi">hardware</span><span class="out">, port=8100</span></pre></div>
+        <p>켜질 때 덮개 4개가 <strong>하나씩</strong> 닫힌 자세로 맞춰집니다(순간 전류가 몰리지 않게). 정상입니다.</p>
+        <div class="ok-look"><b>성공하면</b> 로그에 <code>DEVICE_MODE=hardware</code>. 새 터미널에서
+          <code>curl http://localhost:8100/state</code> 하면 상태 JSON이 나온다.</div>
+        <p class="stuck"><b>막히면</b> <code>DEVICE_MODE=mock</code>으로 떴다면 <code>.env</code>를 저장 안 했거나 다른 폴더에서 실행한 것.
+          장치 준비에 실패하면 데몬은 <strong>일부러 아예 뜨지 않습니다</strong> — 서보는 가만히 있는데 "배출했다"고 기록하는 ATM이 되면 안 되기 때문입니다.
+          화면에 나온 안내를 따라 고칩니다. "핀이 사용 중"이면 앞서 띄운 데몬이 살아 있는 것(<code>ps aux | grep main.py</code>).</p>
+      </div>
+    </li>
+
+    <li class="step" id="s13">
+      <span class="step-num" aria-hidden="true"></span>
+      <div class="step-body">
+        <h3>7인치 화면에 ATM 화면을 띄운다</h3>
+        <p class="why"><b>왜 PC 주소?</b> 화면 파일은 PC의 프론트엔드(3000번)에서 받아 오고, 그 화면이 부르는 데몬은 파이 자신(localhost:8100)입니다.</p>
+        <div class="term"><pre>$ chromium --kiosk http://<span class="hi">192.168.0.25</span>:3000/atm
+<span class="cm"># 'command not found'면: chromium-browser --kiosk ...
+# 리허설 때는 --kiosk를 빼면 주소창이 있어 새로고침이 쉽다. 키오스크 종료: Alt+F4</span></pre></div>
+        <div class="ok-look"><b>성공하면</b> "출금하실 금액을 선택해 주세요"와 금액 버튼 4개가 보인다.</div>
+        <p class="stuck"><b>막히면</b> 화면이 아예 안 열리면 → PC의 <code>npm run dev</code>와 방화벽(3단계).
+          화면은 뜨는데 <strong>"ATM 제어 장치에 연결할 수 없습니다"</strong>가 나오면 → 파이의 데몬(12단계)이 꺼져 있거나,
+          <code>NEXT_PUBLIC_ATM_DAEMON_URL</code>을 localhost가 아닌 값으로 바꿔 둔 것.</p>
+      </div>
+    </li>
+
+    <li class="step" id="s14">
+      <span class="step-num" aria-hidden="true"></span>
+      <div class="step-body">
+        <h3>끝까지 연동을 확인한다 — 자동 검사, 그다음 손으로</h3>
+        <p><strong>① 자동 검사</strong> (PC에서, 데몬 주소만 파이로 바꿔서)</p>
+        <div class="term"><pre>&gt; set ATM_DAEMON_URL=http://<span class="hi">192.168.0.30</span>:8100     <span class="cm"># 파이의 IP (4단계 hostname -I)</span>
+&gt; python scripts\demo_e2e.py
+<span class="out">통합 시연 전 구간 통과 — 정상 문자와 보이스피싱 문자 모두 확인했습니다.</span></pre></div>
+        <p class="stuck">PowerShell이면 <code>$env:ATM_DAEMON_URL="http://192.168.0.30:8100"</code>. 이 검사는 실제 서보를 움직입니다 — 교사 입회, 배출구에서 손을 뗍니다.</p>
+
+        <p><strong>② 손으로 확인</strong> — 이것이 전시회에서 보여 줄 장면입니다.</p>
+        <ol class="flow">
+          <li>7인치 화면에서 <strong>5만원</strong> → <strong>1번 덮개만</strong> 열렸다 닫히고 "50,000원을 배출했습니다. 1번 배출구에서 꺼내 주세요"</li>
+          <li>10만·30만·50만원 → 각각 <strong>2·3·4번 덮개만</strong></li>
+          <li>휴대폰에서 보이스피싱 문자 검사 → <strong>QR을 파이 웹캠에</strong> (20cm쯤, 화면 밝기 최대) → 화면이 빨갛게 바뀐다</li>
+          <li>그 상태에서 50만원 → <strong>덮개 4개 모두 전혀 움직이지 않는다</strong> ← 이 작품의 핵심</li>
+          <li>"상담원 확인 요청하기" → PC의 <code>/callcenter</code>에서 <strong>해제</strong> → 몇 초 안에 ATM 화면이 출금 화면으로 → 다시 배출된다</li>
+        </ol>
+        <div class="ok-look"><b>성공하면</b> 다섯 가지가 모두 된다. 축하합니다 — mock이 아니라 실제 기계로 연동된 것입니다.</div>
+      </div>
+    </li>
+  </ol>
+
+  <h3>PC 리허설과 다르게 보이는 것 (전부 정상)</h3>
+  <div class="table-scroll">
+    <table>
+      <thead><tr><th>현상</th><th>이유</th></tr></thead>
+      <tbody>
+        <tr><td>출금을 누르면 1~2초 "잠시만 기다려 주세요"</td><td>덮개를 열고·기다리고·닫는 실제 시간(약 1.4초). 그동안 버튼이 잠긴다</td></tr>
+        <tr><td>배출 뒤 서보가 조용해진다</td><td>신호를 끊어 쉬게 하는 것 (<code>SERVO_HOLD=false</code>)</td></tr>
+        <tr><td>위험 화면에 카운트다운이 없다</td><td>막혀 있는 동안은 자동 초기화가 돌지 않는다. 시간이 차단을 풀면 안 되니까</td></tr>
+        <tr><td>차단 화면에서 "처음으로"가 안 먹는다</td><td>제한은 사람이 푼다 — 상담원 해제 또는 "직원 확인 후 해제"</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<!-- ───────────────────────── 문제 해결 ───────────────────────── -->
+<section id="trouble">
+  <p class="part-label">참고</p>
+  <h2>막혔을 때 — 증상으로 찾기</h2>
+  <p class="lede">먼저 <code>python check_hardware.py</code>를 돌리세요. 대부분 원인과 고치는 방법을 함께 알려 줍니다.</p>
+  <div class="table-scroll">
+    <table>
+      <thead><tr><th>증상</th><th>원인과 해결</th><th>단계</th></tr></thead>
+      <tbody>
+        <tr><td>파이에서 <code>curl PC:8000/health</code>가 안 됨</td><td>PC 백엔드를 <code>--host 0.0.0.0</code>으로 / 방화벽 허용 / 같은 Wi-Fi / 학교망 AP 격리면 핫스팟</td><td>2·4</td></tr>
+        <tr><td><code>No module named 'iot'</code></td><td><code>pi/</code>와 <code>backend/iot/</code>가 같은 상위 폴더에 있어야 한다</td><td>5</td></tr>
+        <tr><td><code>No module named 'gpiozero'</code> (설치했는데도)</td><td>venv를 <code>--system-site-packages</code>로 다시 만든다</td><td>6</td></tr>
+        <tr><td><code>BadPinFactory</code></td><td><code>.env</code>에 <code>GPIOZERO_PIN_FACTORY=lgpio</code>, <code>python3-lgpio</code> 설치 확인</td><td>6·7</td></tr>
+        <tr><td>GPIO 권한 오류</td><td><code>sudo usermod -aG gpio $USER</code> 후 다시 로그인</td><td>6</td></tr>
+        <tr><td><code>OUTLET_SERVO_PINS 형식 오류</code></td><td>숫자 4개를 쉼표로, 서로 다른 핀으로 (예: <code>12,13,18,19</code>)</td><td>7</td></tr>
+        <tr><td><code>BUZZER_PIN이 … 겹칩니다</code></td><td>부저는 서보 핀(12·13·18·19)이 아닌 핀에</td><td>7</td></tr>
+        <tr><td>ATM 화면에 "설정 오류" / 데몬 로그에 401</td><td><code>DEVICE_API_KEY</code>가 백엔드와 다르다. 맞추고 <strong>둘 다 재시작</strong></td><td>2·7</td></tr>
+        <tr><td>엉뚱한 번호의 덮개가 열린다</td><td>배선 순서 또는 <code>OUTLET_SERVO_PINS</code> 순서 (5만·10만·30만·50만)</td><td>8·10</td></tr>
+        <tr><td>서보가 떨리기만 하고 안 돈다</td><td>외부 전원 부족 또는 GND가 공통이 아님</td><td>8</td></tr>
+        <tr><td>서보가 움직일 때 파이가 재부팅</td><td>서보 전원을 파이 5V에서 따고 있다 → 외부 전원으로</td><td>8</td></tr>
+        <tr><td>끝에서 "드르륵", 계속 "지지직"</td><td>펄스 폭을 좁힌다 / <code>SERVO_HOLD=false</code></td><td>11</td></tr>
+        <tr><td>카메라를 못 열거나 QR이 안 읽힘</td><td><code>check_hardware.py</code>가 알려 주는 <code>CAMERA_INDEX</code> / USB 웹캠인지 / 640×480 그대로인지 / 휴대폰 밝기</td><td>9·14</td></tr>
+        <tr><td>"핀이 사용 중"</td><td>앞서 띄운 데몬이 살아 있다 — <code>ps aux | grep main.py</code>로 찾아 종료</td><td>12</td></tr>
+        <tr><td>휴대폰에서 분석이 안 됨</td><td>앱의 서버 주소가 PC의 IP인지 / 웹이면 <code>NEXT_PUBLIC_API_BASE_URL</code>·<code>CORS_ORIGINS</code></td><td>3</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p>여기에 없는 오류라면 <code>check_hardware.py</code> 출력과 데몬 터미널의 마지막 <code>Traceback</code>을 <strong>통째로</strong> 팀에 공유하세요.
+    더 자세한 그림 설명은 <code>docs/06</code>(배선과 구성), 글로 된 절차는 <code>docs/05</code>(마이그레이션 매뉴얼)에 있습니다.</p>
+</section>
+
+<!-- ───────────────────────── 체크리스트 ───────────────────────── -->
+<section id="check">
+  <p class="part-label">진행 표시</p>
+  <h2>단계별 체크리스트</h2>
+  <p>표시는 이 브라우저에만 저장됩니다. 다른 기기에서는 다시 체크해야 합니다.</p>
+  <ul class="checklist" id="migrate-check">
+    <li><input type="checkbox" id="c1"><label for="c1">1. PC에서 <code>pytest</code> 115 passed, <code>demo_e2e.py</code> 통과</label></li>
+    <li><input type="checkbox" id="c2"><label for="c2">2. PC IP 확인, 백엔드 <code>--host 0.0.0.0</code>, 휴대폰에서 <code>/health</code> 열림</label></li>
+    <li><input type="checkbox" id="c3"><label for="c3">3. 프론트엔드 실행, 휴대폰에서 QR까지 만들어짐</label></li>
+    <li><input type="checkbox" id="c4"><label for="c4">4. 파이에서 <code>curl PC:8000/health</code> 성공</label></li>
+    <li><input type="checkbox" id="c5"><label for="c5">5. <code>git clone</code>, <code>pi/</code>와 <code>backend/iot/</code>가 함께 있음</label></li>
+    <li><input type="checkbox" id="c6"><label for="c6">6. venv(<code>--system-site-packages</code>)에서 gpiozero·lgpio 보임</label></li>
+    <li><input type="checkbox" id="c7"><label for="c7">7. <code>pi/.env</code> — hardware / PC IP / 같은 키 / 핀 4개</label></li>
+    <li><input type="checkbox" id="c8"><label for="c8">8. 전원 끄고 배선, GND 공통, 서보 전원은 외부 5V</label></li>
+    <li><input type="checkbox" id="c9"><label for="c9">9. <code>check_hardware.py</code> 실패 0건</label></li>
+    <li><input type="checkbox" id="c10"><label for="c10">10. <code>--servo</code>로 1~4번 덮개가 번호대로 하나씩 (교사 입회)</label></li>
+    <li><input type="checkbox" id="c11"><label for="c11">11. 각도·펄스 폭 실측, 기록표 작성</label></li>
+    <li><input type="checkbox" id="c12"><label for="c12">12. <code>python main.py</code> 로그에 <code>DEVICE_MODE=hardware</code></label></li>
+    <li><input type="checkbox" id="c13"><label for="c13">13. 7인치 화면에 <code>/atm</code></label></li>
+    <li><input type="checkbox" id="c14"><label for="c14">14. 자동 검사 통과 + 손으로 5가지 확인 (위험 QR이면 덮개 4개 모두 안 움직임)</label></li>
+  </ul>
+  <button type="button" class="reset-btn" id="check-reset">체크 지우기</button>
+
+  <h3 id="record">실측 기록표 (인쇄해서 채우세요)</h3>
+  <div class="table-scroll">
+    <table class="record">
+      <thead><tr><th>항목</th><th>기본값</th><th>우리 팀 값</th></tr></thead>
+      <tbody>
+        <tr><td><code>OUTLET_SERVO_PINS</code></td><td>12,13,18,19</td><td></td></tr>
+        <tr><td><code>SERVO_MIN_PULSE_US</code> / <code>MAX</code></td><td>500 / 2400</td><td></td></tr>
+        <tr><td><code>SERVO_OPEN_ANGLE</code> / <code>CLOSED</code></td><td>90 / 0</td><td></td></tr>
+        <tr><td><code>DISPENSE_HOLD_SECONDS</code></td><td>1.0</td><td></td></tr>
+        <tr><td><code>CAMERA_INDEX</code></td><td>0</td><td></td></tr>
+        <tr><td>PC IP / 파이 IP</td><td>—</td><td></td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap" style="padding:0">
+    <p>
+      <strong>마지막으로.</strong> 이 모든 단계는 한 장면을 위한 것입니다 — 위험 문자로 만든 QR을 비춘 뒤
+      50만 원을 눌러도 <strong>덮개가 하나도 움직이지 않는 것.</strong> 그리고 그것을 AI가 아니라
+      <strong>여러분이 직접 눈으로 확인하는 것.</strong>
+    </p>
+    <p style="margin-top:18px">
+      스마트 금융 보안 ATM · 함께 볼 문서 — <code>docs/05</code> 마이그레이션 순서(텍스트) ·
+      <code>docs/06</code> 배선과 구성(그림) · <code>docs/04</code> 전시회 시연 매뉴얼
+    </p>
+  </div>
+</footer>
+
+</div>
+
+<script>
+  // 체크 표시는 이 브라우저에만 남는다 (다른 기기와 공유되지 않는다)
+  (function () {
+    var KEY = "atm-pi-migrate-steps";
+    var boxes = Array.prototype.slice.call(document.querySelectorAll("#migrate-check input[type=checkbox]"));
+    function load() {
+      try {
+        var saved = JSON.parse(window.localStorage.getItem(KEY) || "[]");
+        boxes.forEach(function (b) { b.checked = saved.indexOf(b.id) !== -1; });
+      } catch (e) { /* 시크릿 창 등 — 체크만 안 남을 뿐 페이지는 그대로 쓴다 */ }
+    }
+    function save() {
+      try {
+        window.localStorage.setItem(KEY, JSON.stringify(boxes.filter(function (b) { return b.checked; }).map(function (b) { return b.id; })));
+      } catch (e) { /* 저장 못 해도 이번 세션 동안은 동작한다 */ }
+    }
+    boxes.forEach(function (b) { b.addEventListener("change", save); });
+    var reset = document.getElementById("check-reset");
+    if (reset) reset.addEventListener("click", function () { boxes.forEach(function (b) { b.checked = false; }); save(); });
+    load();
+  })();
+</script>
+
+</body>
+</html>
