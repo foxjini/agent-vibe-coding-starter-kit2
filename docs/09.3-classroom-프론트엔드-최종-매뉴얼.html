@@ -871,6 +871,147 @@ git commit -m "[frontend] PIR 인체감지 + 점멸 경고등 화면·동작 추
     </div>
   </div>
 </section>
+<!-- 상품 수준 UI ① ─────────────────────────────────── -->
+<section class="slide" data-title="상품 수준 UI · 내비게이션 고르기">
+  <p class="tag">PRO UI · NAVIGATION</p>
+  <h2>상품 수준 UI ① — 탭 바 · 레일 · 사이드 메뉴 · FAB · 그리드 고르기</h2>
+  <p class="lead">다섯 가지를 <strong>다 넣는 것이 아니라</strong> 화면 크기와 하는 일에 맞는 것만 고릅니다. 규칙은 UI/UX 전문 지침(ui-ux-pro-max: Material Design · Apple HIG 기준)에서 가져왔습니다.</p>
+  <div class="tw"><table>
+    <thead><tr><th>요소</th><th>무엇</th><th>이럴 때 씁니다</th><th>지킬 규칙</th></tr></thead>
+    <tbody>
+      <tr><td class="nw"><strong>하단 탭 바</strong> (Tab bar)</td><td>화면 아래 고정된 큰 메뉴</td><td>폰·작은 터치 화면, 최상위 화면이 3~5개</td><td><strong>5개 이하</strong>, 아이콘 + 글자 함께, 지금 탭은 색·굵기로 강조, 탭 안에 또 탭 넣지 않기</td></tr>
+      <tr><td class="nw"><strong>레일</strong> (Navigation rail)</td><td>화면 왼쪽의 좁은 세로 메뉴 (아이콘 + 짧은 글자)</td><td><strong>가로로 넓고 세로가 짧은</strong> 화면(7인치 가로, 태블릿 가로)</td><td>3~7개, 하단 탭과 동시에 쓰지 않기, 너비 72~88px</td></tr>
+      <tr><td class="nw"><strong>사이드 메뉴</strong> (Drawer)</td><td>왼쪽에서 펼쳐지는(또는 늘 열린) 메뉴</td><td><strong>1024px 이상</strong> 화면의 주 메뉴, 또는 작은 화면의 <strong>보조 메뉴</strong>(설정·도움말)</td><td>작은 화면에서는 주요 동작을 숨기지 않기, 바깥 누르면·Esc로 닫힘, 열렸을 때 뒤 배경 어둡게</td></tr>
+      <tr><td class="nw"><strong>FAB</strong> (떠 있는 동그란 버튼)</td><td>화면 구석에 떠 있는 가장 중요한 버튼 하나</td><td>그 화면에서 <strong>가장 자주 하는 행동이 딱 하나</strong>일 때</td><td><strong>화면당 1개</strong>, 56px 이상, 글자 라벨(또는 <code>aria-label</code>), 내용·탭 바를 가리지 않게, 삭제 같은 위험 동작 금지</td></tr>
+      <tr><td class="nw"><strong>그리드</strong> (Grid)</td><td>같은 종류 카드를 바둑판처럼 배치</td><td>좌석·칸·부품처럼 <strong>같은 것이 여러 개</strong>, 한눈에 비교</td><td>카드 크기·여백·글자 위치 통일, 화면이 좁으면 열 수를 줄임(4 → 2 → 1), 상태는 색 + 글자로</td></tr>
+    </tbody>
+  </table></div>
+  <h3>팀별 출발점 (정답이 아니라 시작점 — 팀 화면에 맞게 고칩니다)</h3>
+  <div class="tw"><table>
+    <thead><tr><th>팀</th><th>화면</th><th>주 메뉴</th><th>사이드 메뉴(보조)</th><th>FAB</th><th>그리드</th></tr></thead>
+    <tbody>
+          <tr><td class="nw"><strong>wakeup</strong></td><td>7인치 가로 터치 (800×480)</td><td>하단 탭 5개(지금) 유지, 또는 <strong>왼쪽 레일</strong>로 바꿔 세로 공간 확보</td><td>⋮ 메뉴(설정·<code>/kit</code>·전체 화면)</td><td><strong>1개</strong>: 알람 지금 울려 보기</td><td>홈의 침대·조명·커튼 타일</td></tr>
+          <tr><td class="nw"><strong>study</strong></td><td>노트북·모니터 (1024px 이상)</td><td><strong>왼쪽 사이드 메뉴</strong>(좌석 · 환경 · 기록)</td><td>설정·도움말</td><td>없음, 또는 1개(자리 비움 알림 보내기)</td><td><strong>좌석 배치 그리드</strong> — 좌석 1칸 = 카드 1장</td></tr>
+          <tr style="background:var(--blue-soft)"><td class="nw"><strong>classroom</strong> ← 우리 팀</td><td>PC·모니터 (1024px 이상)</td><td><strong>사이드 메뉴</strong> 또는 레일(환경 · 출입 · 제어)</td><td>설정·<code>/kit</code></td><td>1개: 가장 자주 하는 동작</td><td><strong>환경 그리드</strong> — 온습도·출입·경고등 카드</td></tr>
+          <tr><td class="nw"><strong>subway</strong></td><td>전시장 모니터 (보기 전용, 터치 없음)</td><td><strong>없음</strong> — 한 화면에 다 보이게</td><td>없음 (관리는 <code>/kit</code>)</td><td><strong>쓰지 않음</strong></td><td><strong>칸별 그리드</strong> — 칸 1개 = 큰 카드 1장, 멀리서 읽히는 글자</td></tr>
+    </tbody>
+  </table></div>
+  <div class="box warn"><b class="k">섞지 않기</b><p>같은 단계에 <strong>탭 바 + 사이드 메뉴 + 레일</strong>을 함께 두면 어디로 가야 할지 헷갈립니다. 주 메뉴는 하나만, 나머지는 보조(⋮ 메뉴·사이드 메뉴)로.</p></div>
+</section>
+
+<!-- 상품 수준 UI ② ─────────────────────────────────── -->
+<section class="slide" data-title="상품 수준 UI · 품질 기준">
+  <p class="tag">PRO UI · QUALITY</p>
+  <h2>상품 수준 UI ② — 전문가처럼 보이는 기준, AI가 만든 티 줄이기</h2>
+  <div class="grid g2">
+    <div class="card">
+      <h3>이렇게 합니다</h3>
+      <ul class="small">
+        <li><strong>색은 이름 붙은 토큰으로만</strong> — 코드에 <code>#3b82f6</code>를 직접 쓰지 않습니다</li>
+        <li><strong>간격은 4·8의 배수</strong>(8 · 12 · 16 · 24 · 32px), <strong>글자 크기는 3~4단계</strong>만</li>
+        <li><strong>누르는 것은 44~48px 이상</strong>, 버튼 사이 8px 이상, 누르면 눌린 표시</li>
+        <li><strong>글자 대비 4.5:1 이상</strong>(큰 글자 3:1), 상태는 <strong>색 + 글자/아이콘</strong>으로</li>
+        <li><strong>세 가지 상태</strong>를 모두 디자인 — 불러오는 중 · 비어 있음 · 연결 끊김/오류</li>
+        <li>움직임은 0.15~0.3초, 의미 있는 곳에만, <code>prefers-reduced-motion</code>이면 끄기</li>
+        <li>아이콘은 설치된 <code>lucide-react</code> 하나로 통일 (이모지 아이콘 X)</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h3>이것은 피합니다 (AI가 만든 티)</h3>
+      <ul class="small">
+        <li>보라 → 파랑 그라데이션 배경, 의미 없는 반짝이 효과</li>
+        <li>모든 카드에 같은 큰 둥근 모서리 + 그림자, <strong>카드 안에 또 카드</strong></li>
+        <li>모든 것을 가운데 정렬, 회색 바탕에 회색 글자</li>
+        <li>의미 없는 01 · 02 · 03 번호, 제목마다 이모지</li>
+        <li>"멋진 대시보드" 같은 빈 문구 — 실제 값·단위·상태로 채우기</li>
+        <li>한 화면에 주 버튼(진한 색)이 여러 개 — <strong>주 버튼은 하나</strong></li>
+      </ul>
+    </div>
+  </div>
+  <div class="box"><b class="k">AI와 일하는 순서</b><p>① <strong>진단</strong>(코드 없이 문제 목록) → ② <strong>구조</strong>(메뉴·배치 제안) → ③ <strong>요소 하나씩</strong>(탭 바 → FAB → 그리드…) → ④ <strong>다듬기</strong>(상태·대비·간격). 한 요청에 하나씩, 넣을 때마다 화면에서 확인합니다. 묶음: <code>python tools/merge_ui.py</code> → <code>context_packs/ui_home.md</code></p></div>
+</section>
+
+<!-- 상품 수준 UI ③ ─────────────────────────────────── -->
+<section class="slide" data-title="상품 수준 UI · 예시 프롬프트 ①">
+  <p class="tag">PRO UI · PROMPTS 1/2</p>
+  <h2>상품 수준 UI ③ — 예시 프롬프트: 진단 · 구조 · 탭 바/레일</h2>
+  <p class="lead">묶음 파일(<code>context_packs/ui_home.md</code>)을 <strong>파일로 올린 새 대화</strong>에서, 아래 하나를 복사해 [ ] 안만 우리 팀에 맞게 고칩니다.</p>
+  <div class="grid g3">
+    <div class="prompt"><div class="prompt-h"><span>A. 디자인 진단 (코드 없이)</span><button class="copy" type="button">복사</button></div>
+<pre>[목표] 이 화면을 상품처럼 보이게 하고 싶다. 사용 환경: 교실 대시보드 (PC·모니터), [누가 · 몇 m 떨어져서 보는지].
+[할 일] 코드는 쓰지 말고, UI/UX 전문가(Material Design · Apple HIG 기준)로서 문제를 찾아 줘.
+  - 내비게이션 · 정보 위계 · 간격 · 글자 크기 · 색 대비 · 누르는 크기 · 빈/로딩/오류 상태
+  - 각 문제마다: 어디(파일·컴포넌트) / 왜 문제인지 / 고치는 방법 한 줄 / 중요도(높음·중간·낮음)
+[완료 기준] 중요도 높은 것 5개 이하를 표로. 마지막에 "가장 먼저 고칠 1개"를 추천.</pre></div>
+    <div class="prompt"><div class="prompt-h"><span>B. 내비게이션 구조 제안 (코드 없이)</span><button class="copy" type="button">복사</button></div>
+<pre>[목표] 화면이 여러 기능을 담게 되어 메뉴 구조가 필요하다. 사용 환경: 교실 대시보드 (PC·모니터).
+[할 일] 하단 탭 바 · 레일 · 사이드 메뉴(드로어) · FAB · 그리드 중 이 화면에 맞는 것을 골라 줘.
+  - 주 메뉴는 하나만. 메뉴 항목(5개 이하)의 이름·아이콘(lucide-react 이름)·들어갈 내용
+  - FAB를 쓴다면 어떤 행동 1개인지, 쓰지 않는다면 이유
+  - 와이어프레임을 글자 그림(ASCII)으로
+[바꾸지 말 것] scenarios/ 동작, lib/, components/kit/, app/globals.css(4팀 공통), 새 패키지 설치
+[진행] 코드는 쓰지 마. 내가 고르면 다음 요청에서 만든다.</pre></div>
+    <div class="prompt"><div class="prompt-h"><span>C. 하단 탭 바 또는 레일 만들기</span><button class="copy" type="button">복사</button></div>
+<pre>[목표] B에서 정한 [하단 탭 바 / 왼쪽 레일]을 만든다. 항목: [B에서 정한 메뉴 3~5개].
+[바꿀 곳] frontend/app/page.tsx, 새 파일 frontend/components/team/[NavBar].tsx
+[바꾸지 말 것] scenarios/ 동작, lib/, components/kit/, app/globals.css(4팀 공통), 새 패키지 설치
+[완료 기준]
+  - 항목마다 lucide-react 아이콘 + 글자, 누르는 영역 48px 이상
+  - 지금 화면은 색·굵기·표시줄로 강조, aria-current="page"
+  - 내용이 메뉴 뒤로 숨지 않음 (메뉴 크기만큼 여백)
+  - 375px 폰 폭과 1280px에서 가로 스크롤 없음
+[진행] 먼저 계획만 3~5줄로 보여 줘.</pre></div>
+  </div>
+</section>
+
+<!-- 상품 수준 UI ④ ─────────────────────────────────── -->
+<section class="slide" data-title="상품 수준 UI · 예시 프롬프트 ②">
+  <p class="tag">PRO UI · PROMPTS 2/2</p>
+  <h2>상품 수준 UI ④ — 예시 프롬프트: 사이드 메뉴 · FAB · 그리드 · 다듬기</h2>
+  <div class="grid g2">
+    <div class="prompt"><div class="prompt-h"><span>D. 사이드 메뉴 (드로어)</span><button class="copy" type="button">복사</button></div>
+<pre>[목표] [설정 · 하드웨어 구성(/kit) · 도움말]을 담는 사이드 메뉴를 만든다. 주 메뉴는 그대로 둔다.
+[바꿀 곳] frontend/app/page.tsx, 새 파일 frontend/components/team/[SideMenu].tsx
+[바꾸지 말 것] scenarios/ 동작, lib/, components/kit/, app/globals.css(4팀 공통), 새 패키지 설치
+[완료 기준]
+  - 상단 메뉴 버튼(아이콘 + aria-label "메뉴 열기")으로 열림
+  - 바깥 누르기 · Esc · 닫기 버튼으로 닫힘, 열리면 뒤 배경 어둡게, 0.2초 슬라이드
+  - 열렸을 때 첫 항목에 키보드 초점, 닫으면 메뉴 버튼으로 초점 복귀
+  - 1024px 이상이면 [늘 열린 사이드 메뉴 / 지금처럼 버튼으로 열기]
+[진행] 먼저 계획만 3~5줄로 보여 줘.</pre></div>
+    <div class="prompt"><div class="prompt-h"><span>E. FAB (가장 중요한 행동 하나)</span><button class="copy" type="button">복사</button></div>
+<pre>[목표] 이 화면에서 가장 자주 하는 [행동 이름]을 FAB로 만든다.
+[바꿀 곳] frontend/app/page.tsx, 새 파일 frontend/components/team/[Fab].tsx
+[바꾸지 말 것] 그 행동이 실제로 하는 일(기존 함수 그대로 호출), scenarios/ 동작, lib/, components/kit/, app/globals.css(4팀 공통), 새 패키지 설치
+[완료 기준]
+  - 화면당 1개, 지름 56px 이상, 아이콘 + 짧은 글자(또는 aria-label)
+  - 오른쪽 아래, 탭 바·마지막 카드를 가리지 않음 (아래 여백 추가)
+  - 누르면 눌린 표시, 실행 중에는 비활성 + 진행 표시
+[진행] 먼저 계획만 3~5줄로 보여 줘.</pre></div>
+    <div class="prompt"><div class="prompt-h"><span>F. 그리드 (같은 것 여러 개를 한눈에)</span><button class="copy" type="button">복사</button></div>
+<pre>[목표] [좌석 / 칸 / 부품] 카드들을 그리드로 정리해 멀리서도 상태를 한눈에 보게 한다.
+[바꿀 곳] frontend/app/page.tsx, 새 파일 frontend/components/team/[StatusGrid].tsx
+[바꾸지 말 것] 카드에 들어가는 데이터와 동작, scenarios/ 동작, lib/, components/kit/, app/globals.css(4팀 공통), 새 패키지 설치
+[완료 기준]
+  - 카드 크기·여백·제목 위치 통일, 상태는 색 + 글자(예: "여유 · 보통 · 혼잡")
+  - 넓으면 [4]열 → 태블릿 2열 → 폰 1열, CSS grid + gap으로
+  - 가장 중요한 숫자가 카드에서 가장 큼, 단위 표시
+  - 값이 없을 때 "연결 대기" 상태 표시
+[진행] 먼저 계획만 3~5줄로 보여 줘.</pre></div>
+    <div class="prompt"><div class="prompt-h"><span>G. 마무리 다듬기 (상태 · 대비 · 간격)</span><button class="copy" type="button">복사</button></div>
+<pre>[목표] 전시 직전 마무리. 새 기능은 넣지 않고 완성도만 올린다.
+[바꿀 곳] 이번에 만든 frontend/components/team/ 파일들
+[바꾸지 말 것] 배치와 동작, scenarios/ 동작, lib/, components/kit/, app/globals.css(4팀 공통), 새 패키지 설치
+[완료 기준]
+  - 간격을 8의 배수로, 글자 크기를 3~4단계로 정리
+  - 모든 글자 대비 4.5:1 이상, 상태는 색 + 글자
+  - 불러오는 중 · 비어 있음 · 연결 끊김 상태가 각각 보임
+  - 이모지 아이콘 → lucide-react, 주 버튼은 화면당 하나
+[진행] 바꿀 목록을 먼저 보여 주고, 내가 고르면 코드를 줘.</pre></div>
+  </div>
+  <div class="box no"><b class="k">AI 답을 넣기 전에</b><p><code>python tools/apply_ui.py</code> 미리 보기에서 [바꾸지 말 것]의 파일이 바뀌거나 새 패키지(<code>npm install …</code>)를 요구하면 넣지 않고 "설치된 것만으로 다시"라고 요청합니다. 넣은 뒤에는 <code>npm run build</code>로 오류가 없는지 확인합니다.</p></div>
+</section>
+
 
   </div><!-- /viewport -->
 
