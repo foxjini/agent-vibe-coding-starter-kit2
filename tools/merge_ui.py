@@ -247,6 +247,15 @@ def collect(targets: Sequence[Path], extra: Sequence[Path]) -> "OrderedDict[str,
 
     for page in targets:
         add(page, "full", "이번에 고칠 화면")
+        # 그 화면 폴더에만 적용되는 layout.tsx (예: app/wakeup/layout.tsx — 글꼴·디자인 토큰 css를 import)
+        # 화면 파일이 import하지 않으므로 따로 넣어야 AI가 그 화면의 디자인을 압니다.
+        app_dir = (FRONTEND / "app").resolve()
+        folder = page.resolve().parent
+        while folder != app_dir and app_dir in folder.parents:
+            layout = folder / "layout.tsx"
+            if layout.is_file():
+                add(layout, "full", "이 화면에만 적용되는 레이아웃 (글꼴·디자인 토큰)")
+            folder = folder.parent
     for rel in ALWAYS_FULL:
         if (FRONTEND / rel).exists():
             add(FRONTEND / rel, "full", "모든 화면에 적용 (글꼴·디자인 토큰)")
@@ -750,6 +759,24 @@ def token_section(entries: "OrderedDict[str, Entry]") -> str:
     return "\n".join(parts)
 
 
+def design_rules(routes: Sequence[str]) -> str:
+    """화면 이름과 같은 `components/team/<화면>/DESIGN.md`가 있으면 원문을 담습니다 (없으면 빈 문자열)."""
+    parts: List[str] = []
+    for route in routes:
+        name = route.strip("/").split("/")[-1]
+        if not name:
+            continue
+        path = FRONTEND / "components" / "team" / name / "DESIGN.md"
+        if not path.is_file():
+            continue
+        text, _ = scrub_secrets(path.read_text(encoding="utf-8", errors="replace"), "ui")
+        body = re.sub(r"^(#{1,4}) ", r"##\1 ", text.strip(), flags=re.M)   # 제목 단계를 두 칸 내림 (이 절 아래로)
+        parts += ["", f"## `{route}` 화면의 디자인 규칙 — 꼭 지켜 주세요 (`frontend/{rel_of(path)}`)", "",
+                  "이 화면의 색·글꼴·크기는 아래 규칙과 토큰으로만 바꿉니다. "
+                  "`app/globals.css`는 4팀 공통이라 이 화면 때문에 고치지 않습니다.", "", body]
+    return "\n".join(parts)
+
+
 def build_pack(routes: Sequence[str], pages: "OrderedDict[str, Path]",
                entries: "OrderedDict[str, Entry]", everything: bool) -> str:
     full = [e for e in entries.values() if e.mode == "full"]
@@ -789,7 +816,11 @@ def build_pack(routes: Sequence[str], pages: "OrderedDict[str, Path]",
         how = "전문" if entry.mode == "full" else "쓰는 법만"
         parts.append(f"| `frontend/{entry.rel}` | {how} · {ROLE_LABEL.get(entry.role, entry.role)} | {entry.reason} |")
 
-    parts += ["", token_section(entries), "",
+    parts += ["", token_section(entries)]
+    rules = design_rules(routes)
+    if rules:
+        parts.append(rules)
+    parts += ["",
               "## 7. 고치는 파일 — 전문", "",
               "아래 파일은 학생이 고칠 수 있는 파일입니다. 지금 내용 그대로입니다."]
     for entry in full:

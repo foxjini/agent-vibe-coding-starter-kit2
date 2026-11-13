@@ -439,8 +439,8 @@ NEXT_PUBLIC_TEAM_TAGLINE=미션을 끝내야 알람이 꺼집니다</pre></div>
     <thead><tr><th>하려는 일</th><th>명령</th><th>생기는 파일</th></tr></thead>
     <tbody>
       <tr><td><strong>화면</strong> 고치기 (배치·색·카드·반응형)</td><td class="nw"><code>python tools/merge_ui.py</code></td><td><code>context_packs/ui_home.md</code></td></tr>
-      <tr><td>다른 화면 고치기</td><td class="nw"><code>python tools/merge_ui.py --page wakeup</code></td><td><code>context_packs/ui_wakeup.md</code></td></tr>
-      <tr><td><strong>우리 시나리오</strong> 고치기 — wakeup</td><td><code>python tools/merge_ui.py --page wakeup --add scenarios/useWakeup.ts --add scenarios/wakeupEngine.ts</code></td><td><code>ui_wakeup.md</code> (약 96KB)</td></tr>
+      <tr><td><strong>wakeup 화면</strong> 고치기 (디자인 토큰·규칙 자동 포함)</td><td class="nw"><code>python tools/merge_ui.py --page wakeup</code></td><td><code>context_packs/ui_wakeup.md</code> (23번 슬라이드)</td></tr>
+      <tr><td><strong>우리 시나리오</strong> 고치기 — wakeup</td><td><code>python tools/merge_ui.py --page wakeup --add scenarios/useWakeup.ts --add scenarios/wakeupEngine.ts</code></td><td><code>ui_wakeup.md</code> (약 155KB — 파일로 올리기)</td></tr>
       <tr><td>파일을 더 보여 줘야 할 때</td><td class="nw"><code>--add components/team/파일.tsx</code></td><td>AI가 "○○ 파일을 보여 주세요"라고 하면</td></tr>
       <tr><td>무엇이 들어갈지만 보기</td><td class="nw"><code>python tools/merge_ui.py --list</code></td><td>(파일 안 만듦)</td></tr>
     </tbody>
@@ -947,6 +947,49 @@ NEXT_PUBLIC_WAKEUP_CURTAIN_CLOSE_ANGLE=0
 NEXT_PUBLIC_WAKEUP_LIGHT_COLOR=#ffb45a
 NEXT_PUBLIC_WAKEUP_LIGHT_BRIGHTNESS=70</pre></div>
       <div class="box"><b class="k">파이 없이 시험</b><p><a href="#s13">13번</a> 슬라이드의 가짜 입력으로 <code>sensor_02</code>에 <code>{"value":60}</code> → ⋮ → 알람 지금 울려 보기 → 미션 화면의 모션 베드가 <strong>흔드는 중</strong>, <code>/kit</code>의 베드 카드가 0 ↔ 60으로 바뀌면 성공. <code>{"value":10}</code>을 보내면 멈춤.</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- 23 ─────────────────────────────────────────── -->
+<section class="slide" data-title="전시 전 화면 빠르게 고치기">
+  <p class="tag">EXHIBITION · 채팅 AI로 화면 다듬기</p>
+  <h2>전시 전 화면 빠르게 고치기 — 묶기 · 한 가지 요청 · 미리 보기</h2>
+  <p class="lead">동작은 그대로 두고 <strong>보이는 것만</strong> 고칩니다. 한 번에 <strong>한 가지</strong>씩, 넣을 때마다 7인치 화면에서 눈으로 확인합니다.</p>
+  <div class="grid g2">
+    <div>
+      <ol class="steps">
+        <li><b>최신 코드 받기</b><div class="cmd"><div class="cmd-h"><span class="where">팀 PC · PowerShell · 저장소 맨 위</span><button class="copy" type="button">복사</button></div><pre>git pull --no-rebase --no-edit origin platform</pre></div></li>
+        <li><b>wakeup 화면 묶기</b><div class="cmd"><div class="cmd-h"><span class="where">팀 PC · PowerShell · 저장소 맨 위</span><button class="copy" type="button">복사</button></div><pre>python tools/merge_ui.py --page wakeup</pre></div>
+          <code>context_packs/ui_wakeup.md</code> 하나에 화면 파일 전부 + <strong>디자인 토큰</strong>(<code>app/wakeup/wakeup.css</code>, <code>app/wakeup/layout.tsx</code>) + <strong>디자인 규칙</strong>(<code>components/team/wakeup/DESIGN.md</code>)이 자동으로 들어갑니다. 약 130KB라 <strong>붙여넣지 말고 파일로 올립니다.</strong></li>
+        <li><b>AI 새 대화 → 파일 올리기 → 오른쪽 프롬프트 하나</b>계획 3~5줄을 먼저 받고, 맞으면 "좋아, 진행해".</li>
+        <li><b>답 넣기</b>답 전체를 <code>context_packs/answer.md</code>에 저장 →
+          <div class="cmd"><div class="cmd-h"><span class="where">팀 PC · PowerShell</span><button class="copy" type="button">복사</button></div><pre>python tools/apply_ui.py           <span class="c"># 미리 보기 (아직 안 바뀜)</span>
+python tools/apply_ui.py --write   <span class="c"># 적용</span>
+python tools/apply_ui.py --undo    <span class="c"># 이상하면 되돌리기</span></pre></div></li>
+        <li><b>확인 → 다음 요청 전에 다시 묶기</b><code>npm run build</code> → <code>npm run start</code> → 7인치 화면 새로 고침. 좋으면 커밋. 다음 요청 전에는 <strong>2번을 다시</strong> 실행합니다(묶음은 그 순간의 사진).</li>
+      </ol>
+    </div>
+    <div>
+      <div class="prompt"><div class="prompt-h"><span>예시 ① 글자 크기</span><button class="copy" type="button">복사</button></div>
+<pre>[목표] 전시장에서 1m 떨어져 7인치 화면을 보는 관람객이 홈 탭의 다음 알람 시각을 바로 읽게 하고 싶다.
+[바꿀 곳] frontend/components/team/wakeup/HomeScreen.tsx (필요하면 frontend/app/wakeup/wakeup.css)
+[바꾸지 말 것] 동작·데이터, 다른 탭, scenarios/, lib/, components/kit/, app/globals.css
+[완료 기준] 800×480 화면에서 다음 알람 시각이 시계 다음으로 크고, 화면 밖으로 넘치지 않는다. 색은 --wk-* 토큰만 쓴다.
+[진행] 먼저 계획만 3~5줄로 보여 줘. 내가 좋다고 하면 코드를 줘.</pre></div>
+      <div class="prompt"><div class="prompt-h"><span>예시 ② 누르기 쉬운 버튼</span><button class="copy" type="button">복사</button></div>
+<pre>[목표] 관람객이 손가락으로 제어 탭 버튼을 처음 눌러 봐도 실수 없이 누르게 하고 싶다.
+[바꿀 곳] frontend/components/team/wakeup/ControlScreen.tsx, Tile.tsx
+[바꾸지 말 것] 버튼이 보내는 명령, 다른 탭, scenarios/, lib/, components/kit/, app/globals.css
+[완료 기준] 모든 버튼이 높이 56px 이상, 버튼 사이 8px 이상, 누르면 눌린 표시가 보인다.
+[진행] 먼저 계획만 3~5줄로 보여 줘.</pre></div>
+      <div class="prompt"><div class="prompt-h"><span>예시 ③ 알람 중 대비</span><button class="copy" type="button">복사</button></div>
+<pre>[목표] 알람이 울릴 때(새벽 색 화면) 미션 문구가 밝은 배경에 묻히지 않게 하고 싶다.
+[바꿀 곳] frontend/app/wakeup/wakeup.css의 새벽 상태 토큰, frontend/components/team/WakeupMissionCard.tsx
+[바꾸지 말 것] 미션 판정·타이머, 밤 화면 색, app/globals.css
+[완료 기준] 미션 문구와 배경의 명도 대비 4.5:1 이상. DESIGN.md의 규칙을 지킨다.
+[진행] 먼저 계획만 3~5줄로 보여 줘.</pre></div>
+      <div class="box no"><b class="k">고치지 않는 곳</b><p><code>scenarios/useWakeup.ts</code>·<code>wakeupEngine.ts</code>(동작), <code>lib/</code>, <code>components/kit/</code>, <code>app/globals.css</code>(4팀 공통). AI 답이 이 파일을 바꾸면 미리 보기에서 넣지 않습니다.</p></div>
     </div>
   </div>
 </section>

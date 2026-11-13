@@ -129,6 +129,19 @@ export default function StudyPage() {
   return <main>study</main>;
 }
 """,
+    "app/study/layout.tsx": """import "./study.css";
+
+export default function StudyLayout({ children }: { children: React.ReactNode }) {
+  return <div className="st">{children}</div>;
+}
+""",
+    "app/study/study.css": """.st { --st-ink: #1b2a3a; }
+""",
+    "components/team/study/DESIGN.md": """# study 디자인 규칙
+
+## 색
+- 글자는 --st-ink만 씁니다
+""",
     "app/kit/page.tsx": """"use client";
 
 export default function KitPage() {
@@ -293,8 +306,19 @@ def test_merge(root: Path) -> None:
           "## 2. 지켜야 할 제약" in pack and "// 파일: frontend/app/page.tsx" in pack
           and "여기까지가 묶음입니다" in pack)
 
+    check("기본 화면(/) 묶음에는 다른 화면의 레이아웃·디자인 규칙이 들어가지 않음",
+          "app/study/layout.tsx" not in pack and "study 디자인 규칙" not in pack)
+
     code, _ = quiet(merge_ui.main, ["--page", "study"])
     check("--page study → ui_study.md", code == 0 and (out / "ui_study.md").exists())
+    study = (out / "ui_study.md").read_text(encoding="utf-8") if code == 0 else ""
+    check("화면 폴더의 layout.tsx와 그것이 불러오는 css는 전문 (디자인 토큰)",
+          "`frontend/app/study/layout.tsx` — ★ 고치는 파일 · 전문" in study
+          and "`frontend/app/study/study.css` — ★ 고치는 파일 · 전문" in study
+          and "--st-ink: #1b2a3a" in study)
+    check("components/team/<화면>/DESIGN.md 규칙이 원문으로 들어감 (제목은 한 단계 아래로)",
+          "화면의 디자인 규칙" in study and "### study 디자인 규칙" in study
+          and "글자는 --st-ink만" in study)
     code, _ = quiet(merge_ui.main, ["--all"])
     every = (out / "ui_all.md").read_text(encoding="utf-8") if code == 0 else ""
     check("--all → 키트 화면만 빼고 전부",
