@@ -811,7 +811,7 @@ Invoke-RestMethod -Method Post -Uri $url -Headers $h -ContentType "application/j
     <div class="card">
       <h3>이렇게 합니다</h3>
       <ul class="small">
-        <li><strong>색은 이름 붙은 토큰으로만</strong> — 코드에 <code>#3b82f6</code>를 직접 쓰지 않습니다</li>
+        <li><strong>색은 이름 붙은 토큰으로만</strong> — 코드에 <code>#3b82f6</code>를 직접 쓰지 않고, <code>app/globals.css</code>의 <code>@theme</code>에 이름을 만들어 씁니다 (06 교재 7장)</li>
         <li><strong>간격은 4·8의 배수</strong>(8 · 12 · 16 · 24 · 32px), <strong>글자 크기는 3~4단계</strong>만</li>
         <li><strong>누르는 것은 44~48px 이상</strong>, 버튼 사이 8px 이상, 누르면 눌린 표시</li>
         <li><strong>글자 대비 4.5:1 이상</strong>(큰 글자 3:1), 상태는 <strong>색 + 글자/아이콘</strong>으로</li>
@@ -853,12 +853,12 @@ Invoke-RestMethod -Method Post -Uri $url -Headers $h -ContentType "application/j
   - 주 메뉴는 하나만. 메뉴 항목(5개 이하)의 이름·아이콘(lucide-react 이름)·들어갈 내용
   - FAB를 쓴다면 어떤 행동 1개인지, 쓰지 않는다면 이유
   - 와이어프레임을 글자 그림(ASCII)으로
-[바꾸지 말 것] scenarios/ 동작, lib/, components/kit/, app/globals.css(4팀 공통), 새 패키지 설치
+[바꾸지 말 것] scenarios/ 동작, lib/, components/kit/, 새 패키지 설치. 색·글꼴은 app/globals.css의 @theme 토큰으로만
 [진행] 코드는 쓰지 마. 내가 고르면 다음 요청에서 만든다.</pre></div>
     <div class="prompt"><div class="prompt-h"><span>C. 하단 탭 바 또는 레일 만들기</span><button class="copy" type="button">복사</button></div>
 <pre>[목표] B에서 정한 [하단 탭 바 / 왼쪽 레일]을 만든다. 항목: [B에서 정한 메뉴 3~5개].
 [바꿀 곳] frontend/app/page.tsx, 새 파일 frontend/components/team/[NavBar].tsx
-[바꾸지 말 것] scenarios/ 동작, lib/, components/kit/, app/globals.css(4팀 공통), 새 패키지 설치
+[바꾸지 말 것] scenarios/ 동작, lib/, components/kit/, 새 패키지 설치. 색·글꼴은 app/globals.css의 @theme 토큰으로만
 [완료 기준]
   - 항목마다 lucide-react 아이콘 + 글자, 누르는 영역 48px 이상
   - 지금 화면은 색·굵기·표시줄로 강조, aria-current="page"
@@ -876,7 +876,7 @@ Invoke-RestMethod -Method Post -Uri $url -Headers $h -ContentType "application/j
     <div class="prompt"><div class="prompt-h"><span>D. 사이드 메뉴 (드로어)</span><button class="copy" type="button">복사</button></div>
 <pre>[목표] [설정 · 하드웨어 구성(/kit) · 도움말]을 담는 사이드 메뉴를 만든다. 주 메뉴는 그대로 둔다.
 [바꿀 곳] frontend/app/page.tsx, 새 파일 frontend/components/team/[SideMenu].tsx
-[바꾸지 말 것] scenarios/ 동작, lib/, components/kit/, app/globals.css(4팀 공통), 새 패키지 설치
+[바꾸지 말 것] scenarios/ 동작, lib/, components/kit/, 새 패키지 설치. 색·글꼴은 app/globals.css의 @theme 토큰으로만
 [완료 기준]
   - 상단 메뉴 버튼(아이콘 + aria-label "메뉴 열기")으로 열림
   - 바깥 누르기 · Esc · 닫기 버튼으로 닫힘, 열리면 뒤 배경 어둡게, 0.2초 슬라이드
@@ -886,7 +886,7 @@ Invoke-RestMethod -Method Post -Uri $url -Headers $h -ContentType "application/j
     <div class="prompt"><div class="prompt-h"><span>E. FAB (가장 중요한 행동 하나)</span><button class="copy" type="button">복사</button></div>
 <pre>[목표] 이 화면에서 가장 자주 하는 [행동 이름]을 FAB로 만든다.
 [바꿀 곳] frontend/app/page.tsx, 새 파일 frontend/components/team/[Fab].tsx
-[바꾸지 말 것] 그 행동이 실제로 하는 일(기존 함수 그대로 호출), scenarios/ 동작, lib/, components/kit/, app/globals.css(4팀 공통), 새 패키지 설치
+[바꾸지 말 것] 그 행동이 실제로 하는 일(기존 함수 그대로 호출), scenarios/ 동작, lib/, components/kit/, 새 패키지 설치. 색·글꼴은 app/globals.css의 @theme 토큰으로만
 [완료 기준]
   - 화면당 1개, 지름 56px 이상, 아이콘 + 짧은 글자(또는 aria-label)
   - 오른쪽 아래, 탭 바·마지막 카드를 가리지 않음 (아래 여백 추가)
@@ -895,7 +895,7 @@ Invoke-RestMethod -Method Post -Uri $url -Headers $h -ContentType "application/j
     <div class="prompt"><div class="prompt-h"><span>F. 그리드 (같은 것 여러 개를 한눈에)</span><button class="copy" type="button">복사</button></div>
 <pre>[목표] [좌석 / 칸 / 부품] 카드들을 그리드로 정리해 멀리서도 상태를 한눈에 보게 한다.
 [바꿀 곳] frontend/app/page.tsx, 새 파일 frontend/components/team/[StatusGrid].tsx
-[바꾸지 말 것] 카드에 들어가는 데이터와 동작, scenarios/ 동작, lib/, components/kit/, app/globals.css(4팀 공통), 새 패키지 설치
+[바꾸지 말 것] 카드에 들어가는 데이터와 동작, scenarios/ 동작, lib/, components/kit/, 새 패키지 설치. 색·글꼴은 app/globals.css의 @theme 토큰으로만
 [완료 기준]
   - 카드 크기·여백·제목 위치 통일, 상태는 색 + 글자(예: "여유 · 보통 · 혼잡")
   - 넓으면 [4]열 → 태블릿 2열 → 폰 1열, CSS grid + gap으로
@@ -904,8 +904,8 @@ Invoke-RestMethod -Method Post -Uri $url -Headers $h -ContentType "application/j
 [진행] 먼저 계획만 3~5줄로 보여 줘.</pre></div>
     <div class="prompt"><div class="prompt-h"><span>G. 마무리 다듬기 (상태 · 대비 · 간격)</span><button class="copy" type="button">복사</button></div>
 <pre>[목표] 전시 직전 마무리. 새 기능은 넣지 않고 완성도만 올린다.
-[바꿀 곳] 이번에 만든 frontend/components/team/ 파일들
-[바꾸지 말 것] 배치와 동작, scenarios/ 동작, lib/, components/kit/, app/globals.css(4팀 공통), 새 패키지 설치
+[바꿀 곳] 이번에 만든 frontend/components/team/ 파일들, 필요하면 frontend/app/globals.css 토큰
+[바꾸지 말 것] 배치와 동작, scenarios/ 동작, lib/, components/kit/, 새 패키지 설치. 색·글꼴은 app/globals.css의 @theme 토큰으로만
 [완료 기준]
   - 간격을 8의 배수로, 글자 크기를 3~4단계로 정리
   - 모든 글자 대비 4.5:1 이상, 상태는 색 + 글자
