@@ -246,7 +246,7 @@ body.all .deck-foot,body.all .more{display:none!important}
   <div class="cover">
     <p class="big">SUBWAY · 2 CAMERAS</p>
     <h1>11.4 subway 팀<br>웹캠 2대로 두 칸 혼잡도 비교</h1>
-    <p class="lead">웹캠 2대로 지하철 <strong>1번 칸·2번 칸</strong>의 사람 수를 세고, 화면에 <strong>"2번 칸이 덜 붐벼요"</strong>처럼 덜 붐비는 칸을 안내합니다.
+    <p class="lead">웹캠 2대로 지하철 <strong>1번 칸·2번 칸</strong>의 <strong>점유율(occupancy, 화면에서 사람이 차지한 넓이 %)</strong>을 재고, 화면에 <strong>"2번 칸이 덜 붐벼요"</strong>처럼 덜 붐비는 칸을 안내합니다.
       처음 하는 사람도 그대로 따라 할 수 있게 <strong>순서대로</strong> 적었습니다. 한 단계를 끝내고 <strong>눈으로 확인한 다음</strong> 넘어갑니다.</p>
     <div class="chips">
       <span class="chip"><b>팀</b> subway · 지하철 혼잡도 시스템</span>
@@ -266,16 +266,16 @@ body.all .deck-foot,body.all .more{display:none!important}
   <h2>한눈에 보기 — 웹캠 1대 = 비전 창 1개 = 칸 1개</h2>
   <p class="lead">비전 프로그램(<code>main.py</code>)은 웹캠을 <strong>하나만</strong> 엽니다. 그래서 웹캠이 2대면 비전 프로그램을 <strong>2번 따로</strong> 켜고, 창마다 "나는 몇 번 칸"인지 알려 줍니다.</p>
   <div class="grid g3">
-    <div class="card blue"><h3>📷 웹캠 1 → 창 ①</h3><p class="small"><code>CAMERA_INDEX=0</code> · <code>SUBWAY_CAR=car_1</code><br>"car_1: 3명 (혼잡 단계 1)"을 보냄</p></div>
-    <div class="card blue"><h3>📷 웹캠 2 → 창 ②</h3><p class="small"><code>CAMERA_INDEX=1</code> · <code>SUBWAY_CAR=car_2</code><br>"car_2: 2명 (혼잡 단계 1)"을 보냄</p></div>
+    <div class="card blue"><h3>📷 웹캠 1 → 창 ①</h3><p class="small"><code>CAMERA_INDEX=0</code> · <code>SUBWAY_CAR=car_1</code><br>"car_1: 점유율 31% · 3명 (혼잡 단계 1)"을 보냄</p></div>
+    <div class="card blue"><h3>📷 웹캠 2 → 창 ②</h3><p class="small"><code>CAMERA_INDEX=1</code> · <code>SUBWAY_CAR=car_2</code><br>"car_2: 점유율 22% · 2명 (혼잡 단계 1)"을 보냄</p></div>
     <div class="card blue"><h3>🖥 백엔드 → 화면</h3><p class="small">백엔드는 받은 그대로 화면에 전달 → 화면이 두 칸을 비교해 <strong>"2번 칸이 덜 붐벼요"</strong></p></div>
   </div>
   <div class="tw"><table>
     <thead><tr><th>무엇</th><th>고치나?</th><th>설명</th></tr></thead>
     <tbody>
-      <tr><td><code>backend/</code> 전부</td><td><strong>✕ 안 고침</strong></td><td>칸 라벨(<code>car_1</code>·<code>car_2</code>)·사람 수·혼잡 단계를 그대로 화면에 넘겨 줍니다</td></tr>
+      <tr><td><code>backend/</code> 전부</td><td><strong>✕ 안 고침</strong></td><td>칸 라벨(<code>car_1</code>·<code>car_2</code>)·점유율·사람 수·혼잡 단계를 그대로 화면에 넘겨 줍니다</td></tr>
       <tr><td><code>vision/main.py</code> · <code>camera.py</code></td><td><strong>✕ 안 고침</strong></td><td>4팀 공통 파일입니다</td></tr>
-      <tr><td><code>vision/detectors/subway_cars.py</code></td><td>이미 있음 (필요하면 숫자 하나)</td><td>사람 수를 세어 칸 라벨로 보내는 검출기. <code>SUBWAY_CAR</code>가 없으면(다른 팀) 아무것도 안 함</td></tr>
+      <tr><td><code>vision/detectors/subway_cars.py</code></td><td>이미 있음 (필요하면 숫자 하나)</td><td>칸의 점유율(%)을 재서 칸 라벨로 보내는 검출기. <code>SUBWAY_CAR</code>가 없으면(다른 팀) 아무것도 안 함</td></tr>
       <tr><td><code>vision/.env</code></td><td><strong>한 줄 추가</strong></td><td><code>SUBWAY_CAR=car_1</code> (3단계)</td></tr>
       <tr><td><code>/kit</code> 영상인식 설정</td><td><strong>체크 하나</strong></td><td><code>subway_cars</code>만 켜기 (6단계)</td></tr>
       <tr><td><code>frontend/</code></td><td><strong>새 화면</strong></td><td>바이브 코딩으로 비교 카드 만들기 (9~11단계)</td></tr>
@@ -335,7 +335,7 @@ python -c "import cv2; print([i for i in range(4) if cv2.VideoCapture(i, cv2.CAP
           <tr><td><code>[]</code></td><td>하나도 안 잡힘 → 다른 프로그램(줌·카메라 앱)이 쓰고 있는지 확인 후 닫기</td></tr>
         </tbody>
       </table></div>
-      <div class="box warn"><b class="k">번호와 칸이 맞는지는 7·8단계에서 손으로 확인</b><p>재부팅하면 0번·1번 순서가 바뀔 수 있습니다. 한쪽 웹캠을 손으로 가리고, 그 창의 사람 수가 0이 되는지 봅니다.</p></div>
+      <div class="box warn"><b class="k">번호와 칸이 맞는지는 7·8단계에서 손으로 확인</b><p>재부팅하면 0번·1번 순서가 바뀔 수 있습니다. 한쪽 웹캠을 손으로 가리고, 그 창의 점유율이 0%가 되는지 봅니다.</p></div>
     </div>
   </div>
 </section>
@@ -352,22 +352,22 @@ python -c "import cv2; print([i for i in range(4) if cv2.VideoCapture(i, cv2.CAP
         <thead><tr><th>칸</th><th>값</th><th>예</th></tr></thead>
         <tbody>
           <tr><td><code>label</code></td><td>몇 번 칸 — <code>car_1</code> 또는 <code>car_2</code></td><td><code>car_1</code></td></tr>
-          <tr><td><code>count</code></td><td>보이는 사람 수</td><td><code>3</code></td></tr>
-          <tr><td><code>extra.people</code></td><td>사람 수 (count와 같음)</td><td><code>3</code></td></tr>
-          <tr><td><code>extra.level</code></td><td>혼잡 단계 0 여유 · 1 보통 · 2 혼잡 · 3 매우 혼잡</td><td><code>1</code></td></tr>
+          <tr><td><code>extra.occupancy</code></td><td><strong>점유율 %</strong> — 화면(구역)에서 사람이 차지한 넓이. 겹친 부분은 한 번만</td><td><code>31</code></td></tr>
+          <tr><td><code>count</code> · <code>extra.people</code></td><td>보이는 사람 수 (참고용)</td><td><code>3</code></td></tr>
+          <tr><td><code>extra.level</code></td><td>혼잡 단계(점유율 기준) 0 여유 · 1 보통 · 2 혼잡 · 3 매우 혼잡</td><td><code>1</code></td></tr>
         </tbody>
       </table></div>
       <p class="small">"어느 칸이 덜 붐비니 그쪽으로 안내"하는 판단은 검출기가 아니라 <strong>프론트엔드 화면</strong>이 합니다.</p>
     </div>
     <div>
-      <h3>고칠 수 있는 곳은 숫자 두 개뿐 (선택)</h3>
+      <h3>고칠 수 있는 곳은 숫자 두 개 + 구역 (선택)</h3>
       <div class="cmd"><div class="cmd-h"><span class="where">vision/detectors/subway_cars.py</span><button class="copy" type="button">복사</button></div>
-<pre><span class="c"># 사람이 2명 이상이면 1단계(보통), 4명 이상 2단계(혼잡), 6명 이상 3단계(매우 혼잡)</span>
-LEVELS = (2, 4, 6)
+<pre><span class="c"># 점유율이 20% 이상이면 1단계(보통), 40% 이상 2단계(혼잡), 60% 이상 3단계(매우 혼잡)</span>
+OCCUPANCY_LEVELS = (20, 40, 60)
 
 <span class="c">#: 사람으로 인정할 최소 확신도. 사람이 아닌 것을 사람으로 세면 올리세요.</span>
 MIN_PERSON_CONFIDENCE = 0.5</pre></div>
-      <div class="box"><b class="k">언제 고치나</b><p>칸 모형이 작아 2~3명만 보여도 붐비는 느낌이면 <code>LEVELS = (1, 2, 3)</code>처럼 낮춥니다. 고친 뒤에는 비전 창을 껐다 켭니다(<kbd>Q</kbd> → 다시 실행).</p></div>
+      <div class="box"><b class="k">언제 고치나</b><p>실제 칸에 사람(모형)을 세워 보고 창의 %를 보며 맞춥니다. 모형이 작아 %가 낮게 나오면 <code>OCCUPANCY_LEVELS = (5, 10, 20)</code>처럼 낮춥니다. 천장·벽이 많이 잡히면 <code>vision/.env</code>에 <code>SUBWAY_ZONE=0,0.3,1,1</code>(왼쪽,위,오른쪽,아래 0~1)로 객실 부분만 잽니다. 고친 뒤에는 비전 창을 껐다 켭니다(<kbd>Q</kbd> → 다시 실행).</p></div>
       <div class="box no"><b class="k">고치지 않는 것</b><p><code>vision/main.py</code> · <code>camera.py</code> · <code>detectors/base.py</code> · <code>detectors/objects.py</code> (4팀 공통)</p></div>
     </div>
   </div>
@@ -419,13 +419,13 @@ python main.py</pre></div>
  * 백엔드   : http://localhost:8000
  * 검출기:
      [O] objects      사물·사람 감지 (YOLOv8)
-     [O] subway_cars  객차별 사람 수·혼잡 단계 (subway 팀)</pre></div>
+     [O] subway_cars  객차별 점유율·혼잡 단계 (subway 팀)</pre></div>
       <p class="small"><code>[O] subway_cars</code>가 보이는 것이 중요합니다. 다른 팀 검출기 줄(<code>hands_rps</code>·<code>study_…</code>)도 함께 보이는 것은 정상입니다.</p>
     </div>
     <div>
       <h3>영상 창(IoT Kit Vision)에서 볼 것</h3>
       <ul class="small">
-        <li>맨 위 두 번째 줄(노란색)에 <code>car_1: 3명 (혼잡 단계 1)</code>처럼 <strong>칸 이름과 사람 수</strong>가 보입니다.</li>
+        <li>맨 위 두 번째 줄(노란색)에 <code>car_1: 점유율 31% · 3명 (혼잡 단계 1)</code>처럼 <strong>칸 이름과 점유율</strong>이 보입니다.</li>
         <li>오른쪽 위에 <strong>백엔드 OK</strong> (초록).</li>
         <li>웹캠을 손으로 가리면 → <code>car_1: 0명</code>. 이 창이 1번 칸 웹캠인지 이렇게 확인합니다.</li>
       </ul>
@@ -449,7 +449,7 @@ $env:CAMERA_INDEX="1"; $env:SUBWAY_CAR="car_2"; python main.py</pre></div>
       <h3>이렇게 되면 성공</h3>
       <ul class="small">
         <li>창 ② 출력: <code>* 카메라   : USB 웹캠 #1</code></li>
-        <li>영상 창 상태 줄: <code>car_2: 2명 (혼잡 단계 1)</code></li>
+        <li>영상 창 상태 줄: <code>car_2: 점유율 22% · 2명 (혼잡 단계 1)</code></li>
         <li>영상 창이 <strong>2개</strong> 떠 있고(이름은 둘 다 IoT Kit Vision), 상태 줄이 하나는 car_1, 하나는 car_2</li>
       </ul>
     </div>
@@ -469,7 +469,7 @@ $env:CAMERA_INDEX="1"; $env:SUBWAY_CAR="car_2"; python main.py</pre></div>
     <div>
       <ol class="steps">
         <li><b>브라우저 <code>http://localhost:3000/kit</code> → 영상인식 설정 탭</b></li>
-        <li><b>"검출기 (감지 방법)" 칸에서</b><code>객차별 사람 수·혼잡 단계 (subway 팀) subway_cars</code>만 체크된 상태로 만듭니다. 나머지(사물·사람 감지 <code>objects</code>, 좌석별 점유 <code>study_seats</code>, 가위바위보 <code>hands_rps</code>, 한 사람 집중도 <code>study_focus</code>)는 클릭해서 체크를 <strong>뺍니다</strong>.</li>
+        <li><b>"검출기 (감지 방법)" 칸에서</b><code>객차별 점유율·혼잡 단계 (subway 팀) subway_cars</code>만 체크된 상태로 만듭니다. 나머지(사물·사람 감지 <code>objects</code>, 좌석별 점유 <code>study_seats</code>, 가위바위보 <code>hands_rps</code>, 한 사람 집중도 <code>study_focus</code>)는 클릭해서 체크를 <strong>뺍니다</strong>.</li>
         <li><b>초록 글씨 확인</b><code>저장했습니다. 비전 클라이언트가 몇 초 안에 반영합니다.</code> — 두 창 모두 5초 안에 자동 반영됩니다(비전 창을 다시 켤 필요 없음).</li>
       </ol>
       <div class="box warn"><b class="k">왜 하나만 켜나</b><ul class="small">
@@ -492,10 +492,10 @@ $env:CAMERA_INDEX="1"; $env:SUBWAY_CAR="car_2"; python main.py</pre></div>
     <div>
       <ol class="steps">
         <li><b><code>/kit</code> → 대시보드 탭 → 맨 아래 "영상인식 감지 로그"</b></li>
-        <li><b><code>car_1 개수 3</code>, <code>car_2 개수 2</code> 같은 줄이 약 2.5초마다 쌓이면 성공</b>개수는 그 칸에 보이는 사람 수입니다. 같은 상태가 이어지면 "보고 간격"(기본 2.5초)마다 다시 보냅니다.</li>
-        <li><b>프론트 담당에게 알리기</b>"라벨 <code>car_1</code>·<code>car_2</code>, 사람 수 <code>extra.people</code>, 단계 <code>extra.level</code> (0~3)로 와."</li>
+        <li><b><code>car_1 개수 3</code>, <code>car_2 개수 2</code> 같은 줄이 약 2.5초마다 쌓이면 성공</b>개수는 그 칸에 보이는 사람 수이고, 점유율은 화면(프론트)이 <code>extra.occupancy</code>로 받습니다. 같은 상태가 이어지면 "보고 간격"(기본 2.5초)마다 다시 보냅니다.</li>
+        <li><b>프론트 담당에게 알리기</b>"라벨 <code>car_1</code>·<code>car_2</code>, <strong>점유율 <code>extra.occupancy</code>(%)</strong>, 사람 수 <code>extra.people</code>, 단계 <code>extra.level</code> (0~3)로 와."</li>
       </ol>
-      <div class="box"><b class="k">사람 수가 실제보다 적으면</b><p>웹캠을 칸 전체가 보이게 조금 높이·뒤로. 그래도 적으면 5번 슬라이드의 <code>MIN_PERSON_CONFIDENCE</code>를 <code>0.4</code>로 낮춥니다.</p></div>
+      <div class="box"><b class="k">점유율·사람 수가 실제보다 적으면</b><p>웹캠을 칸 전체가 보이게 조금 높이·뒤로. 그래도 적으면 5번 슬라이드의 <code>MIN_PERSON_CONFIDENCE</code>를 <code>0.4</code>로 낮춥니다.</p></div>
     </div>
     <div>
       <img class="shot" src="data:image/jpeg;base64,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" alt="영상인식 감지 로그에 car_1, car_2 개수가 쌓인 화면">
@@ -516,12 +516,12 @@ $v = "http://localhost:8000/api/v1/vision/events"
 $h = @{ "X-Device-Api-Key" = $key }
 
 <span class="c"># 2) 1번 칸 7명(매우 혼잡) · 2번 칸 2명(보통)</span>
-Invoke-RestMethod -Method Post -Uri $v -Headers $h -ContentType "application/json" -Body '{"event_type":"car_crowd","detected":true,"count":7,"label":"car_1","extra":{"people":7,"level":3}}'
-Invoke-RestMethod -Method Post -Uri $v -Headers $h -ContentType "application/json" -Body '{"event_type":"car_crowd","detected":true,"count":2,"label":"car_2","extra":{"people":2,"level":1}}'
+Invoke-RestMethod -Method Post -Uri $v -Headers $h -ContentType "application/json" -Body '{"event_type":"car_crowd","detected":true,"count":7,"label":"car_1","extra":{"people":7,"occupancy":70,"level":3}}'
+Invoke-RestMethod -Method Post -Uri $v -Headers $h -ContentType "application/json" -Body '{"event_type":"car_crowd","detected":true,"count":2,"label":"car_2","extra":{"people":2,"occupancy":25,"level":1}}'
 
 <span class="c"># 3) 바꿔 보기 — 1번 칸 1명(여유) · 2번 칸 5명(혼잡)</span>
-Invoke-RestMethod -Method Post -Uri $v -Headers $h -ContentType "application/json" -Body '{"event_type":"car_crowd","detected":true,"count":1,"label":"car_1","extra":{"people":1,"level":0}}'
-Invoke-RestMethod -Method Post -Uri $v -Headers $h -ContentType "application/json" -Body '{"event_type":"car_crowd","detected":true,"count":5,"label":"car_2","extra":{"people":5,"level":2}}'</pre></div>
+Invoke-RestMethod -Method Post -Uri $v -Headers $h -ContentType "application/json" -Body '{"event_type":"car_crowd","detected":true,"count":1,"label":"car_1","extra":{"people":1,"occupancy":10,"level":0}}'
+Invoke-RestMethod -Method Post -Uri $v -Headers $h -ContentType "application/json" -Body '{"event_type":"car_crowd","detected":true,"count":5,"label":"car_2","extra":{"people":5,"occupancy":50,"level":2}}'</pre></div>
   <div class="grid g3">
     <div class="box ok"><b class="k">성공</b><p>결과에 <code>recorded=True</code>와 <code>label=car_1</code>(또는 car_2). <code>/kit</code> 감지 로그에도 쌓입니다.</p></div>
     <div class="box warn"><b class="k">두 줄을 10초 안에</b><p>화면은 10초 넘게 소식이 없는 칸을 "카메라 소식 없음"으로 봅니다(우리가 정할 규칙). 두 칸 줄을 연달아 보냅니다.</p></div>
@@ -545,9 +545,10 @@ Invoke-RestMethod -Method Post -Uri $v -Headers $h -ContentType "application/jso
 <pre>올린 컨텍스트 팩을 읽었지?
 [목표] 웹캠 2대로 지하철 두 칸의 혼잡도를 비교해, 덜 붐비는 칸을 안내하는 카드를 만들고 싶어.
        영상인식 이벤트가 칸마다 와. 라벨은 car_1(1번 칸), car_2(2번 칸)이고,
-       사람 수는 extra.people(없으면 count), 혼잡 단계는 extra.level
+       혼잡도는 점유율 extra.occupancy(0~100 %, 화면에서 사람이 차지한 넓이),
+       사람 수는 extra.people(참고용, 없으면 count), 혼잡 단계는 extra.level
        (0 여유 · 1 보통 · 2 혼잡 · 3 매우 혼잡). onVision(["car_1", "car_2"], …)로 받아 줘.
-       두 칸 모두 소식이 있고 사람 수가 다르면 적은 칸을 "○번 칸이 덜 붐벼요"로 크게 보여 주고,
+       두 칸 모두 소식이 있고 점유율이 5%p 이상 다르면 낮은 칸을 "○번 칸이 덜 붐벼요"로 크게 보여 주고,
        같거나 한 칸이라도 10초 넘게 소식이 없으면 안내하지 말고 그 칸에 "카메라 소식 없음"을 보여 줘.
 [바꿀 곳] 새 파일 frontend/scenarios/subwayCarsEngine.ts (비교 판정, React 없이) + subwayCarsEngine.test.ts,
          새 파일 frontend/scenarios/useSubwayCars.ts (진행),
@@ -617,7 +618,7 @@ cd ..</pre></div>
         <li><input type="checkbox" id="r1"><label for="r1">8단계 ② (7명/2명) → <strong>"2번 칸이 덜 붐벼요"</strong>, 2번 칸 강조</label></li>
         <li><input type="checkbox" id="r2"><label for="r2">8단계 ③ (1명/5명) → <strong>"1번 칸이 덜 붐벼요"</strong></label></li>
         <li><input type="checkbox" id="r3"><label for="r3">아무것도 안 보내고 10초 → 두 칸 모두 <strong>"카메라 소식 없음"</strong></label></li>
-        <li><input type="checkbox" id="r4"><label for="r4">비전 창 2개를 켜면(7단계) 실제 사람 수로 안내가 바뀐다</label></li>
+        <li><input type="checkbox" id="r4"><label for="r4">비전 창 2개를 켜면(7단계) 실제 점유율로 안내가 바뀐다</label></li>
         <li><input type="checkbox" id="r5"><label for="r5">한쪽 웹캠을 가리면 그 칸이 0명 → 그 칸이 "덜 붐벼요"가 된다</label></li>
         <li><input type="checkbox" id="r6"><label for="r6"><kbd>F12</kbd> → Console에 빨간 줄이 없다 · 폰 폭(375px)에서 두 칸이 위아래로 쌓인다</label></li>
       </ul>
@@ -637,9 +638,10 @@ cd ..</pre></div>
     onVision(CARS, (e) => {                     <span class="c">// CARS = ["car_1", "car_2"]</span>
       const id = String(e.label ?? "") as CarId;
       if (!CARS.includes(id)) return;
+      const occupancy = typeof e.extra?.occupancy === "number" ? e.extra.occupancy : 0;
       const people = typeof e.extra?.people === "number" ? e.extra.people : (e.count ?? 0);
       const level = typeof e.extra?.level === "number" ? e.extra.level : 0;
-      setCars((prev) => ({ ...prev, [id]: { people, level, at: Date.now() } }));
+      setCars((prev) => ({ ...prev, [id]: { occupancy, people, level, at: Date.now() } }));
     }),
   [onVision]
 );</pre></div>
@@ -648,13 +650,13 @@ cd ..</pre></div>
   const a = cars.car_1;
   const b = cars.car_2;
   if (!isLive(a, now) || !isLive(b, now)) return null;   <span class="c">// 10초 넘게 소식 없음</span>
-  if (a.people === b.people) return null;                <span class="c">// 같으면 안내 안 함</span>
-  return a.people < b.people ? "car_1" : "car_2";
+  if (Math.abs(a.occupancy - b.occupancy) &lt; 5) return null;   <span class="c">// 비슷하면(5%p 미만) 안내 안 함</span>
+  return a.occupancy &lt; b.occupancy ? "car_1" : "car_2";
 }</pre></div>
   </div>
   <div class="grid g3">
     <div class="box no"><b class="k">이러면 고쳐 달라고 하기</b><p><code>onVision(null, …)</code>처럼 <strong>모든</strong> 이벤트를 받거나, <code>e.label === "person"</code>을 보면 칸 구분이 안 됩니다 → "car_1·car_2 라벨만 받아 줘".</p></div>
-    <div class="box no"><b class="k">이것도</b><p><code>e.confidence</code>로 사람 수를 읽으면 틀립니다(칸 이벤트는 confidence가 없음) → "사람 수는 extra.people".</p></div>
+    <div class="box no"><b class="k">이것도</b><p><code>e.confidence</code>나 <code>e.count</code>로 혼잡도를 읽으면 틀립니다(칸 이벤트는 confidence가 없고 count는 사람 수) → "혼잡도는 extra.occupancy".</p></div>
     <div class="box no"><b class="k">이것도</b><p>"1초마다 시계" 없이 시간을 비교하면 소식이 끊겨도 화면이 그대로입니다 → "10초 소식 없음이 안 바뀌어".</p></div>
   </div>
 </section>
@@ -675,9 +677,9 @@ cd ..</pre></div>
       <tr><td>오른쪽 위 <code>백엔드 응답없음</code></td><td>백엔드(uvicorn) 켜기 · <code>vision/.env</code>의 <code>DEVICE_API_KEY</code>가 <code>backend/.env</code>와 같은지</td></tr>
       <tr><td>한쪽 영상이 검거나 멈춤 · FPS가 아주 낮음</td><td>USB 대역폭 → 서로 다른 포트 · <code>CAMERA_WIDTH=320</code>·<code>CAMERA_HEIGHT=240</code></td></tr>
       <tr><td>PC 팬이 시끄럽고 느려짐 (창 2개)</td><td>창마다 프레임마다 감지를 돌려서 → <code>vision/.env</code>에 <code>DETECT_FPS=2</code>와 <code>ORT_THREADS=2</code> 두 줄 → 두 창 다시 켜기 (창 1개 실측: CPU 코어 3.4개 → 0.5개)</td></tr>
-      <tr><td>사람 수가 늦게 바뀜</td><td>정상 — 같은 상태면 "보고 간격"(기본 2.5초)마다. 더 자주: <code>/kit</code> 영상인식 설정 → 감지 민감도 → 보고 간격</td></tr>
+      <tr><td>점유율이 늦게 바뀜</td><td>정상 — 같은 상태면 "보고 간격"(기본 2.5초)마다. 더 자주: <code>/kit</code> 영상인식 설정 → 감지 민감도 → 보고 간격</td></tr>
       <tr><td>화면이 계속 "카메라 소식 없음"</td><td>비전 창이 꺼짐 · 8단계 가짜 시험이면 두 줄을 10초 안에 · 화면 코드가 <code>car_1</code>·<code>car_2</code> 라벨을 받는지(15번 슬라이드)</td></tr>
-      <tr><td>사람 수가 실제보다 적음/많음</td><td>웹캠 위치·각도 · <code>MIN_PERSON_CONFIDENCE</code> 0.4(적을 때) / 0.6(많을 때)</td></tr>
+      <tr><td>점유율이 실제 느낌보다 낮음/높음</td><td><code>SUBWAY_ZONE</code>으로 객실 부분만 · <code>OCCUPANCY_LEVELS</code> 조정 · 웹캠 위치·각도 · <code>MIN_PERSON_CONFIDENCE</code> 0.4(적을 때) / 0.6(많을 때)</td></tr>
     </tbody>
   </table></div>
   <p class="small">막혔을 때 순서: ① 비전 창 출력·상태 줄 다시 읽기 → ② 이 표 → ③ AI(같은 대화에 출력 붙여넣기 — <code>.env</code> 내용은 빼고) → ④ 선생님.</p>
@@ -694,7 +696,7 @@ cd ..</pre></div>
 git add frontend
 git commit -m "[frontend] 웹캠 2대 두 칸 혼잡도 비교 카드"
 git bundle create ..\우리팀-백업.bundle --all   <span class="c"># 백업 → USB에 복사</span></pre></div>
-      <p class="small"><code>LEVELS</code>·<code>MIN_PERSON_CONFIDENCE</code>를 고쳤다면 <code>git add vision/detectors/subway_cars.py</code>도. <code>git status</code>에 <code>vision/.env</code>가 보이면 <strong>멈춥니다</strong>(비밀값). <code>git push</code>는 하지 않습니다.</p>
+      <p class="small"><code>OCCUPANCY_LEVELS</code>·<code>MIN_PERSON_CONFIDENCE</code>를 고쳤다면 <code>git add vision/detectors/subway_cars.py</code>도. <code>git status</code>에 <code>vision/.env</code>가 보이면 <strong>멈춥니다</strong>(비밀값). <code>git push</code>는 하지 않습니다.</p>
       <div class="box ok"><b class="k">전시 당일 켜는 순서</b><p>공유기 → MySQL → 백엔드 → 화면(<code>npm run dev</code>) → 비전 창 ① → 비전 창 ② → 손으로 가려 칸 번호 확인 → 파이</p></div>
     </div>
     <div>

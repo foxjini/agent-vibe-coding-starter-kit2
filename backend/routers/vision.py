@@ -88,6 +88,7 @@ async def receive_vision_event(
             detected=payload.detected,
             confidence=payload.confidence,
             count=payload.count,
+            extra=payload.extra,
         )
     except Exception as exc:
         logger.warning(f"규칙 엔진 실행 중 오류: {exc}", exc_info=True)

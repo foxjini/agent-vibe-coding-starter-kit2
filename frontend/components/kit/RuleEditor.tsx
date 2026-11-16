@@ -8,6 +8,7 @@
  *
  * 비전 감지에는 "사람 수 범위"(이상·미만)를, RGB/네오픽셀 켜기에는 "색"을 함께 줄 수 있습니다
  * — 예: car_1 사람 2~3명 → 1번 칸 LED 노랑 (subway). 비워 두면 예전과 같은 규칙이 만들어집니다.
+ * 범위의 기준은 사람 수(명) 또는 점유율(%)에서 고릅니다 — 점유율은 검출기가 extra.occupancy로 보낸 값입니다.
  *
  * 만든 규칙은 [수정]으로 고칠 수 있습니다. 화면에 없는 설정(otherwise·cooldown_seconds·두 번째 액션 등
  * 코드/API로 넣은 것)은 수정해도 지워지지 않고 그대로 남습니다.
@@ -79,15 +80,18 @@ export function describeRule(
     const labels = (when.labels as string[]) ?? [when.label];
     const lo = typeof when.count_at_least === "number" ? when.count_at_least : null;
     const hi = typeof when.count_below === "number" ? when.count_below : null;
+    const occ = when.measure === "occupancy";
+    const unit = occ ? "%" : "명";
+    const head = occ ? "점유율 " : "";
     const range =
       lo !== null && hi !== null
         ? hi - 1 === lo
-          ? ` (${lo}명)`
-          : ` (${lo}~${hi - 1}명)`
+          ? ` (${head}${lo}${unit})`
+          : ` (${head}${lo}~${hi - 1}${unit})`
         : lo !== null
-          ? ` (${lo}명 이상)`
+          ? ` (${head}${lo}${unit} 이상)`
           : hi !== null
-            ? ` (${hi}명 미만)`
+            ? ` (${head}${hi}${unit} 미만)`
             : "";
     trigger = `카메라가 '${labels.filter(Boolean).join(", ")}'을(를) 감지하면${range}`;
   } else if (when.type === "schedule") {
@@ -128,6 +132,8 @@ export default function RuleEditor({ slots }: { slots: Slot[] }) {
   // 사람 수 범위 (비우면 조건 없음) — 예: 2 이상 4 미만 = 2~3명
   const [countMin, setCountMin] = useState("");
   const [countBelow, setCountBelow] = useState("");
+  // 범위를 무엇으로 볼지: 사람 수(count) 또는 점유율 %(occupancy — 검출기가 extra.occupancy로 보냄)
+  const [measure, setMeasure] = useState<"count" | "occupancy">("count");
   // RGB·네오픽셀을 켤 때 줄 색
   const [color, setColor] = useState("#00c853");
   const [at, setAt] = useState("07:30");
@@ -195,6 +201,7 @@ export default function RuleEditor({ slots }: { slots: Slot[] }) {
     setLabel("person");
     setCountMin("");
     setCountBelow("");
+    setMeasure("count");
     setColor("#00c853");
     setAt("07:30");
     setActionKind("set_actuator");
@@ -220,6 +227,7 @@ export default function RuleEditor({ slots }: { slots: Slot[] }) {
       setLabel(String(when.label ?? labels[0] ?? ""));
       setCountMin(typeof when.count_at_least === "number" ? String(when.count_at_least) : "");
       setCountBelow(typeof when.count_below === "number" ? String(when.count_below) : "");
+      setMeasure(when.measure === "occupancy" ? "occupancy" : "count");
     } else if (when.type === "schedule") {
       setTrigger("schedule");
       setAt(String(when.at ?? "07:30"));
@@ -269,6 +277,7 @@ export default function RuleEditor({ slots }: { slots: Slot[] }) {
       const kept: Json = baseWhen.type === "vision_label" ? { ...baseWhen } : {};
       delete kept.count_at_least;
       delete kept.count_below;
+      delete kept.measure;
       // 라벨을 바꿨으면 예전 라벨 목록(labels)이 새 라벨을 가리지 않게 지웁니다
       const oldLabels = Array.isArray(kept.labels) ? (kept.labels as string[]) : null;
       if (oldLabels && oldLabels[0] !== picked) delete kept.labels;
@@ -279,6 +288,9 @@ export default function RuleEditor({ slots }: { slots: Slot[] }) {
         label: picked,
         ...(countValue(countMin) !== null ? { count_at_least: countValue(countMin) } : {}),
         ...(countValue(countBelow) !== null ? { count_below: countValue(countBelow) } : {}),
+        ...(measure === "occupancy" && (countValue(countMin) !== null || countValue(countBelow) !== null)
+          ? { measure: "occupancy" }
+          : {}),
       };
     } else {
       when = { ...(baseWhen.type === "schedule" ? baseWhen : {}), type: "schedule", at };
@@ -329,7 +341,7 @@ export default function RuleEditor({ slots }: { slots: Slot[] }) {
       const lo = countValue(countMin);
       const hi = countValue(countBelow);
       if (Number.isNaN(lo) || Number.isNaN(hi)) {
-        setError("사람 수는 0 이상의 정수로 적거나 비워 두세요.");
+        setError("범위 숫자는 0 이상의 정수로 적거나 비워 두세요.");
         return;
       }
       if (lo !== null && hi !== null && hi <= lo) {
@@ -560,31 +572,40 @@ export default function RuleEditor({ slots }: { slots: Slot[] }) {
                 </div>
               )}
               <div className="mt-2 flex flex-wrap items-center gap-1.5 text-sm text-slate-800">
-                <span>사람 수</span>
+                <select
+                  value={measure}
+                  onChange={(e) => setMeasure(e.target.value as "count" | "occupancy")}
+                  aria-label="범위 기준"
+                  className={`${INPUT} px-2 py-1.5`}
+                >
+                  <option value="count">사람 수</option>
+                  <option value="occupancy">점유율(%)</option>
+                </select>
                 <input
                   type="number"
                   min="0"
                   value={countMin}
                   placeholder="0"
-                  aria-label="사람 수 이상"
+                  aria-label={measure === "occupancy" ? "점유율 이상" : "사람 수 이상"}
                   onChange={(e) => setCountMin(e.target.value)}
                   className={`w-16 ${INPUT} px-2 py-1.5`}
                 />
-                <span>명 이상</span>
+                <span>{measure === "occupancy" ? "% 이상" : "명 이상"}</span>
                 <input
                   type="number"
                   min="1"
                   value={countBelow}
                   placeholder="∞"
-                  aria-label="사람 수 미만"
+                  aria-label={measure === "occupancy" ? "점유율 미만" : "사람 수 미만"}
                   onChange={(e) => setCountBelow(e.target.value)}
                   className={`w-16 ${INPUT} px-2 py-1.5`}
                 />
-                <span>명 미만</span>
+                <span>{measure === "occupancy" ? "% 미만" : "명 미만"}</span>
               </div>
               <p className="mt-1 text-xs text-slate-600">
                 선택 — 비우면 감지될 때마다 실행. 적으면 그 범위에 <strong>들어올 때 한 번</strong> 실행합니다
-                (예: 2 이상 4 미만 = 2~3명).
+                (예: 2 이상 4 미만 = 2~3명). <strong>점유율</strong>은 화면에서 사람이 차지한 넓이의 비율로,
+                점유율을 보내는 검출기(subway 칸 혼잡도)에서만 동작합니다 (예: 20 이상 40 미만 = 20~39%).
               </p>
             </Field>
           )}

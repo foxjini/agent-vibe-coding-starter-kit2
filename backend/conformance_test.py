@@ -379,7 +379,43 @@ def main_test() -> int:
             angle = client.get("/api/devices/actuator_01").json()["data"].get("desired_value", {}).get("angle")
             check("범위 안(3명)이면 발동", angle == 30, str(angle))
 
-        for rid in (vision_rule_id, range_rule_id, res_sched.json().get("data", {}).get("id")
+        # 점유율 범위(measure: occupancy) — 같은 범위를 extra.occupancy(%)와 비교
+        res_occ = client.post("/api/rules", json={
+            "name": "적합성 검사용 점유율 범위 규칙",
+            "definition": {
+                "when": {"type": "vision_label", "label": "car_2", "measure": "occupancy",
+                         "count_at_least": 40, "count_below": 60},
+                "then": [{"action": "set_actuator", "slot_id": "actuator_01",
+                          "state": "move", "value": {"angle": 55}}],
+            },
+        })
+        res_bad_measure = client.post("/api/rules", json={
+            "name": "모르는 measure 규칙",
+            "definition": {
+                "when": {"type": "vision_label", "label": "car_2", "measure": "weight", "count_at_least": 1},
+                "then": [{"action": "notify", "message": "x"}],
+            },
+        })
+        occ_rule_id = res_occ.json().get("data", {}).get("id") if res_occ.status_code == 200 else None
+        check("모르는 measure는 400", res_bad_measure.status_code == 400, res_bad_measure.text[:160])
+        if db_on:
+            check("점유율 범위 규칙 생성 200", occ_rule_id is not None, res_occ.text[:160])
+        if db_on and occ_rule_id:
+            def occ_event(people: int, occupancy: int) -> None:
+                client.post("/api/v1/vision/events", headers=HEADERS, json={
+                    "event_type": "car_crowd", "label": "car_2", "detected": True, "confidence": None,
+                    "count": people, "extra": {"people": people, "occupancy": occupancy},
+                })
+
+            def angle_now():
+                return client.get("/api/devices/actuator_01").json()["data"].get("desired_value", {}).get("angle")
+
+            occ_event(50, 10)   # 사람 수는 50이지만 점유율 10% → 범위 밖 (사람 수를 보지 않음)
+            check("점유율 범위 밖(10%)이면 발동하지 않음 — 사람 수(50)는 보지 않음", angle_now() != 55, str(angle_now()))
+            occ_event(1, 45)    # 점유율 45% → 범위 안
+            check("점유율 범위 안(45%)이면 발동", angle_now() == 55, str(angle_now()))
+
+        for rid in (vision_rule_id, range_rule_id, occ_rule_id, res_sched.json().get("data", {}).get("id")
                     if res_sched.status_code == 200 else None):
             if rid:
                 client.delete(f"/api/rules/{rid}")

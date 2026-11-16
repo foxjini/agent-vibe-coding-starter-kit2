@@ -11,6 +11,8 @@
                        사람 수(count) 조건은 넣은 것만 봅니다 (2 이상 4 미만 → 2·3명).
                        사람 수 조건이 있는 규칙은 **범위에 막 들어올 때 한 번만** 발동합니다
                        (subway 칸 혼잡도 → LED 색처럼, 이벤트가 2.5초마다 와도 같은 명령을 반복하지 않게).
+                       "measure":"occupancy"를 함께 적으면 같은 범위를 사람 수 대신
+                       검출기가 보낸 점유율(extra.occupancy, 0~100%)과 비교합니다 (20 이상 40 미만 → 20~39%).
   - schedule         : {"at":"07:30"}  (PLATFORM_TIMEZONE 기준, 하루 한 번)
 
 액션 2종
@@ -90,6 +92,8 @@ def validate_definition(definition: Dict[str, Any]) -> Optional[str]:
         for key in ("count_at_least", "count_below"):
             if key in when and (isinstance(when[key], bool) or not isinstance(when[key], int) or when[key] < 0):
                 return f"vision_label의 {key}는 0 이상의 정수여야 합니다."
+        if when.get("measure", "count") not in ("count", "occupancy"):
+            return 'vision_label의 measure는 "count"(사람 수) 또는 "occupancy"(점유율 %)여야 합니다.'
         if "count_at_least" in when and "count_below" in when and when["count_below"] <= when["count_at_least"]:
             return "vision_label의 count_below는 count_at_least보다 커야 합니다 (예: 2 이상 4 미만)."
     elif trigger == "schedule":
@@ -165,6 +169,7 @@ class RuleEngine:
         detected: bool,
         confidence: Optional[float] = None,
         count: int = 0,
+        extra: Optional[Dict[str, Any]] = None,
     ) -> None:
         """비전 이벤트가 들어올 때마다 호출됩니다."""
         if not label:
@@ -186,8 +191,15 @@ class RuleEngine:
                 confidence is not None and confidence < float(when.get("min_confidence", 0.0))
             )
             if has_range:
-                # 사람 수 조건은 넣은 것만, 0명도 그대로 비교합니다
-                n = int(count or 0)
+                # 범위 조건은 넣은 것만, 0도 그대로 비교합니다.
+                # measure가 "occupancy"면 사람 수 대신 검출기가 보낸 점유율(extra.occupancy, %)을 봅니다.
+                if when.get("measure") == "occupancy":
+                    try:
+                        n = float((extra or {}).get("occupancy"))
+                    except (TypeError, ValueError):
+                        continue  # 점유율을 보내지 않는 이벤트 — 판단하지 않고 지금 상태를 유지
+                else:
+                    n = int(count or 0)
                 if "count_at_least" in when and n < int(when["count_at_least"]):
                     matched = False
                 if "count_below" in when and n >= int(when["count_below"]):
