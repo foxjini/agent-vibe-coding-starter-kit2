@@ -23,7 +23,7 @@ class MockDeviceProvider(DeviceProvider):
         self._states: dict[str, dict[str, Any]] = {
             "cash_dispenser_1": {
                 "device_id": "cash_dispenser_1",
-                "name": "현금 배출 시연 장치 (SG-90 x1)",
+                "name": "현금 배출 시연 장치 (MG996R x1)",
                 "kind": "cash_dispenser",
                 "state": DISPENSER_IDLE,
                 "last_operator": None,

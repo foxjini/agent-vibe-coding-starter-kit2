@@ -181,7 +181,7 @@ def check_servo_pin() -> None:
     old = [k for k in ("SERVO_GATE_PIN", "SERVO_PUSHER_PIN", "OUTLET_SERVO_PINS") if os.getenv(k, "").strip()]
     if old:
         report(WARN, f"예전 설정 {', '.join(old)}이 남아 있음", "이제 쓰지 않습니다",
-               fix="배출구 덮개 서보는 SG-90 1개입니다. 그 줄을 지우고\n"
+               fix="배출구 덮개 서보는 MG996R 1개입니다. 그 줄을 지우고\n"
                    "SERVO_PIN=18 처럼 실제로 꽂은 GPIO 번호 하나만 적으세요.")
     try:
         pin = servo_pin_from_env()
@@ -248,7 +248,7 @@ def check_gpio(move_servo: bool) -> None:
 
 
 def move_servo_once() -> None:
-    """배출구 덮개를 한 번 열었다 닫는다."""
+    """배출구 덮개를 0도 → 열림 → 0도로 움직여 본다. 단계마다 멈춰 눈으로 확인할 시간을 준다."""
     import time
 
     from iot import hardware_provider as hp
@@ -257,22 +257,27 @@ def move_servo_once() -> None:
     try:
         from gpiozero import AngularServo
         pin = servo_pin_from_env()
-        min_pulse = int(os.getenv("SERVO_MIN_PULSE_US", str(hp.DEFAULT_MIN_PULSE_US))) / 1_000_000
-        max_pulse = int(os.getenv("SERVO_MAX_PULSE_US", str(hp.DEFAULT_MAX_PULSE_US))) / 1_000_000
+        cfg = hp.servo_settings_from_env()
         servo = AngularServo(pin, min_angle=0, max_angle=180,
-                             min_pulse_width=min_pulse, max_pulse_width=max_pulse)
-        print(f"         GPIO{pin} 배출구 덮개를 {hp.SERVO_OPEN_ANGLE}도로 엽니다...")
-        servo.angle = hp.SERVO_OPEN_ANGLE
-        time.sleep(hp.DISPENSE_HOLD_SECONDS)
-        servo.angle = hp.SERVO_CLOSED_ANGLE
-        time.sleep(hp.SERVO_SETTLE_SECONDS)
+                             min_pulse_width=cfg["min_pulse"], max_pulse_width=cfg["max_pulse"])
+        wait = max(cfg["settle"], 1.0) + 1.0  # 확인용이라 실제 동작보다 넉넉히 멈춘다
+        print(f"         GPIO{pin} · 펄스 {round(cfg['min_pulse'] * 1e6)}~{round(cfg['max_pulse'] * 1e6)}µs"
+              f" · 도착 대기 {cfg['settle']:.1f}초 · 대기 시 펄스 {'유지' if cfg['hold'] else '끊음'}")
+        for label, angle in (("닫힘", hp.SERVO_CLOSED_ANGLE), ("열림", hp.SERVO_OPEN_ANGLE),
+                             ("닫힘(원위치)", hp.SERVO_CLOSED_ANGLE)):
+            print(f"         → {angle}도 ({label}) ... 덮개 위치를 보세요")
+            servo.angle = angle
+            time.sleep(wait)
         servo.close()
-        report(OK, f"배출구 덮개 동작 명령 보냄 (GPIO{pin})", "실제로 열렸다 닫혔는지 눈으로 확인하세요")
+        report(OK, f"배출구 덮개 동작 명령 보냄 (GPIO{pin})",
+               "마지막 '닫힘'에서 처음과 같은 자리로 돌아왔는지 눈으로 확인하세요",
+               fix="원위치로 안 오면: ① 외부 전원이 5V 3A 이상인가 ② GND를 파이와 함께 묶었나\n"
+                   "③ 0도에서 '드르륵' 버티면 SERVO_MIN_PULSE_US를 600~700으로\n"
+                   "④ 덮개가 걸리지 않는가 (서보 혼을 빼고 맨 서보만 돌려 본다)")
     except Exception as exc:  # noqa: BLE001
         report(FAIL, "서보를 움직이지 못함", f"{type(exc).__name__}: {exc}",
-               fix="SG-90은 별도 5V 전원에서 받는 것을 권장합니다. 파이 5V 핀으로 직접\n"
-                   "구동하면 전압이 떨어져 파이가 재부팅되거나 서보가 떨리기만 할 수 있습니다.\n"
-                   "접지(GND)를 파이와 외부 전원이 **함께** 쓰는지도 확인하세요.")
+               fix="MG996R은 움직일 때 1A 안팎, 걸리면 순간 2A 넘게 먹습니다. 파이 5V 핀이 아니라\n"
+                   "별도 5V 3A 이상 전원에서 받으세요. 접지(GND)를 파이와 외부 전원이 **함께** 쓰는지도 확인하세요.")
 
 
 # ── 5. 카메라 ───────────────────────────────────────────────────────────────

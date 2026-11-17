@@ -290,7 +290,7 @@
     <p class="eyebrow">스마트 금융 보안 ATM · 라즈베리파이 담당</p>
     <h1>Mock에서 실제 라즈베리파이 5로 — 단계별 연동 매뉴얼</h1>
     <p class="standfirst">
-      PC의 시뮬레이션(mock)에서 잘 되던 ATM을, <strong>라즈베리파이 5 + SG-90 서보 1개 + USB 웹캠 +
+      PC의 시뮬레이션(mock)에서 잘 되던 ATM을, <strong>라즈베리파이 5 + MG996R 서보 1개 + USB 웹캠 +
       7인치 화면</strong>으로 옮겨 <strong>PC 백엔드·휴대폰과 실제로 연동</strong>하는 과정을
       14단계로 나눴습니다. 한 단계가 끝날 때마다 "성공하면 이렇게 보인다"를 확인하고 다음으로 넘어가세요.
     </p>
@@ -335,7 +335,7 @@
         <tr><td>ATM 데몬 (<code>pi/main.py</code>, 8100번)</td><td>PC · <code>DEVICE_MODE=mock</code></td><td><strong>라즈베리파이</strong> · <code>DEVICE_MODE=hardware</code></td></tr>
         <tr><td>ATM 화면 (<code>/atm</code>)</td><td>PC 브라우저</td><td><strong>파이의 7인치 화면</strong> (크로미움)</td></tr>
         <tr><td>QR 읽기</td><td>PC 웹캠 또는 <code>POST /qr</code></td><td><strong>파이에 꽂은 USB 웹캠</strong></td></tr>
-        <tr><td>현금 배출</td><td>로그 한 줄 (가짜)</td><td><strong>SG-90 배출구 덮개가 실제로 열렸다 닫힘</strong></td></tr>
+        <tr><td>현금 배출</td><td>로그 한 줄 (가짜)</td><td><strong>MG996R 배출구 덮개가 실제로 열렸다 닫힘</strong></td></tr>
       </tbody>
     </table>
   </div>
@@ -376,7 +376,7 @@
           <text x="615" y="114">ATM 데몬 :8100</text>
           <text x="615" y="132" font-size="11" fill="var(--ink-faint)">DEVICE_MODE=hardware</text>
           <text x="615" y="162">USB 웹캠 → QR</text>
-          <text x="615" y="190">SG-90 배출구 덮개</text>
+          <text x="615" y="190">MG996R 배출구 덮개</text>
           <text x="615" y="208" font-size="11" fill="var(--ink-faint)">어느 금액이든 같은 덮개</text>
           <text x="615" y="238">7인치 화면</text>
           <text x="615" y="256" font-size="11" fill="var(--ink-faint)">크로미움: PC_IP:3000/atm</text>
@@ -423,8 +423,8 @@
       <thead><tr><th>준비물</th><th>메모</th></tr></thead>
       <tbody>
         <tr><td>라즈베리파이 5 + 공식 27W(5V 5A) 어댑터 + microSD</td><td>라즈베리파이 OS(Bookworm 또는 Trixie) <strong>데스크톱</strong> 이미지</td></tr>
-        <tr><td>SG-90 서보 1개</td><td>현금 배출구 덮개. 어느 금액(5만·10만·30만·50만 원)이든 같은 덮개가 열렸다 닫힙니다</td></tr>
-        <tr><td><strong>서보용 별도 5V 전원 (1A 이상)</strong></td><td>파이의 5V 핀에서 서보 전원을 따지 않습니다</td></tr>
+        <tr><td>MG996R 서보 1개</td><td>현금 배출구 덮개. 어느 금액(5만·10만·30만·50만 원)이든 같은 덮개가 열렸다 닫힙니다</td></tr>
+        <tr><td><strong>서보용 별도 5V 전원 (3A 이상)</strong></td><td>파이의 5V 핀에서 서보 전원을 따지 않습니다</td></tr>
         <tr><td>USB 웹캠</td><td>파이 카메라 모듈(CSI 리본)은 이 코드로 열리지 않습니다</td></tr>
         <tr><td>7인치 디스플레이, 키보드·마우스</td><td>처음 설정할 때만 키보드·마우스가 필요합니다</td></tr>
         <tr><td>브레드보드, 점퍼선(암-수, 수-수)</td><td>서보의 빨강·갈색선을 외부 전원과 파이 GND에 잇습니다</td></tr>
@@ -459,7 +459,7 @@
         <p class="why"><b>왜?</b> 파이에서 문제가 나면 "코드 문제인지 기계 문제인지"를 가려야 합니다. 출발점이 깨끗해야 가릴 수 있습니다.</p>
         <div class="term"><pre>$ pytest
 $ python scripts/demo_e2e.py      <span class="cm"># 백엔드와 ATM 데몬(mock)을 띄운 상태에서</span></pre></div>
-        <div class="ok-look"><b>성공하면</b> <code>112 passed</code>, 그리고 마지막 줄 <code>통합 시연 전 구간 통과</code></div>
+        <div class="ok-look"><b>성공하면</b> <code>114 passed</code>, 그리고 마지막 줄 <code>통합 시연 전 구간 통과</code></div>
         <p class="stuck"><b>막히면</b> 파이로 넘어가지 말고 팀(백엔드 담당)과 먼저 고칩니다.</p>
       </div>
     </li>
@@ -598,8 +598,9 @@ $ nano .env              <span class="cm"># 저장: Ctrl+O, Enter / 나가기: C
               <tr class="chg"><td><code>SERVO_PIN</code></td><td>—</td><td><code>18</code></td><td>배출구 덮개 서보를 꽂은 GPIO (물리 핀 12)</td></tr>
               <tr><td><code>GPIOZERO_PIN_FACTORY</code></td><td colspan="2"><code>lgpio</code> (그대로)</td><td>파이 5에 필요</td></tr>
               <tr><td><code>ENABLE_CAMERA</code></td><td colspan="2"><code>true</code> (그대로)</td><td>카메라 없이 먼저 보려면 <code>false</code></td></tr>
-              <tr><td><code>SERVO_MIN_PULSE_US</code> / <code>_MAX_</code></td><td colspan="2"><code>500</code> / <code>2400</code></td><td>SG-90 0~180도. 11단계에서 실측으로 조정</td></tr>
-              <tr><td><code>SERVO_HOLD</code></td><td colspan="2"><code>false</code></td><td>움직인 뒤 신호를 끊어 떨림·발열 방지</td></tr>
+              <tr><td><code>SERVO_MIN_PULSE_US</code> / <code>_MAX_</code></td><td colspan="2"><code>500</code> / <code>2500</code></td><td>MG996R 0~180도. 11단계에서 실측으로 조정</td></tr>
+              <tr><td><code>SERVO_HOLD</code></td><td colspan="2"><code>true</code></td><td>움직인 뒤에도 신호를 보내 각도를 잡는다 (끄면 덮개 무게에 밀린다)</td></tr>
+              <tr><td><code>SERVO_SETTLE_SECONDS</code></td><td colspan="2"><code>1.0</code></td><td>각도 명령 뒤 도착을 기다리는 시간. 원위치로 돌아오다 말면 늘린다</td></tr>
               <tr><td><code>CAMERA_WIDTH</code> / <code>_HEIGHT</code></td><td colspan="2"><code>640</code> / <code>480</code></td><td><strong>키우지 않는다</strong> — QR 인식이 느려진다</td></tr>
             </tbody>
           </table>
@@ -616,11 +617,11 @@ $ nano .env              <span class="cm"># 저장: Ctrl+O, Enter / 나가기: C
       <div class="step-body">
         <h3>배선한다 — <strong>전원을 끄고</strong></h3>
         <p class="why"><b>왜 이 핀?</b> GPIO18은 파이 5에서 하드웨어 PWM이 되는 핀입니다. 지금은 소프트웨어 PWM으로 돌지만,
-          나중에 바꾸더라도 배선을 다시 할 필요가 없습니다. SG-90은 3.3V 신호로 동작하니 레벨 변환기는 필요 없습니다.</p>
+          나중에 바꾸더라도 배선을 다시 할 필요가 없습니다. 대부분의 MG996R은 3.3V 신호로 동작합니다. 서보 전원은 움직일 때 1A 안팎, 걸리면 순간 2A를 넘으므로 5V 3A 이상을 씁니다.</p>
 
         <figure>
           <div class="fig-box">
-            <svg viewBox="0 0 700 300" role="img" aria-label="파이 GPIO18(핀 12)이 배출구 덮개 SG-90의 신호선에, 서보 전원은 외부 5V에, GND는 파이(핀 6)와 외부 전원이 함께 쓴다">
+            <svg viewBox="0 0 700 300" role="img" aria-label="파이 GPIO18(핀 12)이 배출구 덮개 MG996R의 신호선에, 서보 전원은 외부 5V에, GND는 파이(핀 6)와 외부 전원이 함께 쓴다">
         <g fill="none" stroke="var(--line-strong)" stroke-width="1.5">
           <rect x="20" y="24" width="170" height="190" rx="6"/>
           <rect x="430" y="56" width="200" height="64" rx="6"/>
@@ -629,8 +630,8 @@ $ nano .env              <span class="cm"># 저장: Ctrl+O, Enter / 나가기: C
         <g font-family="IBM Plex Sans KR, sans-serif" font-size="13" fill="var(--ink)">
           <text x="105" y="50" text-anchor="middle" font-weight="600">라즈베리파이 5</text>
           <text x="530" y="84" text-anchor="middle">배출구 덮개</text>
-          <text x="530" y="104" text-anchor="middle" font-size="11" fill="var(--ink-faint)">SG-90 서보 1개</text>
-          <text x="530" y="206" text-anchor="middle" fill="var(--danger)" font-weight="600">외부 5V 전원 (1A 이상)</text>
+          <text x="530" y="104" text-anchor="middle" font-size="11" fill="var(--ink-faint)">MG996R 서보 1개</text>
+          <text x="530" y="206" text-anchor="middle" fill="var(--danger)" font-weight="600">외부 5V 전원 (3A 이상)</text>
           <text x="530" y="224" text-anchor="middle" font-size="11" fill="var(--danger)">파이 5V 핀이 아님</text>
         </g>
         <g font-family="IBM Plex Mono, monospace" font-size="12" fill="var(--ink-muted)" text-anchor="end">
@@ -657,7 +658,7 @@ $ nano .env              <span class="cm"># 저장: Ctrl+O, Enter / 나가기: C
 
         <div class="table-scroll">
           <table>
-            <thead><tr><th>SG-90 선</th><th>어디로</th></tr></thead>
+            <thead><tr><th>MG996R 선</th><th>어디로</th></tr></thead>
             <tbody>
               <tr><td>주황 (신호)</td><td>GPIO18 (물리 핀 12)</td></tr>
               <tr><td>빨강 (전원)</td><td>외부 5V(+)</td></tr>
@@ -696,12 +697,16 @@ $ nano .env              <span class="cm"># 저장: Ctrl+O, Enter / 나가기: C
         <h3>배출구 덮개를 한 번 움직여 본다 <span class="tag warn">교사 입회</span></h3>
         <p class="why"><b>왜?</b> 처음으로 서보가 실제로 돕니다. 데몬을 켜기 전에 서보 하나만 따로 확인해 두면, 나중에 안 움직일 때 원인을 좁히기 쉽습니다.</p>
         <div class="term"><pre>(venv) $ python check_hardware.py <span class="hi">--servo</span>
-<span class="out">         GPIO18 배출구 덮개를 90도로 엽니다...
-[  OK  ] 배출구 덮개 동작 명령 보냄 (GPIO18) — 실제로 열렸다 닫혔는지 눈으로 확인하세요</span></pre></div>
+<span class="out">         GPIO18 · 펄스 500~2500µs · 도착 대기 1.0초 · 대기 시 펄스 유지
+         → 0도 (닫힘) ... 덮개 위치를 보세요
+         → 90도 (열림) ... 덮개 위치를 보세요
+         → 0도 (닫힘(원위치)) ... 덮개 위치를 보세요
+[  OK  ] 배출구 덮개 동작 명령 보냄 (GPIO18) — 마지막 '닫힘'에서 처음과 같은 자리로 돌아왔는지 눈으로 확인하세요</span></pre></div>
         <p><strong>눈과 귀로 확인할 것</strong></p>
         <ul>
           <li>덮개가 <strong>실제로 열렸다 닫혔는가</strong></li>
-          <li>닫힌 뒤 <strong>조용해지는가</strong> — 계속 "지지직" 하면 <code>SERVO_HOLD=false</code> 확인</li>
+          <li>마지막 닫힘에서 <strong>처음과 같은 자리로 돌아왔는가</strong> — 안 오면 11단계</li>
+          <li>닫힌 뒤 덮개가 <strong>밀리지 않고 그 자리에 머무는가</strong> — 밀리면 <code>SERVO_HOLD=true</code>인지</li>
           <li>파이가 재부팅되지 않았는가 — 재부팅되면 서보 전원이 파이에서 나가고 있거나 부족한 것</li>
         </ul>
         <p class="stuck"><b>OK인데 안 움직이면</b> "OK"는 <strong>명령을 보냈다</strong>는 뜻이지 움직였다는 뜻이 아닙니다.
@@ -713,16 +718,17 @@ $ nano .env              <span class="cm"># 저장: Ctrl+O, Enter / 나가기: C
       <span class="step-num" aria-hidden="true"></span>
       <div class="step-body">
         <h3>각도와 펄스 폭을 실측해 맞춘다</h3>
-        <p class="why"><b>왜?</b> SG-90은 제품마다 끝 위치가 조금씩 다르고, 배출구 덮개 모양도 팀마다 다릅니다. 숫자는 조립한 뒤에야 정해집니다.</p>
+        <p class="why"><b>왜?</b> MG996R은 제품마다 끝 위치가 조금씩 다르고, 배출구 덮개 모양도 팀마다 다릅니다. 숫자는 조립한 뒤에야 정해집니다.</p>
         <div class="table-scroll">
           <table>
             <thead><tr><th>증상</th><th>고칠 곳</th></tr></thead>
             <tbody>
-              <tr><td>덮개가 끝에 닿아 "드르륵" 소리</td><td><code>.env</code> — <code>SERVO_MIN_PULSE_US=600</code>, <code>SERVO_MAX_PULSE_US=2300</code>처럼 범위를 좁힌다</td></tr>
+              <tr><td>0도→90도→0도에서 <strong>원위치로 안 온다</strong></td><td><code>.env</code> — <code>SERVO_SETTLE_SECONDS=1.5</code>~<code>2.0</code>. 그래도 안 되면 서보 전원(5V 3A)·GND 공통·덮개가 걸리는지(서보 혼을 빼고 맨 서보만 돌려 본다)</td></tr>
+              <tr><td>각도가 유지되지 않고 밀린다</td><td><code>.env</code> — <code>SERVO_HOLD=true</code> (기본값)</td></tr>
+              <tr><td>0도·180도에서 "드르륵" 버틴다</td><td><code>.env</code> — <code>SERVO_MIN_PULSE_US=600</code>, <code>SERVO_MAX_PULSE_US=2400</code>처럼 범위를 좁힌다</td></tr>
               <tr><td>덮개가 덜 열려 지폐를 못 꺼낸다</td><td><code>backend/iot/hardware_provider.py</code> 맨 위 <code>SERVO_OPEN_ANGLE</code> (기본 90)</td></tr>
               <tr><td>닫힌 자세가 비뚤다</td><td>같은 파일 <code>SERVO_CLOSED_ANGLE</code> (기본 0) — 또는 서보 혼(팔)을 빼서 다시 끼운다</td></tr>
               <tr><td>너무 빨리 닫힌다</td><td>같은 파일 <code>DISPENSE_HOLD_SECONDS</code> (기본 1.0)</td></tr>
-              <tr><td>덮개가 제 무게로 스르륵 열린다</td><td><code>.env</code> — <code>SERVO_HOLD=true</code> (전류를 더 먹는다)</td></tr>
             </tbody>
           </table>
         </div>
@@ -745,7 +751,7 @@ $ nano .env              <span class="cm"># 저장: Ctrl+O, Enter / 나가기: C
         <div class="term"><pre>(venv) $ python main.py
 <span class="cm">PWMSoftwareFallback: To reduce servo jitter, use the pigpio pin factory
   ↑ 경고일 뿐 오류가 아닙니다. 파이 5는 pigpio를 쓸 수 없어 소프트웨어 PWM으로 돕니다.</span>
-<span class="out">하드웨어 Provider 시작 (배출구 서보=GPIO18, 대기 시 펄스=끊음)
+<span class="out">하드웨어 Provider 시작 (배출구 서보=GPIO18, 펄스 500~2500µs, 대기 시 펄스=유지, 도착 대기 1.0초)
 카메라 열림 (index=0, ..., 640x480)
 QR 스캔 시작 (camera_index=0)
 ATM 데몬 시작 — DEVICE_MODE=</span><span class="hi">hardware</span><span class="out">, port=8100</span></pre></div>
@@ -802,7 +808,7 @@ ATM 데몬 시작 — DEVICE_MODE=</span><span class="hi">hardware</span><span c
       <thead><tr><th>현상</th><th>이유</th></tr></thead>
       <tbody>
         <tr><td>출금을 누르면 1~2초 "잠시만 기다려 주세요"</td><td>덮개를 열고·기다리고·닫는 실제 시간(약 1.4초). 그동안 버튼이 잠긴다</td></tr>
-        <tr><td>배출 뒤 서보가 조용해진다</td><td>신호를 끊어 쉬게 하는 것 (<code>SERVO_HOLD=false</code>)</td></tr>
+        <tr><td>가만히 있을 때 서보에서 작게 "지지직"</td><td>각도를 잡고 있는 소리 (<code>SERVO_HOLD=true</code>). 덮개가 밀리지 않는 구조면 <code>false</code>로 끌 수 있다</td></tr>
         <tr><td>위험 화면에 카운트다운이 없다</td><td>막혀 있는 동안은 자동 초기화가 돌지 않는다. 시간이 차단을 풀면 안 되니까</td></tr>
         <tr><td>차단 화면에서 "처음으로"가 안 먹는다</td><td>제한은 사람이 푼다 — 상담원 해제 또는 "직원 확인 후 해제"</td></tr>
       </tbody>
@@ -830,7 +836,8 @@ ATM 데몬 시작 — DEVICE_MODE=</span><span class="hi">hardware</span><span c
         <tr><td>OK인데 덮개가 안 움직인다</td><td>서보 신호선이 <code>SERVO_PIN</code>과 다른 핀에 꽂혔거나, 외부 5V가 꺼져 있다</td><td>8·10</td></tr>
         <tr><td>서보가 떨리기만 하고 안 돈다</td><td>외부 전원 부족 또는 GND가 공통이 아님</td><td>8</td></tr>
         <tr><td>서보가 움직일 때 파이가 재부팅</td><td>서보 전원을 파이 5V에서 따고 있다 → 외부 전원으로</td><td>8</td></tr>
-        <tr><td>끝에서 "드르륵", 계속 "지지직"</td><td>펄스 폭을 좁힌다 / <code>SERVO_HOLD=false</code></td><td>11</td></tr>
+        <tr><td>원위치로 안 온다 / 각도가 밀린다</td><td><code>SERVO_SETTLE_SECONDS</code> 늘리기 / <code>SERVO_HOLD=true</code> / 5V 3A 전원·GND</td><td>11</td></tr>
+        <tr><td>끝에서 "드르륵"</td><td>펄스 폭을 좁힌다</td><td>11</td></tr>
         <tr><td>카메라를 못 열거나 QR이 안 읽힘</td><td><code>check_hardware.py</code>가 알려 주는 <code>CAMERA_INDEX</code> / USB 웹캠인지 / 640×480 그대로인지 / 휴대폰 밝기</td><td>9·14</td></tr>
         <tr><td>"핀이 사용 중"</td><td>앞서 띄운 데몬이 살아 있다 — <code>ps aux | grep main.py</code>로 찾아 종료</td><td>12</td></tr>
         <tr><td>휴대폰에서 분석이 안 됨</td><td>앱의 서버 주소가 PC의 IP인지 / 웹이면 <code>NEXT_PUBLIC_API_BASE_URL</code>·<code>CORS_ORIGINS</code></td><td>3</td></tr>
@@ -847,7 +854,7 @@ ATM 데몬 시작 — DEVICE_MODE=</span><span class="hi">hardware</span><span c
   <h2>단계별 체크리스트</h2>
   <p>표시는 이 브라우저에만 저장됩니다. 다른 기기에서는 다시 체크해야 합니다.</p>
   <ul class="checklist" id="migrate-check">
-    <li><input type="checkbox" id="c1"><label for="c1">1. PC에서 <code>pytest</code> 112 passed, <code>demo_e2e.py</code> 통과</label></li>
+    <li><input type="checkbox" id="c1"><label for="c1">1. PC에서 <code>pytest</code> 114 passed, <code>demo_e2e.py</code> 통과</label></li>
     <li><input type="checkbox" id="c2"><label for="c2">2. PC IP 확인, 백엔드 <code>--host 0.0.0.0</code>, 휴대폰에서 <code>/health</code> 열림</label></li>
     <li><input type="checkbox" id="c3"><label for="c3">3. 프론트엔드 실행, 휴대폰에서 QR까지 만들어짐</label></li>
     <li><input type="checkbox" id="c4"><label for="c4">4. 파이에서 <code>curl PC:8000/health</code> 성공</label></li>
@@ -870,7 +877,8 @@ ATM 데몬 시작 — DEVICE_MODE=</span><span class="hi">hardware</span><span c
       <thead><tr><th>항목</th><th>기본값</th><th>우리 팀 값</th></tr></thead>
       <tbody>
         <tr><td><code>SERVO_PIN</code></td><td>18</td><td></td></tr>
-        <tr><td><code>SERVO_MIN_PULSE_US</code> / <code>MAX</code></td><td>500 / 2400</td><td></td></tr>
+        <tr><td><code>SERVO_MIN_PULSE_US</code> / <code>MAX</code></td><td>500 / 2500</td><td></td></tr>
+        <tr><td><code>SERVO_SETTLE_SECONDS</code></td><td>1.0</td><td></td></tr>
         <tr><td><code>SERVO_OPEN_ANGLE</code> / <code>CLOSED</code></td><td>90 / 0</td><td></td></tr>
         <tr><td><code>DISPENSE_HOLD_SECONDS</code></td><td>1.0</td><td></td></tr>
         <tr><td><code>CAMERA_INDEX</code></td><td>0</td><td></td></tr>
