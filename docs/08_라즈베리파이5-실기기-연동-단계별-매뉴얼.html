@@ -836,6 +836,7 @@ ATM 데몬 시작 — DEVICE_MODE=</span><span class="hi">hardware</span><span c
         <tr><td>OK인데 덮개가 안 움직인다</td><td>서보 신호선이 <code>SERVO_PIN</code>과 다른 핀에 꽂혔거나, 외부 5V가 꺼져 있다</td><td>8·10</td></tr>
         <tr><td>서보가 떨리기만 하고 안 돈다</td><td>외부 전원 부족 또는 GND가 공통이 아님</td><td>8</td></tr>
         <tr><td>서보가 움직일 때 파이가 재부팅</td><td>서보 전원을 파이 5V에서 따고 있다 → 외부 전원으로</td><td>8</td></tr>
+        <tr><td>90도로 간 뒤 각도가 처진다</td><td><code>python servo_hold_test.py</code> — 신호를 켠 채로 처지면 전원(5V 3A)·토크·덮개 무게, 신호를 끊을 때만 처지면 코드가 신호를 끊는 곳을 찾는다</td><td>10·11</td></tr>
         <tr><td>원위치로 안 온다 / 각도가 밀린다</td><td><code>SERVO_SETTLE_SECONDS</code> 늘리기 / <code>SERVO_HOLD=true</code> / 5V 3A 전원·GND</td><td>11</td></tr>
         <tr><td>끝에서 "드르륵"</td><td>펄스 폭을 좁힌다</td><td>11</td></tr>
         <tr><td>카메라를 못 열거나 QR이 안 읽힘</td><td><code>check_hardware.py</code>가 알려 주는 <code>CAMERA_INDEX</code> / USB 웹캠인지 / 640×480 그대로인지 / 휴대폰 밝기</td><td>9·14</td></tr>
