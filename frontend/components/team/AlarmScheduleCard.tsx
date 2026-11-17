@@ -35,7 +35,8 @@ function definitionOf(rule: RuleRow): Record<string, unknown> | null {
 export interface AlarmSchedule {
   /** 입력 중인 시각 ("HH:MM") */
   time: string;
-  setTime: (time: string) => void;
+  /** 값 또는 (이전 값 → 새 값) 함수 — 꾹 눌러 반복할 때 최신 값에서 이어 가도록 */
+  setTime: React.Dispatch<React.SetStateAction<string>>;
   /** 저장된 예약 (없으면 null) */
   saved: { id: number; at: string } | null;
   busy: boolean;

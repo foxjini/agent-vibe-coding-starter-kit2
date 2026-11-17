@@ -10,6 +10,7 @@ import React from "react";
 
 import type { AlarmSchedule } from "@/components/team/AlarmScheduleCard";
 import WakeupMissionCard from "@/components/team/WakeupMissionCard";
+import { dayOf } from "@/components/team/wakeup/ScheduleScreen";
 import { Panel, TouchButton } from "@/components/team/wakeup/Tile";
 import { dateText, hhmm, useClock } from "@/components/team/wakeup/useClock";
 import type { WakeupApi } from "@/scenarios/useWakeup";
@@ -26,12 +27,6 @@ function curtainOpen(w: WakeupApi): boolean | null {
   return w.curtainAngle >= w.device.curtainOpenAngle - 5;
 }
 
-/** 저장된 알람이 오늘인지 내일인지 */
-function dayOf(at: string, now: Date | null): string {
-  if (!now) return "";
-  const current = `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`;
-  return at > current ? "오늘" : "내일";
-}
 
 function Line({ icon, children, dim }: { icon: React.ReactNode; children: React.ReactNode; dim?: boolean }) {
   return (
