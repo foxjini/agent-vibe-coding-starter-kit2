@@ -371,7 +371,10 @@ export function useWakeup(): WakeupApi {
   useEffect(
     () =>
       onSlotChange(WAKEUP_SLOTS.buzzer, (slot) => {
-        const on = isOnState(slot.current_state ?? slot.desired_state);
+        // '울려라'는 명령(desired_state)으로 판단합니다. current_state(파이 보고)로 판단하면
+        // 미션 성공 후 부저를 끈 직후, 파이가 아직 반영하기 전 0.5초 동안 '켜져 있음'으로 보여
+        // 미션이 저절로 다시 시작됩니다 (실기기 DEVICE_MODE=hardware에서만 생김).
+        const on = isOnState(slot.desired_state);
         if (on) beginMission("alarm");
         else if (missionRef.current.active) cancelMission();
       }),

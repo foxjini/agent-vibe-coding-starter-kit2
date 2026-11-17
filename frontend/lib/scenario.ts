@@ -132,6 +132,9 @@ interface Subscription<H> {
 /** 팀이 쓰는 유일한 훅입니다. */
 export function useScenario(): ScenarioApi {
   const [slots, setSlots] = useState<Slot[]>([]);
+  // 최신 슬롯 목록 — 구독자 알림을 React 상태 갱신 함수 '밖'에서 하려고 함께 들고 있습니다.
+  // (갱신 함수 안에서 알리면 React가 그 함수를 다시 실행하거나 결과를 버릴 때 알림이 겹치거나 사라집니다)
+  const slotsRef = useRef<Slot[]>([]);
   const [connected, setConnected] = useState(false);
   const [notices, setNotices] = useState<NotifyMessage[]>([]);
 
@@ -149,7 +152,9 @@ export function useScenario(): ScenarioApi {
   const refresh = useCallback(async () => {
     const res = await apiFetch<Record<string, unknown>[]>("/api/slots?enabled_only=true");
     if (res.ok && Array.isArray(res.data)) {
-      setSlots(sortSlots(res.data.map(normalizeSlot)));
+      const next = sortSlots(res.data.map(normalizeSlot));
+      slotsRef.current = next;
+      setSlots(next);
     }
   }, []);
 
@@ -160,17 +165,17 @@ export function useScenario(): ScenarioApi {
   }, [refresh]);
 
   const applySlotPatch = useCallback((slotId: string, patch: Partial<Slot>) => {
-    setSlots((prev) => {
-      const index = prev.findIndex((s) => s.slot_id === slotId);
-      if (index < 0) return prev;
-      const next = [...prev];
-      const updated = { ...next[index], ...patch };
-      next[index] = updated;
-      // 구독자에게는 갱신된 슬롯을 그대로 넘깁니다.
-      slotSubs.current.forEach((sub) => {
-        if (!sub.keys || sub.keys.includes(slotId)) sub.handler(updated);
-      });
-      return next;
+    const prev = slotsRef.current;
+    const index = prev.findIndex((s) => s.slot_id === slotId);
+    if (index < 0) return;
+    const next = [...prev];
+    const updated = { ...next[index], ...patch };
+    next[index] = updated;
+    slotsRef.current = next;
+    setSlots(next);
+    // 구독자에게는 갱신된 슬롯을 그대로 넘깁니다 — 상태를 바꾼 뒤, 한 번만.
+    slotSubs.current.forEach((sub) => {
+      if (!sub.keys || sub.keys.includes(slotId)) sub.handler(updated);
     });
   }, []);
 
