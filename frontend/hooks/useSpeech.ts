@@ -93,9 +93,12 @@ export function useSpeech(): Speech {
       // getVoices()에서 예외를 던지는 구현이 있다. 목소리를 못 고르면
       // 기본 목소리로 읽으면 되므로 실패해도 그냥 넘어간다.
       attempt(() => {
-        const voices = synth.getVoices();
-        voiceRef.current =
-          voices?.find((v) => v.lang?.toLowerCase().startsWith("ko")) ?? null;
+        // 기기 안에 있는 목소리(localService)를 먼저 고른다. 크롬의 "Google 한국의" 같은
+        // 온라인 목소리는 인터넷이 없는 전시장 유선망에서 소리 없이 실패한다.
+        const korean = (synth.getVoices() ?? []).filter((v) =>
+          v.lang?.toLowerCase().startsWith("ko"),
+        );
+        voiceRef.current = korean.find((v) => v.localService) ?? korean[0] ?? null;
       });
     };
     pickVoice();
